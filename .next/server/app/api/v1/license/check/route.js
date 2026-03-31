@@ -1,4 +1,100 @@
-(()=>{var a={};a.id=36,a.ids=[36],a.modules={261:a=>{"use strict";a.exports=require("next/dist/shared/lib/router/utils/app-paths")},846:a=>{"use strict";a.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},1502:(a,b,c)=>{"use strict";let d;c.d(b,{a:()=>f});var e=c(214);function f(){if(void 0!==d)return d;let a=process.env.UPSTASH_REDIS_REST_URL,b=process.env.UPSTASH_REDIS_REST_TOKEN;return d=a&&b?new e.Q({url:a,token:b}):null}},2692:(a,b,c)=>{"use strict";var d=Object.defineProperty,e=Object.getOwnPropertyDescriptor,f=Object.getOwnPropertyNames,g=Object.prototype.hasOwnProperty,h=(a,b)=>{for(var c in b)d(a,c,{get:b[c],enumerable:!0})},i={};h(i,{Analytics:()=>k,IpDenyList:()=>u,MultiRegionRatelimit:()=>D,Ratelimit:()=>E}),a.exports=((a,b,c,h)=>{if(b&&"object"==typeof b||"function"==typeof b)for(let c of f(b))g.call(a,c)||void 0===c||d(a,c,{get:()=>b[c],enumerable:!(h=e(b,c))||h.enumerable});return a})(d({},"__esModule",{value:!0}),i);var j=c(4182),k=class{analytics;table="events";constructor(a){this.analytics=new j.Analytics({redis:a.redis,window:"1h",prefix:a.prefix??"@upstash/ratelimit",retention:"90d"})}extractGeo(a){return void 0!==a.geo?a.geo:void 0!==a.cf?a.cf:{}}async record(a){await this.analytics.ingest(this.table,a)}async series(a,b){let c=Math.min((this.analytics.getBucket(Date.now())-this.analytics.getBucket(b))/36e5,256);return this.analytics.aggregateBucketsWithPipeline(this.table,a,c)}async getUsage(a=0){let b=Math.min((this.analytics.getBucket(Date.now())-this.analytics.getBucket(a))/36e5,256);return await this.analytics.getAllowedBlocked(this.table,b)}async getUsageOverTime(a,b){return await this.analytics.aggregateBucketsWithPipeline(this.table,b,a)}async getMostAllowedBlocked(a,b,c){return b=b??5,this.analytics.getMostAllowedBlocked(this.table,a,b,void 0,c)}},l=class{cache;constructor(a){this.cache=a}isBlocked(a){if(!this.cache.has(a))return{blocked:!1,reset:0};let b=this.cache.get(a);return b<Date.now()?(this.cache.delete(a),{blocked:!1,reset:0}):{blocked:!0,reset:b}}blockUntil(a,b){this.cache.set(a,b)}set(a,b){this.cache.set(a,b)}get(a){return this.cache.get(a)||null}incr(a){let b=this.cache.get(a)??0;return b+=1,this.cache.set(a,b),b}pop(a){this.cache.delete(a)}empty(){this.cache.clear()}size(){return this.cache.size}};function m(a){let b=a.match(/^(\d+)\s?(ms|s|m|h|d)$/);if(!b)throw Error(`Unable to parse window size: ${a}`);let c=Number.parseInt(b[1]);switch(b[2]){case"ms":return c;case"s":return 1e3*c;case"m":return 1e3*c*60;case"h":return 1e3*c*3600;case"d":return 1e3*c*86400;default:throw Error(`Unable to parse window size: ${a}`)}}var n=async(a,b,c,d)=>{try{return await a.redis.evalsha(b.hash,c,d)}catch(e){if(`${e}`.includes("NOSCRIPT"))return await a.redis.eval(b.script,c,d);throw e}},o={singleRegion:{fixedWindow:{limit:{script:`
+(()=>{var a={};a.id=36,a.ids=[36],a.modules={261:a=>{"use strict";a.exports=require("next/dist/shared/lib/router/utils/app-paths")},846:a=>{"use strict";a.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},1502:(a,b,c)=>{"use strict";let d;c.d(b,{a:()=>f});var e=c(214);function f(){if(void 0!==d)return d;let a=process.env.UPSTASH_REDIS_REST_URL,b=process.env.UPSTASH_REDIS_REST_TOKEN;return d=a&&b?new e.Q({url:a,token:b}):null}},1801:a=>{"use strict";var b=Object.defineProperty,c=Object.getOwnPropertyDescriptor,d=Object.getOwnPropertyNames,e=Object.prototype.hasOwnProperty,f={};((a,c)=>{for(var d in c)b(a,d,{get:c[d],enumerable:!0})})(f,{Analytics:()=>j}),a.exports=((a,f,g,h)=>{if(f&&"object"==typeof f||"function"==typeof f)for(let g of d(f))e.call(a,g)||void 0===g||b(a,g,{get:()=>f[g],enumerable:!(h=c(f,g))||h.enumerable});return a})(b({},"__esModule",{value:!0}),f);var g=`
+local key = KEYS[1]
+local field = ARGV[1]
+
+local data = redis.call("ZRANGE", key, 0, -1, "WITHSCORES")
+local count = {}
+
+for i = 1, #data, 2 do
+  local json_str = data[i]
+  local score = tonumber(data[i + 1])
+  local obj = cjson.decode(json_str)
+
+  local fieldValue = obj[field]
+
+  if count[fieldValue] == nil then
+    count[fieldValue] = score
+  else
+    count[fieldValue] = count[fieldValue] + score
+  end
+end
+
+local result = {}
+for k, v in pairs(count) do
+  table.insert(result, {k, v})
+end
+
+return result
+`,h=`
+local prefix = KEYS[1]
+local first_timestamp = tonumber(ARGV[1]) -- First timestamp to check
+local increment = tonumber(ARGV[2])       -- Increment between each timestamp
+local num_timestamps = tonumber(ARGV[3])  -- Number of timestampts to check (24 for a day and 24 * 7 for a week)
+local num_elements = tonumber(ARGV[4])    -- Number of elements to fetch in each category
+local check_at_most = tonumber(ARGV[5])   -- Number of elements to check at most.
+
+local keys = {}
+for i = 1, num_timestamps do
+  local timestamp = first_timestamp - (i - 1) * increment
+  table.insert(keys, prefix .. ":" .. timestamp)
+end
+
+-- get the union of the groups
+local zunion_params = {"ZUNION", num_timestamps, unpack(keys)}
+table.insert(zunion_params, "WITHSCORES")
+local result = redis.call(unpack(zunion_params))
+
+-- select num_elements many items
+local true_group = {}
+local false_group = {}
+local denied_group = {}
+local true_count = 0
+local false_count = 0
+local denied_count = 0
+local i = #result - 1
+
+-- index to stop at after going through "checkAtMost" many items:
+local cutoff_index = #result - 2 * check_at_most
+
+-- iterate over the results
+while (true_count + false_count + denied_count) < (num_elements * 3) and 1 <= i and i >= cutoff_index do
+  local score = tonumber(result[i + 1])
+  if score > 0 then
+    local element = result[i]
+    if string.find(element, "success\\":true") and true_count < num_elements then
+      table.insert(true_group, {score, element})
+      true_count = true_count + 1
+    elseif string.find(element, "success\\":false") and false_count < num_elements then
+      table.insert(false_group, {score, element})
+      false_count = false_count + 1
+    elseif string.find(element, "success\\":\\"denied") and denied_count < num_elements then
+      table.insert(denied_group, {score, element})
+      denied_count = denied_count + 1
+    end
+  end
+  i = i - 2
+end
+
+return {true_group, false_group, denied_group}
+`,i=`
+local prefix = KEYS[1]
+local first_timestamp = tonumber(ARGV[1])
+local increment = tonumber(ARGV[2])
+local num_timestamps = tonumber(ARGV[3])
+
+local keys = {}
+for i = 1, num_timestamps do
+  local timestamp = first_timestamp - (i - 1) * increment
+  table.insert(keys, prefix .. ":" .. timestamp)
+end
+
+-- get the union of the groups
+local zunion_params = {"ZUNION", num_timestamps, unpack(keys)}
+table.insert(zunion_params, "WITHSCORES")
+local result = redis.call(unpack(zunion_params))
+
+return result
+`,j=class{redis;prefix;bucketSize;constructor(a){this.redis=a.redis,this.prefix=a.prefix??"@upstash/analytics",this.bucketSize=this.parseWindow(a.window)}validateTableName(a){if(!/^[a-zA-Z0-9_-]+$/.test(a))throw Error(`Invalid table name: ${a}. Table names can only contain letters, numbers, dashes and underscores.`)}parseWindow(a){if("number"==typeof a){if(a<=0)throw Error(`Invalid window: ${a}`);return a}let b=/^(\d+)([smhd])$/;if(!b.test(a))throw Error(`Invalid window: ${a}`);let[,c,d]=a.match(b),e=parseInt(c);switch(d){case"s":return 1e3*e;case"m":return 1e3*e*60;case"h":return 1e3*e*3600;case"d":return 1e3*e*86400;default:throw Error(`Invalid window unit: ${d}`)}}getBucket(a){return Math.floor((a??Date.now())/this.bucketSize)*this.bucketSize}async ingest(a,...b){this.validateTableName(a),await Promise.all(b.map(async b=>{let c=this.getBucket(b.time),d=[this.prefix,a,c].join(":");await this.redis.zincrby(d,1,JSON.stringify({...b,time:void 0}))}))}formatBucketAggregate(a,b,c){let d={};return a.forEach(([a,c])=>{"success"==b&&(a=1===a?"true":null===a?"false":a),d[b]=d[b]||{},d[b][(a??"null").toString()]=c}),{time:c,...d}}async aggregateBucket(a,b,c){this.validateTableName(a);let d=this.getBucket(c),e=[this.prefix,a,d].join(":"),f=await this.redis.eval(g,[e],[b]);return this.formatBucketAggregate(f,b,d)}async aggregateBuckets(a,b,c,d){this.validateTableName(a);let e=this.getBucket(d),f=[];for(let d=0;d<c;d+=1)f.push(this.aggregateBucket(a,b,e)),e-=this.bucketSize;return Promise.all(f)}async aggregateBucketsWithPipeline(a,b,c,d,e){this.validateTableName(a),e=e??48;let f=this.getBucket(d),h=[],i=this.redis.pipeline(),j=[];for(let d=1;d<=c;d+=1){let k=[this.prefix,a,f].join(":");i.eval(g,[k],[b]),h.push(f),f-=this.bucketSize,(d%e==0||d==c)&&(j.push(i.exec()),i=this.redis.pipeline())}return(await Promise.all(j)).flat().map((a,c)=>this.formatBucketAggregate(a,b,h[c]))}async getAllowedBlocked(a,b,c){this.validateTableName(a);let d=[this.prefix,a].join(":"),e=this.getBucket(c),f=await this.redis.eval(i,[d],[e,this.bucketSize,b]),g={};for(let a=0;a<f.length;a+=2){let b=f[a],c=b.identifier,d=+f[a+1];g[c]||(g[c]={success:0,blocked:0}),g[c][b.success?"success":"blocked"]=d}return g}async getMostAllowedBlocked(a,b,c,d,e){this.validateTableName(a);let f=[this.prefix,a].join(":"),g=this.getBucket(d),[i,j,k]=await this.redis.eval(h,[f],[g,this.bucketSize,b,c,e??5*c]);return{allowed:this.toDicts(i),ratelimited:this.toDicts(j),denied:this.toDicts(k)}}toDicts(a){let b=[];for(let c=0;c<a.length;c+=1){let d=+a[c][0],e=a[c][1];b.push({identifier:e.identifier,count:d})}return b}}},2692:(a,b,c)=>{"use strict";var d=Object.defineProperty,e=Object.getOwnPropertyDescriptor,f=Object.getOwnPropertyNames,g=Object.prototype.hasOwnProperty,h=(a,b)=>{for(var c in b)d(a,c,{get:b[c],enumerable:!0})},i={};h(i,{Analytics:()=>k,IpDenyList:()=>u,MultiRegionRatelimit:()=>D,Ratelimit:()=>E}),a.exports=((a,b,c,h)=>{if(b&&"object"==typeof b||"function"==typeof b)for(let c of f(b))g.call(a,c)||void 0===c||d(a,c,{get:()=>b[c],enumerable:!(h=e(b,c))||h.enumerable});return a})(d({},"__esModule",{value:!0}),i);var j=c(1801),k=class{analytics;table="events";constructor(a){this.analytics=new j.Analytics({redis:a.redis,window:"1h",prefix:a.prefix??"@upstash/ratelimit",retention:"90d"})}extractGeo(a){return void 0!==a.geo?a.geo:void 0!==a.cf?a.cf:{}}async record(a){await this.analytics.ingest(this.table,a)}async series(a,b){let c=Math.min((this.analytics.getBucket(Date.now())-this.analytics.getBucket(b))/36e5,256);return this.analytics.aggregateBucketsWithPipeline(this.table,a,c)}async getUsage(a=0){let b=Math.min((this.analytics.getBucket(Date.now())-this.analytics.getBucket(a))/36e5,256);return await this.analytics.getAllowedBlocked(this.table,b)}async getUsageOverTime(a,b){return await this.analytics.aggregateBucketsWithPipeline(this.table,b,a)}async getMostAllowedBlocked(a,b,c){return b=b??5,this.analytics.getMostAllowedBlocked(this.table,a,b,void 0,c)}},l=class{cache;constructor(a){this.cache=a}isBlocked(a){if(!this.cache.has(a))return{blocked:!1,reset:0};let b=this.cache.get(a);return b<Date.now()?(this.cache.delete(a),{blocked:!1,reset:0}):{blocked:!0,reset:b}}blockUntil(a,b){this.cache.set(a,b)}set(a,b){this.cache.set(a,b)}get(a){return this.cache.get(a)||null}incr(a){let b=this.cache.get(a)??0;return b+=1,this.cache.set(a,b),b}pop(a){this.cache.delete(a)}empty(){this.cache.clear()}size(){return this.cache.size}};function m(a){let b=a.match(/^(\d+)\s?(ms|s|m|h|d)$/);if(!b)throw Error(`Unable to parse window size: ${a}`);let c=Number.parseInt(b[1]);switch(b[2]){case"ms":return c;case"s":return 1e3*c;case"m":return 1e3*c*60;case"h":return 1e3*c*3600;case"d":return 1e3*c*86400;default:throw Error(`Unable to parse window size: ${a}`)}}var n=async(a,b,c,d)=>{try{return await a.redis.evalsha(b.hash,c,d)}catch(e){if(`${e}`.includes("NOSCRIPT"))return await a.redis.eval(b.script,c,d);throw e}},o={singleRegion:{fixedWindow:{limit:{script:`
   local key           = KEYS[1]
   local window        = ARGV[1]
   local incrementBy   = ARGV[2] -- increment rate per request at a given value, default is 1
@@ -288,101 +384,5 @@ licenseKey=${c.licenseKey}
 plugin=${j.name}
 user=${c.user.email}
 expected=${j.userHwid}
-received=${e}`}),{...n("HWID_MISMATCH"),licenseOwner:c.user.name,plan:c.plan,expiresAt:c.expiresAt?c.expiresAt.toISOString():"",allowedPlugins:h}}else{await f.db.licensePlugin.update({where:{id:j.lpId},data:{hwid:e}}),l.delete(c.licenseKey);let a=(0,i.a)();a&&await a.del(`license:${c.licenseKey}`)}if(c.productIps&&c.productIps[j.id]&&!c.productIps[j.id].includes(a.serverIp))return await q(c.id,a),{...n("IP_MISMATCH"),licenseOwner:c.user.name,plan:c.plan,expiresAt:c.expiresAt?c.expiresAt.toISOString():"",allowedPlugins:h};let k={};for(let a of c.plugins)a.jarUrl&&(k[a.name]=a.jarUrl);return{valid:!0,reason:"OK",licenseOwner:c.user.name,plan:c.plan,expiresAt:c.expiresAt?c.expiresAt.toISOString():"",allowedPlugins:h,updates:k,pluginInfo:{name:j.name,version:j.version??"1.0.0",platform:j.platform??"Bukkit",jarUrl:j.jarUrl??"",dependencies:j.dependencies??[]}}}async function p(a,b){let c=await f.db.plugin.findUnique({where:{id:b}});if(!c)throw Error("Plugin not found");let e=await f.db.license.findFirst({where:{userId:a},include:{plugins:!0}});if(!e){let b=`STAR-${Math.random().toString(36).substring(2,10).toUpperCase()}-${Math.random().toString(36).substring(2,10).toUpperCase()}`;e=await f.db.license.create({data:{userId:a,licenseKey:b,plan:"Standard",status:d.LicenseStatus.active},include:{plugins:!0}})}if(!e.plugins.some(a=>a.pluginId===b)&&(await f.db.licensePlugin.create({data:{licenseId:e.id,pluginId:b}}),c.licensePolicy)){let a=c.licensePolicy,b=e.expiresAt;if("duration"===a.type&&a.months){let c=b?new Date(b):new Date;c.setMonth(c.getMonth()+a.months),b=c}else"date"===a.type&&a.expiresAt&&(b=new Date(a.expiresAt));b&&await f.db.license.update({where:{id:e.id},data:{expiresAt:b}})}l.delete(e.licenseKey);let g=(0,i.a)();return g&&await g.del(`license:${e.licenseKey}`),e}async function q(a,b){await f.db.log.create({data:{licenseId:a,serverIp:b.serverIp,serverPort:b.serverPort,serverName:b.serverName,platform:b.platform,pluginCore:b.pluginCore,coreVersion:b.coreVersion,performance:b.performance}})}},3033:a=>{"use strict";a.exports=require("next/dist/server/app-render/work-unit-async-storage.external.js")},3295:a=>{"use strict";a.exports=require("next/dist/server/app-render/after-task-async-storage.external.js")},4182:a=>{"use strict";var b=Object.defineProperty,c=Object.getOwnPropertyDescriptor,d=Object.getOwnPropertyNames,e=Object.prototype.hasOwnProperty,f={};((a,c)=>{for(var d in c)b(a,d,{get:c[d],enumerable:!0})})(f,{Analytics:()=>j}),a.exports=((a,f,g,h)=>{if(f&&"object"==typeof f||"function"==typeof f)for(let g of d(f))e.call(a,g)||void 0===g||b(a,g,{get:()=>f[g],enumerable:!(h=c(f,g))||h.enumerable});return a})(b({},"__esModule",{value:!0}),f);var g=`
-local key = KEYS[1]
-local field = ARGV[1]
-
-local data = redis.call("ZRANGE", key, 0, -1, "WITHSCORES")
-local count = {}
-
-for i = 1, #data, 2 do
-  local json_str = data[i]
-  local score = tonumber(data[i + 1])
-  local obj = cjson.decode(json_str)
-
-  local fieldValue = obj[field]
-
-  if count[fieldValue] == nil then
-    count[fieldValue] = score
-  else
-    count[fieldValue] = count[fieldValue] + score
-  end
-end
-
-local result = {}
-for k, v in pairs(count) do
-  table.insert(result, {k, v})
-end
-
-return result
-`,h=`
-local prefix = KEYS[1]
-local first_timestamp = tonumber(ARGV[1]) -- First timestamp to check
-local increment = tonumber(ARGV[2])       -- Increment between each timestamp
-local num_timestamps = tonumber(ARGV[3])  -- Number of timestampts to check (24 for a day and 24 * 7 for a week)
-local num_elements = tonumber(ARGV[4])    -- Number of elements to fetch in each category
-local check_at_most = tonumber(ARGV[5])   -- Number of elements to check at most.
-
-local keys = {}
-for i = 1, num_timestamps do
-  local timestamp = first_timestamp - (i - 1) * increment
-  table.insert(keys, prefix .. ":" .. timestamp)
-end
-
--- get the union of the groups
-local zunion_params = {"ZUNION", num_timestamps, unpack(keys)}
-table.insert(zunion_params, "WITHSCORES")
-local result = redis.call(unpack(zunion_params))
-
--- select num_elements many items
-local true_group = {}
-local false_group = {}
-local denied_group = {}
-local true_count = 0
-local false_count = 0
-local denied_count = 0
-local i = #result - 1
-
--- index to stop at after going through "checkAtMost" many items:
-local cutoff_index = #result - 2 * check_at_most
-
--- iterate over the results
-while (true_count + false_count + denied_count) < (num_elements * 3) and 1 <= i and i >= cutoff_index do
-  local score = tonumber(result[i + 1])
-  if score > 0 then
-    local element = result[i]
-    if string.find(element, "success\\":true") and true_count < num_elements then
-      table.insert(true_group, {score, element})
-      true_count = true_count + 1
-    elseif string.find(element, "success\\":false") and false_count < num_elements then
-      table.insert(false_group, {score, element})
-      false_count = false_count + 1
-    elseif string.find(element, "success\\":\\"denied") and denied_count < num_elements then
-      table.insert(denied_group, {score, element})
-      denied_count = denied_count + 1
-    end
-  end
-  i = i - 2
-end
-
-return {true_group, false_group, denied_group}
-`,i=`
-local prefix = KEYS[1]
-local first_timestamp = tonumber(ARGV[1])
-local increment = tonumber(ARGV[2])
-local num_timestamps = tonumber(ARGV[3])
-
-local keys = {}
-for i = 1, num_timestamps do
-  local timestamp = first_timestamp - (i - 1) * increment
-  table.insert(keys, prefix .. ":" .. timestamp)
-end
-
--- get the union of the groups
-local zunion_params = {"ZUNION", num_timestamps, unpack(keys)}
-table.insert(zunion_params, "WITHSCORES")
-local result = redis.call(unpack(zunion_params))
-
-return result
-`,j=class{redis;prefix;bucketSize;constructor(a){this.redis=a.redis,this.prefix=a.prefix??"@upstash/analytics",this.bucketSize=this.parseWindow(a.window)}validateTableName(a){if(!/^[a-zA-Z0-9_-]+$/.test(a))throw Error(`Invalid table name: ${a}. Table names can only contain letters, numbers, dashes and underscores.`)}parseWindow(a){if("number"==typeof a){if(a<=0)throw Error(`Invalid window: ${a}`);return a}let b=/^(\d+)([smhd])$/;if(!b.test(a))throw Error(`Invalid window: ${a}`);let[,c,d]=a.match(b),e=parseInt(c);switch(d){case"s":return 1e3*e;case"m":return 1e3*e*60;case"h":return 1e3*e*3600;case"d":return 1e3*e*86400;default:throw Error(`Invalid window unit: ${d}`)}}getBucket(a){return Math.floor((a??Date.now())/this.bucketSize)*this.bucketSize}async ingest(a,...b){this.validateTableName(a),await Promise.all(b.map(async b=>{let c=this.getBucket(b.time),d=[this.prefix,a,c].join(":");await this.redis.zincrby(d,1,JSON.stringify({...b,time:void 0}))}))}formatBucketAggregate(a,b,c){let d={};return a.forEach(([a,c])=>{"success"==b&&(a=1===a?"true":null===a?"false":a),d[b]=d[b]||{},d[b][(a??"null").toString()]=c}),{time:c,...d}}async aggregateBucket(a,b,c){this.validateTableName(a);let d=this.getBucket(c),e=[this.prefix,a,d].join(":"),f=await this.redis.eval(g,[e],[b]);return this.formatBucketAggregate(f,b,d)}async aggregateBuckets(a,b,c,d){this.validateTableName(a);let e=this.getBucket(d),f=[];for(let d=0;d<c;d+=1)f.push(this.aggregateBucket(a,b,e)),e-=this.bucketSize;return Promise.all(f)}async aggregateBucketsWithPipeline(a,b,c,d,e){this.validateTableName(a),e=e??48;let f=this.getBucket(d),h=[],i=this.redis.pipeline(),j=[];for(let d=1;d<=c;d+=1){let k=[this.prefix,a,f].join(":");i.eval(g,[k],[b]),h.push(f),f-=this.bucketSize,(d%e==0||d==c)&&(j.push(i.exec()),i=this.redis.pipeline())}return(await Promise.all(j)).flat().map((a,c)=>this.formatBucketAggregate(a,b,h[c]))}async getAllowedBlocked(a,b,c){this.validateTableName(a);let d=[this.prefix,a].join(":"),e=this.getBucket(c),f=await this.redis.eval(i,[d],[e,this.bucketSize,b]),g={};for(let a=0;a<f.length;a+=2){let b=f[a],c=b.identifier,d=+f[a+1];g[c]||(g[c]={success:0,blocked:0}),g[c][b.success?"success":"blocked"]=d}return g}async getMostAllowedBlocked(a,b,c,d,e){this.validateTableName(a);let f=[this.prefix,a].join(":"),g=this.getBucket(d),[i,j,k]=await this.redis.eval(h,[f],[g,this.bucketSize,b,c,e??5*c]);return{allowed:this.toDicts(i),ratelimited:this.toDicts(j),denied:this.toDicts(k)}}toDicts(a){let b=[];for(let c=0;c<a.length;c+=1){let d=+a[c][0],e=a[c][1];b.push({identifier:e.identifier,count:d})}return b}}},4870:a=>{"use strict";a.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},5909:(a,b,c)=>{"use strict";c.r(b),c.d(b,{handler:()=>L,patchFetch:()=>K,routeModule:()=>G,serverHooks:()=>J,workAsyncStorage:()=>H,workUnitAsyncStorage:()=>I});var d={};c.r(d),c.d(d,{OPTIONS:()=>E,POST:()=>F,runtime:()=>C});var e=c(5736),f=c(9117),g=c(4044),h=c(6945),i=c(2324),j=c(261),k=c(4290),l=c(5328),m=c(8928),n=c(6595),o=c(3421),p=c(7679),q=c(1681),r=c(3446),s=c(6439),t=c(1356),u=c(641),v=c(9507),w=c(7377),x=c(2692),y=c(1502);let z=new Map;async function A(a){let b=(0,y.a)();if(b){let c=new x.Ratelimit({redis:b,limiter:x.Ratelimit.fixedWindow(a.limit,`${Math.max(1,Math.floor(a.windowMs/1e3))} s`),analytics:!0,prefix:"rl"}),d=await c.limit(a.key);return{ok:d.success,remaining:d.remaining,resetAtMs:d.reset}}let c=Date.now(),d=z.get(a.key);return!d||d.resetAtMs<=c?(z.set(a.key,{count:1,resetAtMs:c+a.windowMs}),{ok:!0,remaining:a.limit-1,resetAtMs:c+a.windowMs}):d.count>=a.limit?{ok:!1,remaining:0,resetAtMs:d.resetAtMs}:(d.count+=1,{ok:!0,remaining:a.limit-d.count,resetAtMs:d.resetAtMs})}var B=c(2999);let C="nodejs",D={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"};function E(){return new u.NextResponse(null,{status:204,headers:D})}async function F(a){let b=a.headers.get("x-forwarded-for")?.split(",")[0]?.trim()??"unknown";if(!(await A({key:`license_check:${b}`,limit:60,windowMs:6e4})).ok)return u.NextResponse.json({valid:!1,reason:"RATE_LIMITED",licenseOwner:"",plan:"",expiresAt:"",allowedPlugins:[],updates:{}},{status:429,headers:D});try{let c=await a.json(),d=B.Ox.parse(c),e=await (0,B.q$)(d);return process.stdout.write(`${JSON.stringify({msg:"license_check",valid:e.valid,reason:e.reason,ip:b,licenseKey:d.licenseKey})}
+received=${e}`}),{...n("HWID_MISMATCH"),licenseOwner:c.user.name,plan:c.plan,expiresAt:c.expiresAt?c.expiresAt.toISOString():"",allowedPlugins:h}}else{await f.db.licensePlugin.update({where:{id:j.lpId},data:{hwid:e}}),l.delete(c.licenseKey);let a=(0,i.a)();a&&await a.del(`license:${c.licenseKey}`)}if(c.productIps&&c.productIps[j.id]&&!c.productIps[j.id].includes(a.serverIp))return await q(c.id,a),{...n("IP_MISMATCH"),licenseOwner:c.user.name,plan:c.plan,expiresAt:c.expiresAt?c.expiresAt.toISOString():"",allowedPlugins:h};let k={};for(let a of c.plugins)a.jarUrl&&(k[a.name]=a.jarUrl);return{valid:!0,reason:"OK",licenseOwner:c.user.name,plan:c.plan,expiresAt:c.expiresAt?c.expiresAt.toISOString():"",allowedPlugins:h,updates:k,pluginInfo:{name:j.name,version:j.version??"1.0.0",platform:j.platform??"Bukkit",jarUrl:j.jarUrl??"",dependencies:j.dependencies??[]}}}async function p(a,b){let c=await f.db.plugin.findUnique({where:{id:b}});if(!c)throw Error("Plugin not found");let e=await f.db.license.findFirst({where:{userId:a},include:{plugins:!0}});if(!e){let b=`STAR-${Math.random().toString(36).substring(2,10).toUpperCase()}-${Math.random().toString(36).substring(2,10).toUpperCase()}`;e=await f.db.license.create({data:{userId:a,licenseKey:b,plan:"Standard",status:d.LicenseStatus.active},include:{plugins:!0}})}if(!e.plugins.some(a=>a.pluginId===b)&&(await f.db.licensePlugin.create({data:{licenseId:e.id,pluginId:b}}),c.licensePolicy)){let a=c.licensePolicy,b=e.expiresAt;if("duration"===a.type&&a.months){let c=b?new Date(b):new Date;c.setMonth(c.getMonth()+a.months),b=c}else"date"===a.type&&a.expiresAt&&(b=new Date(a.expiresAt));b&&await f.db.license.update({where:{id:e.id},data:{expiresAt:b}})}l.delete(e.licenseKey);let g=(0,i.a)();return g&&await g.del(`license:${e.licenseKey}`),e}async function q(a,b){await f.db.log.create({data:{licenseId:a,serverIp:b.serverIp,serverPort:b.serverPort,serverName:b.serverName,platform:b.platform,pluginCore:b.pluginCore,coreVersion:b.coreVersion,performance:b.performance}})}},3033:a=>{"use strict";a.exports=require("next/dist/server/app-render/work-unit-async-storage.external.js")},3295:a=>{"use strict";a.exports=require("next/dist/server/app-render/after-task-async-storage.external.js")},4870:a=>{"use strict";a.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},5909:(a,b,c)=>{"use strict";c.r(b),c.d(b,{handler:()=>L,patchFetch:()=>K,routeModule:()=>G,serverHooks:()=>J,workAsyncStorage:()=>H,workUnitAsyncStorage:()=>I});var d={};c.r(d),c.d(d,{OPTIONS:()=>E,POST:()=>F,runtime:()=>C});var e=c(5736),f=c(9117),g=c(4044),h=c(9326),i=c(2324),j=c(261),k=c(4290),l=c(5328),m=c(8928),n=c(6595),o=c(3421),p=c(7679),q=c(1681),r=c(3446),s=c(6439),t=c(1356),u=c(641),v=c(9507),w=c(7377),x=c(2692),y=c(1502);let z=new Map;async function A(a){let b=(0,y.a)();if(b){let c=new x.Ratelimit({redis:b,limiter:x.Ratelimit.fixedWindow(a.limit,`${Math.max(1,Math.floor(a.windowMs/1e3))} s`),analytics:!0,prefix:"rl"}),d=await c.limit(a.key);return{ok:d.success,remaining:d.remaining,resetAtMs:d.reset}}let c=Date.now(),d=z.get(a.key);return!d||d.resetAtMs<=c?(z.set(a.key,{count:1,resetAtMs:c+a.windowMs}),{ok:!0,remaining:a.limit-1,resetAtMs:c+a.windowMs}):d.count>=a.limit?{ok:!1,remaining:0,resetAtMs:d.resetAtMs}:(d.count+=1,{ok:!0,remaining:a.limit-d.count,resetAtMs:d.resetAtMs})}var B=c(2999);let C="nodejs",D={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"};function E(){return new u.NextResponse(null,{status:204,headers:D})}async function F(a){let b=a.headers.get("x-forwarded-for")?.split(",")[0]?.trim()??"unknown";if(!(await A({key:`license_check:${b}`,limit:60,windowMs:6e4})).ok)return u.NextResponse.json({valid:!1,reason:"RATE_LIMITED",licenseOwner:"",plan:"",expiresAt:"",allowedPlugins:[],updates:{}},{status:429,headers:D});try{let c=await a.json(),d=B.Ox.parse(c),e=await (0,B.q$)(d);return process.stdout.write(`${JSON.stringify({msg:"license_check",valid:e.valid,reason:e.reason,ip:b,licenseKey:d.licenseKey})}
 `),u.NextResponse.json(e,{status:200,headers:D})}catch(a){if(a instanceof v.GaX)return u.NextResponse.json({valid:!1,reason:"INVALID_INPUT",licenseOwner:"",plan:"",expiresAt:"",allowedPlugins:[],updates:{}},{status:400,headers:D});return(0,w.F)("INTERNAL_ERROR","Erro interno",{status:500,headers:D})}}let G=new e.AppRouteRouteModule({definition:{kind:f.RouteKind.APP_ROUTE,page:"/api/v1/license/check/route",pathname:"/api/v1/license/check",filename:"route",bundlePath:"app/api/v1/license/check/route"},distDir:".next",relativeProjectDir:"",resolvedPagePath:"C:\\Users\\alanl\\Downloads\\Marketplace\\app\\api\\v1\\license\\check\\route.ts",nextConfigOutput:"",userland:d}),{workAsyncStorage:H,workUnitAsyncStorage:I,serverHooks:J}=G;function K(){return(0,g.patchFetch)({workAsyncStorage:H,workUnitAsyncStorage:I})}async function L(a,b,c){var d;let e="/api/v1/license/check/route";"/index"===e&&(e="/");let g=await G.prepare(a,b,{srcPage:e,multiZoneDraftMode:!1});if(!g)return b.statusCode=400,b.end("Bad Request"),null==c.waitUntil||c.waitUntil.call(c,Promise.resolve()),null;let{buildId:u,params:v,nextConfig:w,isDraftMode:x,prerenderManifest:y,routerServerContext:z,isOnDemandRevalidate:A,revalidateOnlyGenerated:B,resolvedPathname:C}=g,D=(0,j.normalizeAppPath)(e),E=!!(y.dynamicRoutes[D]||y.routes[C]);if(E&&!x){let a=!!y.routes[C],b=y.dynamicRoutes[D];if(b&&!1===b.fallback&&!a)throw new s.NoFallbackError}let F=null;!E||G.isDev||x||(F="/index"===(F=C)?"/":F);let H=!0===G.isDev||!E,I=E&&!H,J=a.method||"GET",K=(0,i.getTracer)(),L=K.getActiveScopeSpan(),M={params:v,prerenderManifest:y,renderOpts:{experimental:{cacheComponents:!!w.experimental.cacheComponents,authInterrupts:!!w.experimental.authInterrupts},supportsDynamicResponse:H,incrementalCache:(0,h.getRequestMeta)(a,"incrementalCache"),cacheLifeProfiles:null==(d=w.experimental)?void 0:d.cacheLife,isRevalidate:I,waitUntil:c.waitUntil,onClose:a=>{b.on("close",a)},onAfterTaskError:void 0,onInstrumentationRequestError:(b,c,d)=>G.onRequestError(a,b,d,z)},sharedContext:{buildId:u}},N=new k.NodeNextRequest(a),O=new k.NodeNextResponse(b),P=l.NextRequestAdapter.fromNodeNextRequest(N,(0,l.signalFromNodeResponse)(b));try{let d=async c=>G.handle(P,M).finally(()=>{if(!c)return;c.setAttributes({"http.status_code":b.statusCode,"next.rsc":!1});let d=K.getRootSpanAttributes();if(!d)return;if(d.get("next.span_type")!==m.BaseServerSpan.handleRequest)return void console.warn(`Unexpected root span type '${d.get("next.span_type")}'. Please report this Next.js issue https://github.com/vercel/next.js`);let e=d.get("next.route");if(e){let a=`${J} ${e}`;c.setAttributes({"next.route":e,"http.route":e,"next.span_name":a}),c.updateName(a)}else c.updateName(`${J} ${a.url}`)}),g=async g=>{var i,j;let k=async({previousCacheEntry:f})=>{try{if(!(0,h.getRequestMeta)(a,"minimalMode")&&A&&B&&!f)return b.statusCode=404,b.setHeader("x-nextjs-cache","REVALIDATED"),b.end("This page could not be found"),null;let e=await d(g);a.fetchMetrics=M.renderOpts.fetchMetrics;let i=M.renderOpts.pendingWaitUntil;i&&c.waitUntil&&(c.waitUntil(i),i=void 0);let j=M.renderOpts.collectedTags;if(!E)return await (0,o.I)(N,O,e,M.renderOpts.pendingWaitUntil),null;{let a=await e.blob(),b=(0,p.toNodeOutgoingHttpHeaders)(e.headers);j&&(b[r.NEXT_CACHE_TAGS_HEADER]=j),!b["content-type"]&&a.type&&(b["content-type"]=a.type);let c=void 0!==M.renderOpts.collectedRevalidate&&!(M.renderOpts.collectedRevalidate>=r.INFINITE_CACHE)&&M.renderOpts.collectedRevalidate,d=void 0===M.renderOpts.collectedExpire||M.renderOpts.collectedExpire>=r.INFINITE_CACHE?void 0:M.renderOpts.collectedExpire;return{value:{kind:t.CachedRouteKind.APP_ROUTE,status:e.status,body:Buffer.from(await a.arrayBuffer()),headers:b},cacheControl:{revalidate:c,expire:d}}}}catch(b){throw(null==f?void 0:f.isStale)&&await G.onRequestError(a,b,{routerKind:"App Router",routePath:e,routeType:"route",revalidateReason:(0,n.c)({isRevalidate:I,isOnDemandRevalidate:A})},z),b}},l=await G.handleResponse({req:a,nextConfig:w,cacheKey:F,routeKind:f.RouteKind.APP_ROUTE,isFallback:!1,prerenderManifest:y,isRoutePPREnabled:!1,isOnDemandRevalidate:A,revalidateOnlyGenerated:B,responseGenerator:k,waitUntil:c.waitUntil});if(!E)return null;if((null==l||null==(i=l.value)?void 0:i.kind)!==t.CachedRouteKind.APP_ROUTE)throw Object.defineProperty(Error(`Invariant: app-route received invalid cache entry ${null==l||null==(j=l.value)?void 0:j.kind}`),"__NEXT_ERROR_CODE",{value:"E701",enumerable:!1,configurable:!0});(0,h.getRequestMeta)(a,"minimalMode")||b.setHeader("x-nextjs-cache",A?"REVALIDATED":l.isMiss?"MISS":l.isStale?"STALE":"HIT"),x&&b.setHeader("Cache-Control","private, no-cache, no-store, max-age=0, must-revalidate");let m=(0,p.fromNodeOutgoingHttpHeaders)(l.value.headers);return(0,h.getRequestMeta)(a,"minimalMode")&&E||m.delete(r.NEXT_CACHE_TAGS_HEADER),!l.cacheControl||b.getHeader("Cache-Control")||m.get("Cache-Control")||m.set("Cache-Control",(0,q.U)(l.cacheControl)),await (0,o.I)(N,O,new Response(l.value.body,{headers:m,status:l.value.status||200})),null};L?await g(L):await K.withPropagatedContext(a.headers,()=>K.trace(m.BaseServerSpan.handleRequest,{spanName:`${J} ${a.url}`,kind:i.SpanKind.SERVER,attributes:{"http.method":J,"http.target":a.url}},g))}catch(b){if(b instanceof s.NoFallbackError||await G.onRequestError(a,b,{routerKind:"App Router",routePath:D,routeType:"route",revalidateReason:(0,n.c)({isRevalidate:I,isOnDemandRevalidate:A})}),E)throw b;return await (0,o.I)(N,O,new Response(null,{status:500})),null}}},6330:a=>{"use strict";a.exports=require("@prisma/client")},6439:a=>{"use strict";a.exports=require("next/dist/shared/lib/no-fallback-error.external")},6487:()=>{},7143:(a,b,c)=>{"use strict";c.d(b,{db:()=>e});var d=c(6330);let e=globalThis.__prisma__??new d.PrismaClient({log:["error","warn"]})},7377:(a,b,c)=>{"use strict";c.d(b,{F:()=>f,h:()=>e});var d=c(641);function e(a,b){return d.NextResponse.json(a,"number"==typeof b?{status:b}:b)}function f(a,b,c,e){let f="number"==typeof c?c:c?.status,g="number"==typeof c?{status:c}:c??{};return d.NextResponse.json({error:{code:a,message:b,status:f??500,details:e??null}},g)}},7598:a=>{"use strict";a.exports=require("node:crypto")},8335:()=>{},9121:a=>{"use strict";a.exports=require("next/dist/server/app-render/action-async-storage.external.js")},9294:a=>{"use strict";a.exports=require("next/dist/server/app-render/work-async-storage.external.js")},9921:(a,b,c)=>{"use strict";async function d(a){let b=process.env.DISCORD_WEBHOOK_URL;if(!b)return{ok:!1,skipped:!0};try{let c=await fetch(b,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:a.content,embeds:a.embeds??[]})});return{ok:c.ok,skipped:!1,status:c.status}}catch(a){return{ok:!1,skipped:!1,error:a instanceof Error?a.message:"unknown"}}}c.d(b,{I:()=>d})}};var b=require("../../../../../webpack-runtime.js");b.C(a);var c=b.X(0,[964,507,214],()=>b(b.s=5909));module.exports=c})();
