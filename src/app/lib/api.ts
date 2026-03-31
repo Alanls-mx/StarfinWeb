@@ -187,6 +187,92 @@ export function getCategories() {
   return apiFetch<{ items: PluginCategory[] }>('/api/categories');
 }
 
+export function verifyEmail(token: string) {
+  return apiFetch<{ success: boolean }>('/api/auth/verify', {
+    method: 'POST',
+    body: JSON.stringify({ token })
+  });
+}
+
+export function forgotPassword(email: string) {
+  return apiFetch<{ success: boolean }>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+}
+
+export function resetPassword(params: { token: string; password: string }) {
+  return apiFetch<{ success: boolean }>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(params)
+  });
+}
+
+export interface Review {
+  id: string;
+  rating: number;
+  comment: string;
+  featured: boolean;
+  user: { name: string };
+  plugin: { name: string; slug: string };
+  createdAt: string;
+}
+
+export function getReviews(params?: { pluginId?: string; featured?: boolean }) {
+  const qs = toQueryString(params || {});
+  return apiFetch<{ reviews: Review[] }>(`/api/reviews${qs}`);
+}
+
+export function postReview(data: { pluginId: string; rating: number; comment: string }) {
+  return apiFetch<{ review: Review }>('/api/reviews', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export function adminUpdateReview(id: string, data: Partial<Review>) {
+  return apiFetch<{ review: Review }>(`/api/admin/reviews?id=${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  });
+}
+
+export function adminDeleteReview(id: string) {
+  return apiFetch<{ success: boolean }>(`/api/admin/reviews?id=${id}`, {
+    method: 'DELETE'
+  });
+}
+
+export interface AdminStats {
+  topPlugins: Array<{ id: string; name: string; slug: string; sales: number }>;
+  topCustomers: Array<{ id: string; name: string; email: string; pluginCount: number }>;
+  stats: { totalSales: number; totalRevenueCents: number };
+}
+
+export function getAdminStats() {
+  return apiFetch<AdminStats>('/api/admin/stats');
+}
+
+export function validateCoupon(code: string, totalCents: number) {
+  return apiFetch<{ code: string; discountCents: number; finalCents: number }>(
+    '/api/commerce/coupon/validate',
+    {
+      method: 'POST',
+      body: JSON.stringify({ code, totalCents })
+    }
+  );
+}
+
+export function checkout(pluginIds: string[], couponCode?: string) {
+  return apiFetch<{ orderId: string; finalTotal: number; licenses: any[] }>(
+    '/api/commerce/checkout',
+    {
+      method: 'POST',
+      body: JSON.stringify({ pluginIds, couponCode })
+    }
+  );
+}
+
 export function getFeaturedPlugins() {
   return apiFetch<{ items: PluginSummary[] }>('/api/plugins/featured');
 }
@@ -256,19 +342,6 @@ export function subscribeNewsletter(email: string) {
     method: 'POST',
     body: JSON.stringify({ email })
   });
-}
-
-export function postReview(
-  pluginId: number,
-  input: { user: string; rating: number; comment: string }
-) {
-  return apiFetch<{ ok: true; review: { user: string; rating: number; dateISO: string; comment: string } }>(
-    `/api/plugins/${pluginId}/reviews`,
-    {
-      method: 'POST',
-      body: JSON.stringify(input)
-    }
-  );
 }
 
 // Admin API
@@ -349,10 +422,6 @@ export function registerAccount(input: { name: string; email: string; password: 
     method: 'POST',
     body: JSON.stringify(input)
   });
-}
-
-export function verifyEmail(token: string) {
-  return apiFetch<{ ok: true }>(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
 }
 
 export function resendVerification(email: string) {

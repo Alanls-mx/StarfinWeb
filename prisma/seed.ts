@@ -33,9 +33,9 @@ async function main() {
   });
 
   const pluginsSeed = [
-    { name: 'EconomyPlus Pro', price: 4990, downloadUrl: 'https://example.com/economyplus.jar', latestVersion: '2.5.1' },
-    { name: 'UltraRanks', price: 3990, downloadUrl: 'https://example.com/ultraranks.jar', latestVersion: '1.9.3' },
-    { name: 'AntiCheat Ultimate', price: 6990, downloadUrl: 'https://example.com/anticheat.jar', latestVersion: '5.0.1' }
+    { name: 'EconomyPlus Pro', price: 4990, jarUrl: 'https://example.com/economyplus.jar', latestVersion: '2.5.1', description: 'O melhor plugin de economia para seu servidor.' },
+    { name: 'UltraRanks', price: 3990, jarUrl: 'https://example.com/ultraranks.jar', latestVersion: '1.9.3', description: 'Gerencie cargos e permissões com facilidade.' },
+    { name: 'AntiCheat Ultimate', price: 6990, jarUrl: 'https://example.com/anticheat.jar', latestVersion: '5.0.1', description: 'Proteção avançada contra trapaceiros.' }
   ];
 
   const plugins = [];
@@ -46,15 +46,17 @@ async function main() {
       update: {
         name: p.name,
         price: p.price,
-        downloadUrl: p.downloadUrl,
-        latestVersion: p.latestVersion
+        jarUrl: p.jarUrl,
+        latestVersion: p.latestVersion,
+        description: p.description
       },
       create: {
         name: p.name,
         slug,
         price: p.price,
-        downloadUrl: p.downloadUrl,
-        latestVersion: p.latestVersion
+        jarUrl: p.jarUrl,
+        latestVersion: p.latestVersion,
+        description: p.description
       }
     });
     plugins.push(plugin);

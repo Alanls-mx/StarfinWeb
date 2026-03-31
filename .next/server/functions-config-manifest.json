@@ -1,15 +1,23 @@
 {
   "version": 1,
   "functions": {
-    "/api/auth/me": {},
-    "/api/auth/login": {},
-    "/api/admin/plugins/[id]": {},
-    "/api/auth/register": {},
     "/api/admin/licenses": {},
+    "/api/admin/stats": {},
+    "/api/admin/plugins/[id]": {},
     "/api/admin/plugins": {},
+    "/api/auth/forgot-password": {},
+    "/api/auth/me": {},
+    "/api/admin/reviews": {},
+    "/api/auth/login": {},
+    "/api/auth/register": {},
+    "/api/auth/reset-password": {},
+    "/api/auth/verify": {},
     "/api/licenses": {},
     "/api/plugins": {},
     "/api/licenses/generate": {},
+    "/api/commerce/checkout": {},
+    "/api/commerce/coupon/validate": {},
+    "/api/reviews": {},
     "/api/purchases": {},
     "/api/v1/license/check": {}
   }

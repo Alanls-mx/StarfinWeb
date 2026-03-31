@@ -1,11 +1,14 @@
-import { Download, Filter, Search, SlidersHorizontal, Star, TrendingUp, Crown } from 'lucide-react';
+import { Download, Filter, Search, SlidersHorizontal, Star, TrendingUp, Crown, ShoppingCart } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useSearchParams, useNavigate } from 'react-router';
 import { getCategories, getPlugins, type PluginCategory, type PluginSummary } from '../lib/api';
+import { useCart } from '../lib/cart';
 
 export function Store() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { addItem } = useCart();
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState<Array<PluginCategory | 'Todas'>>(['Todas']);
   const [items, setItems] = useState<PluginSummary[]>([]);
@@ -280,13 +283,32 @@ export function Store() {
                     </div>
 
                     <div className="flex items-center justify-between pt-4 border-t border-[#7B2CBF]/20">
-                      <span className="text-xl text-[#C77DFF]">{plugin.priceDisplay}</span>
-                      <Link
-                        to={`/plugins/${plugin.id}`}
-                        className="px-4 py-2 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white text-sm rounded-lg hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
-                      >
-                        Ver Mais
-                      </Link>
+                      <span className="text-xl text-[#C77DFF] font-bold">{plugin.priceDisplay}</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            addItem({
+                              id: String(plugin.id),
+                              name: plugin.name,
+                              price: plugin.priceCents,
+                              slug: plugin.slug,
+                              imageUrl: plugin.imageUrl
+                            });
+                          }}
+                          className="p-2 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg text-white hover:text-[#C77DFF] hover:border-[#C77DFF] transition-all duration-300"
+                          title="Adicionar ao Carrinho"
+                        >
+                          <ShoppingCart className="w-5 h-5" />
+                        </button>
+                        <Link
+                          to={`/plugins/${plugin.id}`}
+                          className="px-4 py-2 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white text-sm rounded-lg hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
+                        >
+                          Ver Mais
+                        </Link>
+                      </div>
                     </div>
                   </motion.div>
                 );

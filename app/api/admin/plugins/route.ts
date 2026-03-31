@@ -8,9 +8,14 @@ export const runtime = 'nodejs';
 const createSchema = z.object({
   name: z.string().min(2).max(120).trim(),
   slug: z.string().min(2).max(120).trim(),
+  description: z.string().min(1),
   price: z.number().int().min(0),
-  downloadUrl: z.string().url().optional().nullable(),
-  latestVersion: z.string().min(1).max(64).optional().nullable()
+  jarUrl: z.string().url().optional().nullable(),
+  dependencies: z.array(z.string()).optional().default([]),
+  platform: z.string().optional().default('Bukkit'),
+  latestVersion: z.string().min(1).max(64).optional().nullable(),
+  imageUrl: z.string().url().optional().nullable(),
+  images: z.array(z.string()).optional().default([])
 });
 
 export async function GET(req: Request) {
@@ -22,7 +27,12 @@ export async function GET(req: Request) {
     orderBy: { createdAt: 'desc' }
   });
   return jsonOk({
-    items: items.map((p) => ({ ...p, createdAt: p.createdAt.toISOString() }))
+    items: items.map((p) => ({
+      ...p,
+      createdAt: p.createdAt.toISOString(),
+      dependencies: (p.dependencies as string[]) ?? [],
+      images: (p.images as string[]) ?? []
+    }))
   });
 }
 
@@ -37,12 +47,27 @@ export async function POST(req: Request) {
       data: {
         name: input.name,
         slug: input.slug,
+        description: input.description,
         price: input.price,
-        downloadUrl: input.downloadUrl ?? null,
-        latestVersion: input.latestVersion ?? null
+        jarUrl: input.jarUrl ?? null,
+        dependencies: input.dependencies,
+        platform: input.platform,
+        latestVersion: input.latestVersion ?? null,
+        imageUrl: input.imageUrl ?? null,
+        images: input.images
       }
     });
-    return jsonOk({ plugin: { ...plugin, createdAt: plugin.createdAt.toISOString() } }, 201);
+    return jsonOk(
+      {
+        plugin: {
+          ...plugin,
+          createdAt: plugin.createdAt.toISOString(),
+          dependencies: (plugin.dependencies as string[]) ?? [],
+          images: (plugin.images as string[]) ?? []
+        }
+      },
+      201
+    );
   } catch (e) {
     if (e instanceof z.ZodError) {
       return jsonError('INVALID_INPUT', 'Entrada inválida', 400, e.flatten());

@@ -4,12 +4,14 @@ import { motion } from 'motion/react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { createPurchase, getPlugin, postReview, type PluginDetail as PluginDetailType } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useCart } from '../lib/cart';
 
 export function PluginDetail() {
   const { id } = useParams();
   const pluginId = Number(id);
   const navigate = useNavigate();
   const { state } = useAuth();
+  const { addItem } = useCart();
   const token = state.status === 'authenticated' ? state.token : null;
   const [plugin, setPlugin] = useState<PluginDetailType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -301,19 +303,16 @@ export function PluginDetail() {
                 </div>
 
                 <button
-                  onClick={async () => {
-                    setPurchaseMessage(null);
+                  onClick={() => {
                     if (!resolvedPlugin) return;
-                    if (!token) {
-                      navigate(`/login?next=${encodeURIComponent(`/plugins/${resolvedPlugin.id}`)}`);
-                      return;
-                    }
-                    try {
-                      const p = await createPurchase(token, resolvedPlugin.id);
-                      setPurchaseMessage(`Compra criada (${p.id}) com status: ${p.status}`);
-                    } catch (e) {
-                      setPurchaseMessage('Não foi possível criar a compra.');
-                    }
+                    addItem({
+                      id: resolvedPlugin.id,
+                      name: resolvedPlugin.name,
+                      price: resolvedPlugin.priceCents || 0,
+                      slug: resolvedPlugin.slug,
+                      imageUrl: resolvedPlugin.imageUrl
+                    });
+                    navigate('/cart');
                   }}
                   className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-xl hover:shadow-[#7B2CBF]/50 transition-all duration-300 hover:scale-[1.02]"
                 >

@@ -11,7 +11,7 @@ export async function GET() {
       name: true,
       slug: true,
       price: true,
-      downloadUrl: true,
+      jarUrl: true,
       latestVersion: true,
       createdAt: true
     }

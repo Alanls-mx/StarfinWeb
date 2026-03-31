@@ -40,6 +40,13 @@ export type LicenseCheckResponse = {
   expiresAt: string;
   allowedPlugins: string[];
   updates: Record<string, string>;
+  pluginInfo?: {
+    name: string;
+    version: string;
+    platform: string;
+    jarUrl: string;
+    dependencies: string[];
+  };
 };
 
 type LicenseData = {
@@ -51,7 +58,16 @@ type LicenseData = {
   status: LicenseStatus;
   expiresAt: Date | null;
   productIps: Record<string, string[]> | null;
-  plugins: Array<{ id: string; name: string; downloadUrl: string | null }>;
+  plugins: Array<{
+    id: string;
+    name: string;
+    version: string | null;
+    platform: string | null;
+    jarUrl: string | null;
+    dependencies: string[] | null;
+    userHwid: string | null;
+    lpId: string;
+  }>;
 };
 
 const licenseCache = new TtlCache<string, LicenseData>(30_000);
@@ -78,7 +94,12 @@ async function getLicenseByKey(licenseKey: string): Promise<LicenseData | null> 
           ? value.plugins.map((p: any) => ({
               id: String(p.id ?? ''),
               name: String(p.name ?? ''),
-              downloadUrl: p.downloadUrl ?? null
+              version: p.version ?? null,
+              platform: p.platform ?? null,
+              jarUrl: p.jarUrl ?? null,
+              dependencies: p.dependencies ?? null,
+              userHwid: p.userHwid ?? null,
+              lpId: p.lpId ?? ''
             }))
           : []
       };
@@ -108,7 +129,12 @@ async function getLicenseByKey(licenseKey: string): Promise<LicenseData | null> 
     plugins: license.plugins.map((lp) => ({
       id: lp.plugin.id,
       name: lp.plugin.name,
-      downloadUrl: lp.plugin.downloadUrl ?? null
+      version: lp.plugin.latestVersion,
+      platform: lp.plugin.platform,
+      jarUrl: lp.plugin.jarUrl,
+      dependencies: (lp.plugin.dependencies as string[]) ?? [],
+      userHwid: lp.hwid,
+      lpId: lp.id
     }))
   };
 
@@ -219,6 +245,30 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
     };
   }
 
+  // Automatic HWID binding per plugin/user (from your request)
+  if (!targetPlugin.userHwid) {
+    // First bind for THIS specific plugin for THIS user
+    await db.licensePlugin.update({
+      where: { id: targetPlugin.lpId },
+      data: { hwid }
+    });
+    licenseCache.delete(license.licenseKey);
+    const redis = getRedis();
+    if (redis) await redis.del(`license:${license.licenseKey}`);
+  } else if (targetPlugin.userHwid !== hwid) {
+    await logUsage(license.id, input);
+    await sendDiscordWebhook({
+      content: `🚨 HWID mismatch (Per-Plugin)\nlicenseKey=${license.licenseKey}\nplugin=${targetPlugin.name}\nuser=${license.user.email}\nexpected=${targetPlugin.userHwid}\nreceived=${hwid}`
+    });
+    return {
+      ...baseResponse('HWID_MISMATCH'),
+      licenseOwner: license.user.name,
+      plan: license.plan,
+      expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
+      allowedPlugins
+    };
+  }
+
   // IP-per-product validation (from VersaoAntiga)
   if (license.productIps && license.productIps[targetPlugin.id]) {
     const allowedIps = license.productIps[targetPlugin.id];
@@ -236,8 +286,8 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
 
   const updates: Record<string, string> = {};
   for (const p of license.plugins) {
-    if (p.downloadUrl) {
-      updates[p.name] = p.downloadUrl;
+    if (p.jarUrl) {
+      updates[p.name] = p.jarUrl;
     }
   }
 
@@ -248,7 +298,14 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
     plan: license.plan,
     expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
     allowedPlugins,
-    updates
+    updates,
+    pluginInfo: {
+      name: targetPlugin.name,
+      version: targetPlugin.version ?? '1.0.0',
+      platform: targetPlugin.platform ?? 'Bukkit',
+      jarUrl: targetPlugin.jarUrl ?? '',
+      dependencies: targetPlugin.dependencies ?? []
+    }
   };
 }
 

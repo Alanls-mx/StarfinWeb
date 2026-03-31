@@ -30,6 +30,7 @@ export async function POST(req: Request) {
         name: user.name,
         email: user.email,
         role: user.role,
+        verified: user.verified,
         createdAt: user.createdAt.toISOString()
       }
     });

@@ -5,6 +5,7 @@ import { db } from '@backend/lib/db';
 import { jsonError, jsonOk } from '@backend/lib/http';
 import { sendDiscordWebhook } from '@backend/lib/discord';
 import { createLicenseForUser } from '@backend/lib/license';
+import { getOrderConfirmationHtml, sendMail } from '@backend/lib/mail-service';
 
 export const runtime = 'nodejs';
 
@@ -26,6 +27,13 @@ export async function POST(req: Request) {
 
     await sendDiscordWebhook({
       content: `✅ Nova licença ativada\nuser=${result.user.email}\nlicenseKey=${license.licenseKey}\nplugin=${plugin.slug}`
+    });
+
+    // Send confirmation email
+    await sendMail({
+      to: result.user.email,
+      subject: `Pedido Confirmado! Seu plugin ${plugin.name} está pronto`,
+      html: getOrderConfirmationHtml(result.user.name, license.id, plugin.name, license.licenseKey)
     });
 
     return jsonOk(

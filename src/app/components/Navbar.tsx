@@ -11,13 +11,19 @@ export function Navbar() {
   const navItems = [
     { name: 'Início', to: '/' },
     { name: 'Plugins', to: '/plugins' },
-    { name: 'Categorias', to: '/categories' },
     { name: 'Documentação', to: '/docs' },
     { name: 'Suporte', to: '/support' },
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/80 backdrop-blur-xl border-b border-[#7B2CBF]/20">
+    <>
+      {state.status === 'authenticated' && !state.user.verified && (
+        <div className="fixed top-0 left-0 right-0 z-[60] bg-yellow-600 text-white text-xs font-medium py-1 px-4 text-center">
+          Por favor, verifique seu email para ativar todas as funcionalidades da sua conta.{' '}
+          <button className="underline hover:no-underline font-bold ml-1">Reenviar email</button>
+        </div>
+      )}
+      <nav className={`fixed ${state.status === 'authenticated' && !state.user.verified ? 'top-6' : 'top-0'} left-0 right-0 z-50 bg-[#0B0B0F]/80 backdrop-blur-xl border-b border-[#7B2CBF]/20`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -64,12 +70,7 @@ export function Navbar() {
           {/* Right Side Icons */}
           <div className="flex items-center gap-4">
             <button
-              className="p-2 text-gray-300 hover:text-white hover:bg-[#1A1A22] rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#7B2CBF]/20"
-              aria-label="Buscar"
-            >
-              <Search className="w-5 h-5" />
-            </button>
-            <button
+              onClick={() => navigate('/cart')}
               className="p-2 text-gray-300 hover:text-white hover:bg-[#1A1A22] rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#7B2CBF]/20"
               aria-label="Carrinho"
             >
@@ -169,5 +170,6 @@ export function Navbar() {
         </div>
       )}
     </nav>
+    </>
   );
 }

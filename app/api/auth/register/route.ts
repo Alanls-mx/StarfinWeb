@@ -1,7 +1,9 @@
+import crypto from 'node:crypto';
 import { z } from 'zod';
 import { db } from '@backend/lib/db';
 import { jsonError, jsonOk } from '@backend/lib/http';
 import { hashPassword, signJwt } from '@backend/lib/auth';
+import { getVerificationEmailHtml, sendMail } from '@backend/lib/mail-service';
 
 export const runtime = 'nodejs';
 
@@ -21,12 +23,32 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(input.password);
+    
     const user = await db.user.create({
       data: {
         name: input.name,
         email: input.email,
-        passwordHash
+        passwordHash,
+        verified: false
       }
+    });
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000); // 24 hours
+
+    await db.verificationToken.create({
+      data: {
+        userId: user.id,
+        token: verificationToken,
+        expiresAt
+      }
+    });
+
+    const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/verify?token=${verificationToken}`;
+    await sendMail({
+      to: user.email,
+      subject: 'Bem-vindo! Confirme seu email - Starfin',
+      html: getVerificationEmailHtml(user.name, verifyUrl)
     });
 
     const token = signJwt({ userId: user.id, role: user.role });
@@ -38,6 +60,7 @@ export async function POST(req: Request) {
           name: user.name,
           email: user.email,
           role: user.role,
+          verified: user.verified,
           createdAt: user.createdAt.toISOString()
         }
       },
