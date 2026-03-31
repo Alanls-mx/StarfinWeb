@@ -21,12 +21,34 @@ export function RegisterPage() {
           <h1 className="text-4xl mb-3">Criar Conta</h1>
           <p className="text-gray-400 mb-8">Crie sua conta e confirme o email para ativar compras e integrações.</p>
 
-          <div className="space-y-4">
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSubmitting(true);
+              setError(null);
+              try {
+                const res = await registerAccount({ name: name.trim(), email: email.trim(), password });
+                localStorage.setItem('starfinplugins_token', res.token);
+                await refresh();
+                navigate('/account', { replace: true });
+              } catch (e) {
+                if (e instanceof ApiError) setError(e.message);
+                else setError('Não foi possível criar a conta.');
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            className="space-y-4"
+          >
             <div className="space-y-2">
-              <div className="text-sm text-gray-400">Nome</div>
+              <label htmlFor="name" className="text-sm text-gray-400">Nome</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
+                  id="name"
+                  type="text"
+                  autoComplete="name"
+                  required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Seu nome"
@@ -36,10 +58,14 @@ export function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm text-gray-400">Email</div>
+              <label htmlFor="email" className="text-sm text-gray-400">Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
@@ -49,11 +75,14 @@ export function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm text-gray-400">Senha</div>
+              <label htmlFor="password" className="text-sm text-gray-400">Senha</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
+                  id="password"
                   type="password"
+                  autoComplete="new-password"
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="mínimo 6 caracteres"
@@ -67,27 +96,13 @@ export function RegisterPage() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              type="submit"
               disabled={submitting || !name.trim() || !email.trim() || password.length < 6}
-              onClick={async () => {
-                setSubmitting(true);
-                setError(null);
-                try {
-                  const res = await registerAccount({ name: name.trim(), email: email.trim(), password });
-                  localStorage.setItem('starfinplugins_token', res.token);
-                  await refresh();
-                  navigate('/account', { replace: true });
-                } catch (e) {
-                  if (e instanceof ApiError) setError(e.message);
-                  else setError('Não foi possível criar a conta.');
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
               className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-xl hover:shadow-[#7B2CBF]/50 transition-all duration-300 disabled:opacity-60"
             >
               Criar Conta
             </motion.button>
-          </div>
+          </form>
         </div>
 
         <div className="space-y-6">

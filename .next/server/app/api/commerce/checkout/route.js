@@ -42,7 +42,7 @@ plugins=${d.map(a=>a.slug).join(", ")}`}),(0,x.h)({orderId:i.id,finalTotal:h,lic
             <td align="center" style="padding: 30px; background-color: #0b0b0f; border-top: 1px solid #7b2cbf22;">
               <p style="margin: 0; color: #666666; font-size: 14px;">&copy; 2026 Starfin Plugins. Todos os direitos reservados.</p>
               <div style="margin-top: 15px;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL||"https://starfinweb.netlify.app"}" style="color: #c77dff; text-decoration: none; font-size: 12px; margin: 0 10px;">Website</a>
+                <a href="https://starfinweb.netlify.app" style="color: #c77dff; text-decoration: none; font-size: 12px; margin: 0 10px;">Website</a>
                 <a href="#" style="color: #c77dff; text-decoration: none; font-size: 12px; margin: 0 10px;">Discord</a>
                 <a href="#" style="color: #c77dff; text-decoration: none; font-size: 12px; margin: 0 10px;">Suporte</a>
               </div>
@@ -54,7 +54,7 @@ plugins=${d.map(a=>a.slug).join(", ")}`}),(0,x.h)({orderId:i.id,finalTotal:h,lic
   </table>
 </body>
 </html>
-`;async function g(a){try{let b=await d.sendMail({from:e,to:a.to,subject:a.subject,html:a.html});return console.log("Email sent: %s",b.messageId),{success:!0,messageId:b.messageId}}catch(a){return console.error("Error sending email:",a),{success:!1,error:a}}}function h(a,b){return process.env.NEXT_PUBLIC_APP_URL,f(`
+`;async function g(a){try{let b=await d.sendMail({from:e,to:a.to,subject:a.subject,html:a.html});return console.log("Email sent: %s",b.messageId),{success:!0,messageId:b.messageId}}catch(a){return console.error("Error sending email:",a),{success:!1,error:a}}}function h(a,b){return f(`
     <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 20px;">Ol\xe1, ${a}!</h2>
     <p style="color: #a0a0a8; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
       Obrigado por se juntar \xe0 <strong>Starfin Plugins</strong>. Estamos felizes em ter voc\xea conosco! 
@@ -73,7 +73,7 @@ plugins=${d.map(a=>a.slug).join(", ")}`}),(0,x.h)({orderId:i.id,finalTotal:h,lic
       Se o bot\xe3o n\xe3o funcionar, copie este link: <br>
       <span style="color: #7b2cbf;">${b}</span>
     </p>
-  `)}function i(a,b){return process.env.NEXT_PUBLIC_APP_URL,f(`
+  `)}function i(a,b){return f(`
     <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 20px;">Recuperar Senha</h2>
     <p style="color: #a0a0a8; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
       Ol\xe1 ${a}, recebemos uma solicita\xe7\xe3o para redefinir a senha da sua conta. 
@@ -88,7 +88,7 @@ plugins=${d.map(a=>a.slug).join(", ")}`}),(0,x.h)({orderId:i.id,finalTotal:h,lic
         </td>
       </tr>
     </table>
-  `)}function j(a,b,c,d){let e=process.env.NEXT_PUBLIC_APP_URL||"https://starfinweb.netlify.app";return f(`
+  `)}function j(a,b,c,d){return f(`
     <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 10px;">Obrigado pela compra!</h2>
     <p style="color: #a0a0a8; font-size: 14px; margin-bottom: 30px;">Pedido #${b.slice(-6).toUpperCase()}</p>
     
@@ -109,7 +109,7 @@ plugins=${d.map(a=>a.slug).join(", ")}`}),(0,x.h)({orderId:i.id,finalTotal:h,lic
     <table border="0" cellpadding="0" cellspacing="0" width="100%">
       <tr>
         <td align="center">
-          <a href="${e}/account" style="background: linear-gradient(to right, #7b2cbf, #9d4edd); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; display: inline-block;">
+          <a href="https://starfinweb.netlify.app/account" style="background: linear-gradient(to right, #7b2cbf, #9d4edd); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; display: inline-block;">
             Acessar Meus Plugins
           </a>
         </td>

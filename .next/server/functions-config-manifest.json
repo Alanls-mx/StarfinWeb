@@ -1,24 +1,24 @@
 {
   "version": 1,
   "functions": {
-    "/api/admin/reviews": {},
     "/api/auth/forgot-password": {},
-    "/api/admin/licenses": {},
-    "/api/admin/plugins": {},
-    "/api/auth/me": {},
     "/api/admin/stats": {},
-    "/api/auth/register": {},
-    "/api/auth/reset-password": {},
-    "/api/auth/login": {},
-    "/api/auth/verify": {},
     "/api/admin/plugins/[id]": {},
+    "/api/admin/licenses": {},
+    "/api/auth/login": {},
+    "/api/auth/reset-password": {},
+    "/api/auth/register": {},
+    "/api/admin/plugins": {},
+    "/api/auth/verify": {},
     "/api/plugins": {},
-    "/api/commerce/coupon/validate": {},
-    "/api/commerce/checkout": {},
     "/api/licenses": {},
     "/api/licenses/generate": {},
-    "/api/v1/license/check": {},
+    "/api/purchases": {},
     "/api/reviews": {},
-    "/api/purchases": {}
+    "/api/v1/license/check": {},
+    "/api/commerce/checkout": {},
+    "/api/auth/me": {},
+    "/api/commerce/coupon/validate": {},
+    "/api/admin/reviews": {}
   }
 }

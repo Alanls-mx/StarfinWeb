@@ -11,8 +11,8 @@ export function LoginPage() {
   const next = searchParams.get('next') || '/account';
   const { login, state } = useAuth();
 
-  const [email, setEmail] = useState('joao@exemplo.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,12 +29,32 @@ export function LoginPage() {
           <h1 className="text-4xl mb-3">Entrar</h1>
           <p className="text-gray-400 mb-8">Acesse sua conta para gerenciar licenças e integrações.</p>
 
-          <div className="space-y-4">
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSubmitting(true);
+              setError(null);
+              try {
+                await login(email.trim(), password);
+                navigate(next, { replace: true });
+              } catch (e) {
+                if (e instanceof ApiError) setError(e.message);
+                else setError('Não foi possível entrar.');
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            className="space-y-4"
+          >
             <div className="space-y-2">
-              <div className="text-sm text-gray-400">Email</div>
+              <label htmlFor="email" className="text-sm text-gray-400">Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
@@ -44,11 +64,14 @@ export function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm text-gray-400">Senha</div>
+              <label htmlFor="password" className="text-sm text-gray-400">Senha</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
+                  id="password"
                   type="password"
+                  autoComplete="current-password"
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -62,30 +85,14 @@ export function LoginPage() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              type="submit"
               disabled={submitting || !email.trim() || !password}
-              onClick={async () => {
-                setSubmitting(true);
-                setError(null);
-                try {
-                  await login(email.trim(), password);
-                  navigate(next, { replace: true });
-                } catch (e) {
-                  if (e instanceof ApiError) setError(e.message);
-                  else setError('Não foi possível entrar.');
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
               className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-xl hover:shadow-[#7B2CBF]/50 transition-all duration-300 disabled:opacity-60"
             >
               <User className="w-5 h-5" />
               Entrar
             </motion.button>
-
-            <div className="text-xs text-gray-500">
-              Para teste, use o email e senha preenchidos automaticamente.
-            </div>
-          </div>
+          </form>
         </div>
 
         <div className="space-y-6">
