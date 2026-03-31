@@ -7,13 +7,12 @@ import { useAuth } from '../lib/auth';
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { refresh } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">
@@ -64,11 +63,6 @@ export function RegisterPage() {
             </div>
 
             {error ? <div className="text-sm text-red-400">{error}</div> : null}
-            {verificationUrl ? (
-              <div className="text-sm text-emerald-400 break-all">
-                Link de verificação (dev): <a className="underline" href={verificationUrl}>{verificationUrl}</a>
-              </div>
-            ) : null}
 
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -77,11 +71,10 @@ export function RegisterPage() {
               onClick={async () => {
                 setSubmitting(true);
                 setError(null);
-                setVerificationUrl(null);
                 try {
                   const res = await registerAccount({ name: name.trim(), email: email.trim(), password });
-                  if (res.devVerificationUrl) setVerificationUrl(res.devVerificationUrl);
-                  await login(email.trim(), password);
+                  localStorage.setItem('starfinplugins_token', res.token);
+                  await refresh();
                   navigate('/account', { replace: true });
                 } catch (e) {
                   if (e instanceof ApiError) setError(e.message);
