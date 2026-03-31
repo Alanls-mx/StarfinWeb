@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/auth/me": {},
+    "/api/auth/login": {},
+    "/api/admin/plugins": {},
+    "/api/admin/licenses": {},
+    "/api/plugins": {},
+    "/api/auth/register": {},
+    "/api/admin/plugins/[id]": {},
+    "/api/v1/license/check": {},
+    "/api/purchases": {},
+    "/api/licenses/generate": {},
+    "/api/licenses": {}
+  }
+}

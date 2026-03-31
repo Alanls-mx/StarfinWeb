@@ -1,0 +1,13 @@
+{
+  "/api/admin/licenses/route": "/api/admin/licenses",
+  "/api/admin/plugins/route": "/api/admin/plugins",
+  "/api/auth/register/route": "/api/auth/register",
+  "/api/admin/plugins/[id]/route": "/api/admin/plugins/[id]",
+  "/api/auth/login/route": "/api/auth/login",
+  "/api/licenses/generate/route": "/api/licenses/generate",
+  "/api/plugins/route": "/api/plugins",
+  "/api/auth/me/route": "/api/auth/me",
+  "/api/licenses/route": "/api/licenses",
+  "/api/v1/license/check/route": "/api/v1/license/check",
+  "/api/purchases/route": "/api/purchases"
+}
