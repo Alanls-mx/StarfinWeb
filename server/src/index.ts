@@ -555,9 +555,12 @@ app.post('/api/plugins/:id/reviews', (req, res) => {
 });
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3001;
-app.listen(port, () => {
-  process.stdout.write(`StarfinPlugins API rodando em http://localhost:${port}\n`);
-});
+
+if (process.env.NODE_ENV !== 'production' || !process.env.NETLIFY) {
+  app.listen(port, () => {
+    process.stdout.write(`StarfinPlugins API rodando em http://localhost:${port}\n`);
+  });
+}
 
 // Admin routes
 app.get('/api/admin/plugins', (req, res) => {
@@ -917,3 +920,5 @@ app.put('/api/admin/docs/:id', (req, res) => {
   docsSections[idx].updatedISO = now;
   res.json({ ok: true, item: docsSections[idx] });
 });
+
+export { app };
