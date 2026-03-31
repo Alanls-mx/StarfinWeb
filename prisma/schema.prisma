@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LicenseStatus {
+  active
+  suspended
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(user)
+  createdAt    DateTime  @default(now())
+  licenses     License[]
+}
+
+model License {
+  id         String        @id @default(cuid())
+  licenseKey String        @unique
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hwid       String?
+  plan       String
+  status     LicenseStatus @default(active)
+  expiresAt  DateTime?
+  createdAt  DateTime      @default(now())
+  plugins    LicensePlugin[]
+  logs       Log[]
+
+  @@index([userId])
+}
+
+model Plugin {
+  id            String          @id @default(cuid())
+  name          String
+  slug          String          @unique
+  price         Int
+  createdAt     DateTime        @default(now())
+  downloadUrl   String?
+  latestVersion String?
+  licenses      LicensePlugin[]
+
+  @@index([createdAt])
+}
+
+model LicensePlugin {
+  id        String  @id @default(cuid())
+  licenseId String
+  pluginId  String
+  license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  plugin    Plugin  @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([licenseId, pluginId])
+  @@index([pluginId])
+}
+
+model Log {
+  id         String   @id @default(cuid())
+  licenseId  String
+  license    License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  serverIp   String
+  serverPort Int
+  serverName String
+  platform   String
+  pluginCore String?
+  coreVersion String?
+  performance Json
+  createdAt  DateTime @default(now())
+
+  @@index([licenseId, createdAt])
+}
