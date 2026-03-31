@@ -28,6 +28,8 @@ export type LicenseCheckReason =
   | 'EXPIRED'
   | 'HWID_REQUIRED'
   | 'HWID_MISMATCH'
+  | 'IP_MISMATCH'
+  | 'PLUGIN_NOT_ALLOWED'
   | 'ERROR';
 
 export type LicenseCheckResponse = {
@@ -48,7 +50,8 @@ type LicenseData = {
   plan: string;
   status: LicenseStatus;
   expiresAt: Date | null;
-  plugins: Array<{ name: string; downloadUrl: string | null }>;
+  productIps: Record<string, string[]> | null;
+  plugins: Array<{ id: string; name: string; downloadUrl: string | null }>;
 };
 
 const licenseCache = new TtlCache<string, LicenseData>(30_000);
@@ -70,8 +73,13 @@ async function getLicenseByKey(licenseKey: string): Promise<LicenseData | null> 
         plan: value.plan ?? '',
         status: value.status ?? LicenseStatus.active,
         expiresAt: value.expiresAt ? new Date(value.expiresAt) : null,
+        productIps: (value.productIps as Record<string, string[]>) ?? null,
         plugins: Array.isArray(value.plugins)
-          ? value.plugins.map((p: any) => ({ name: String(p.name ?? ''), downloadUrl: p.downloadUrl ?? null }))
+          ? value.plugins.map((p: any) => ({
+              id: String(p.id ?? ''),
+              name: String(p.name ?? ''),
+              downloadUrl: p.downloadUrl ?? null
+            }))
           : []
       };
       licenseCache.set(licenseKey, parsed);
@@ -96,7 +104,12 @@ async function getLicenseByKey(licenseKey: string): Promise<LicenseData | null> 
     plan: license.plan,
     status: license.status,
     expiresAt: license.expiresAt ?? null,
-    plugins: license.plugins.map((lp) => ({ name: lp.plugin.name, downloadUrl: lp.plugin.downloadUrl ?? null }))
+    productIps: (license.productIps as Record<string, string[]>) ?? null,
+    plugins: license.plugins.map((lp) => ({
+      id: lp.plugin.id,
+      name: lp.plugin.name,
+      downloadUrl: lp.plugin.downloadUrl ?? null
+    }))
   };
 
   licenseCache.set(licenseKey, data);
@@ -191,6 +204,36 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
   await logUsage(license.id, input);
 
   const allowedPlugins = license.plugins.map((p) => p.name);
+  const targetPlugin = license.plugins.find(
+    (p) => p.name.toLowerCase() === input.pluginCore.toLowerCase()
+  );
+
+  if (!targetPlugin) {
+    await logUsage(license.id, input);
+    return {
+      ...baseResponse('PLUGIN_NOT_ALLOWED'),
+      licenseOwner: license.user.name,
+      plan: license.plan,
+      expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
+      allowedPlugins
+    };
+  }
+
+  // IP-per-product validation (from VersaoAntiga)
+  if (license.productIps && license.productIps[targetPlugin.id]) {
+    const allowedIps = license.productIps[targetPlugin.id];
+    if (!allowedIps.includes(input.serverIp)) {
+      await logUsage(license.id, input);
+      return {
+        ...baseResponse('IP_MISMATCH'),
+        licenseOwner: license.user.name,
+        plan: license.plan,
+        expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
+        allowedPlugins
+      };
+    }
+  }
+
   const updates: Record<string, string> = {};
   for (const p of license.plugins) {
     if (p.downloadUrl) {
@@ -207,6 +250,69 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
     allowedPlugins,
     updates
   };
+}
+
+export async function createLicenseForUser(userId: string, pluginId: string) {
+  const plugin = await db.plugin.findUnique({ where: { id: pluginId } });
+  if (!plugin) throw new Error('Plugin not found');
+
+  // Check if user already has a license
+  let license = await db.license.findFirst({
+    where: { userId },
+    include: { plugins: true }
+  });
+
+  if (!license) {
+    const licenseKey = `STAR-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    license = await db.license.create({
+      data: {
+        userId,
+        licenseKey,
+        plan: 'Standard',
+        status: LicenseStatus.active
+      },
+      include: { plugins: true }
+    });
+  }
+
+  // Check if plugin is already linked to this license
+  const exists = license.plugins.some((p) => p.pluginId === pluginId);
+  if (!exists) {
+    await db.licensePlugin.create({
+      data: {
+        licenseId: license.id,
+        pluginId
+      }
+    });
+
+    // If it's a timed license, update expiresAt
+    if (plugin.licensePolicy) {
+      const policy = plugin.licensePolicy as any;
+      let expiresAt: Date | null = license.expiresAt;
+
+      if (policy.type === 'duration' && policy.months) {
+        const d = expiresAt ? new Date(expiresAt) : new Date();
+        d.setMonth(d.getMonth() + policy.months);
+        expiresAt = d;
+      } else if (policy.type === 'date' && policy.expiresAt) {
+        expiresAt = new Date(policy.expiresAt);
+      }
+
+      if (expiresAt) {
+        await db.license.update({
+          where: { id: license.id },
+          data: { expiresAt }
+        });
+      }
+    }
+  }
+
+  // Clear cache
+  licenseCache.delete(license.licenseKey);
+  const redis = getRedis();
+  if (redis) await redis.del(`license:${license.licenseKey}`);
+
+  return license;
 }
 
 async function logUsage(licenseId: string, input: LicenseCheckRequest) {

@@ -36,6 +36,7 @@ model License {
   plan       String
   status     LicenseStatus @default(active)
   expiresAt  DateTime?
+  productIps Json?         // { pluginId: ["ip1", "ip2"] }
   createdAt  DateTime      @default(now())
   plugins    LicensePlugin[]
   logs       Log[]
@@ -48,6 +49,7 @@ model Plugin {
   name          String
   slug          String          @unique
   price         Int
+  licensePolicy Json?           // { type: "infinite" | "duration" | "date", months?: number, expiresAt?: string }
   createdAt     DateTime        @default(now())
   downloadUrl   String?
   latestVersion String?

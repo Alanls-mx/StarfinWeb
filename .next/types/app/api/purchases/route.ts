@@ -1,4 +1,4 @@
-// File: C:\Users\alanl\Downloads\Marketplace de Plugins Minecraft\app\api\purchases\route.ts
+// File: C:\Users\alanl\Downloads\Marketplace\app\api\purchases\route.ts
 import * as entry from '../../../../../app/api/purchases/route.js'
 import type { NextRequest } from 'next/server.js'
 

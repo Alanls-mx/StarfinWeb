@@ -98,7 +98,7 @@
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "C:\\Users\\alanl\\Downloads\\Marketplace de Plugins Minecraft",
+    "outputFileTracingRoot": "C:\\Users\\alanl\\Downloads\\Marketplace",
     "experimental": {
       "useSkewCookie": false,
       "cacheLife": {
@@ -288,10 +288,10 @@
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.mjs",
     "turbopack": {
-      "root": "C:\\Users\\alanl\\Downloads\\Marketplace de Plugins Minecraft"
+      "root": "C:\\Users\\alanl\\Downloads\\Marketplace"
     }
   },
-  "appDir": "C:\\Users\\alanl\\Downloads\\Marketplace de Plugins Minecraft",
+  "appDir": "C:\\Users\\alanl\\Downloads\\Marketplace",
   "relativeAppDir": "",
   "files": [
     ".next\\routes-manifest.json",
