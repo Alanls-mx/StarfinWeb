@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       }
     });
 
-    const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/verify?token=${verificationToken}`;
+    const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://starfinweb.netlify.app'}/verify-email?token=${verificationToken}`;
     await sendMail({
       to: user.email,
       subject: 'Bem-vindo! Confirme seu email - Starfin',

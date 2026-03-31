@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       }
     });
 
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/reset-password?token=${token}`;
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://starfinweb.netlify.app'}/auth/reset-password?token=${token}`;
     await sendMail({
       to: user.email,
       subject: 'Recuperação de Senha - Starfin',

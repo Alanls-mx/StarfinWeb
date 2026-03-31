@@ -66,7 +66,9 @@ export async function sendMail(options: EmailOptions) {
   try {
     const info = await transporter.sendMail({
       from: FROM_EMAIL,
-      ...options,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
     });
     console.log('Email sent: %s', info.messageId);
     return { success: true, messageId: info.messageId };
@@ -77,7 +79,8 @@ export async function sendMail(options: EmailOptions) {
 }
 
 export function getVerificationEmailHtml(name: string, verifyUrl: string) {
-  return EMAIL_LAYOUT(`
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://starfinweb.netlify.app';
+  const html = EMAIL_LAYOUT(`
     <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 20px;">Olá, ${name}!</h2>
     <p style="color: #a0a0a8; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
       Obrigado por se juntar à <strong>Starfin Plugins</strong>. Estamos felizes em ter você conosco! 
@@ -97,10 +100,12 @@ export function getVerificationEmailHtml(name: string, verifyUrl: string) {
       <span style="color: #7b2cbf;">${verifyUrl}</span>
     </p>
   `);
+  return html;
 }
 
 export function getPasswordResetEmailHtml(name: string, resetUrl: string) {
-  return EMAIL_LAYOUT(`
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://starfinweb.netlify.app';
+  const html = EMAIL_LAYOUT(`
     <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 20px;">Recuperar Senha</h2>
     <p style="color: #a0a0a8; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
       Olá ${name}, recebemos uma solicitação para redefinir a senha da sua conta. 
@@ -116,10 +121,12 @@ export function getPasswordResetEmailHtml(name: string, resetUrl: string) {
       </tr>
     </table>
   `);
+  return html;
 }
 
 export function getOrderConfirmationHtml(name: string, orderId: string, pluginName: string, licenseKey: string) {
-  return EMAIL_LAYOUT(`
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://starfinweb.netlify.app';
+  const html = EMAIL_LAYOUT(`
     <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 10px;">Obrigado pela compra!</h2>
     <p style="color: #a0a0a8; font-size: 14px; margin-bottom: 30px;">Pedido #${orderId.slice(-6).toUpperCase()}</p>
     
@@ -140,11 +147,12 @@ export function getOrderConfirmationHtml(name: string, orderId: string, pluginNa
     <table border="0" cellpadding="0" cellspacing="0" width="100%">
       <tr>
         <td align="center">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://starfinweb.netlify.app'}/account" style="background: linear-gradient(to right, #7b2cbf, #9d4edd); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; display: inline-block;">
+          <a href="${appUrl}/account" style="background: linear-gradient(to right, #7b2cbf, #9d4edd); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; display: inline-block;">
             Acessar Meus Plugins
           </a>
         </td>
       </tr>
     </table>
   `);
+  return html;
 }
