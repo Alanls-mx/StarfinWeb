@@ -241,6 +241,14 @@ app.post('/api/admin/upload', (req, res, next) => {
   res.json({ url: fileUrl });
 });
 
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: 'starfin-api',
+    timeISO: new Date().toISOString()
+  });
+});
+
 app.get('/api/public/plans', (_req, res) => {
   const plans = listPlans();
   res.json({ items: plans.filter(p => p.active) });

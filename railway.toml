@@ -3,5 +3,5 @@
 
 [deploy]
   startCommand = "npm run start"
-  healthcheckPath = "/api/public/plans"
+  healthcheckPath = "/api/health"
   healthcheckTimeout = 100
