@@ -67,7 +67,11 @@ conn = pymysql.connect(
 
 try:
     with conn.cursor() as cursor:
-        cursor.execute(payload["sql"], payload.get("params", []))
+        params = payload.get("params", [])
+        sql = payload["sql"]
+        if params:
+            sql = sql.replace("?", "%s")
+        cursor.execute(sql, params)
         mode = payload["mode"]
         if mode == "run":
             print(json.dumps({
