@@ -30,6 +30,7 @@ export interface UserProfile {
   email: string;
   plan: 'Free' | 'Premium';
   planExpiresAt?: string | null;
+  planDurationDays?: number | null;
   verified: boolean;
   banned: boolean;
   role: 'user' | 'admin' | 'staff' | 'premium';

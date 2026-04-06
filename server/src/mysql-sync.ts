@@ -71,6 +71,8 @@ try:
         sql = payload["sql"]
         if params:
             sql = sql.replace("?", "%s")
+            while "?" in sql:
+                sql = sql.replace("?", "%s")
         cursor.execute(sql, params)
         mode = payload["mode"]
         if mode == "run":

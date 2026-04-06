@@ -1643,6 +1643,7 @@ export interface AccountUser {
   email: string;
   plan: 'Free' | 'Premium';
   planExpiresAt?: string | null;
+  planDurationDays?: number | null;
   passwordHash: string;
   verified: boolean;
   createdISO: string;
@@ -2049,15 +2050,37 @@ export function listAllUsers() {
   }) as AccountUser[];
 }
 
-export function updateUserAdmin(id: string, data: Partial<AccountUser>) {
+function normalizePlanDurationDays(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const days = Math.floor(parsed);
+  return days < 0 ? 0 : days;
+}
+
+function buildPlanExpiryFromDays(days: number): string | null {
+  if (!Number.isFinite(days) || days <= 0) return null;
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + days);
+  return expiresAt.toISOString();
+}
+
+export function updateUserAdmin(id: string, data: Partial<AccountUser> & { planDurationDays?: number | string | null }) {
   const current = findUserById(id);
   if (!current) return null;
 
   const name = data.name ?? current.name;
   const email = data.email?.toLowerCase() ?? current.email;
   let plan = data.plan ?? current.plan;
-  const planExpiresAt = data.planExpiresAt !== undefined ? data.planExpiresAt : current.planExpiresAt;
+  const planDurationDays = normalizePlanDurationDays(data.planDurationDays);
+  let planExpiresAt = data.planExpiresAt !== undefined ? data.planExpiresAt : current.planExpiresAt;
   let role = data.role ?? current.role;
+
+  if (planDurationDays !== null) {
+    planExpiresAt = buildPlanExpiryFromDays(planDurationDays);
+  } else if (data.plan === 'Free' && data.planExpiresAt === undefined) {
+    planExpiresAt = null;
+  }
 
   // Normalização: se o plano for qualquer coisa diferente de Free/Gratuito, 
   // e o cargo for 'user', atualiza para 'premium' para garantir acesso.
@@ -2095,7 +2118,7 @@ export function deleteUserAdmin(id: string) {
   return info.changes > 0;
 }
 
-export function createUserAdmin(data: Partial<AccountUser> & { password?: string }) {
+export function createUserAdmin(data: Partial<AccountUser> & { password?: string; planDurationDays?: number | string | null }) {
   const id = `user_${crypto.randomUUID()}`;
   const name = data.name || 'Novo Usuário';
   const email = (data.email || `user_${Date.now()}@starfin.com`).toLowerCase();
@@ -2104,7 +2127,13 @@ export function createUserAdmin(data: Partial<AccountUser> & { password?: string
       ? data.password
       : crypto.randomBytes(18).toString('base64url');
   const plan = data.plan || 'Free';
-  const planExpiresAt = data.planExpiresAt || null;
+  const planDurationDays = normalizePlanDurationDays(data.planDurationDays);
+  let planExpiresAt = data.planExpiresAt || null;
+  if (planDurationDays !== null) {
+    planExpiresAt = buildPlanExpiryFromDays(planDurationDays);
+  } else if (plan === 'Free' && !data.planExpiresAt) {
+    planExpiresAt = null;
+  }
   const role = data.role || 'user';
   const phone = data.phone || null;
   const permissions = JSON.stringify(data.permissions || []);

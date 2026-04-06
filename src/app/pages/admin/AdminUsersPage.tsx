@@ -5,6 +5,20 @@ import { getAdminUsers, updateAdminUser, deleteAdminUser, createAdminUser, admin
 import { useAuth } from '../../lib/auth';
 import { toast } from 'sonner';
 
+type AdminUserDraft = Partial<UserProfile> & {
+  password?: string;
+  planDurationDays?: number | null;
+};
+
+function getRemainingPlanDays(planExpiresAt?: string | null): number | null {
+  if (!planExpiresAt) return null;
+  const target = new Date(planExpiresAt).getTime();
+  if (!Number.isFinite(target)) return null;
+  const diff = target - Date.now();
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
 export function AdminUsersPage() {
   const { state } = useAuth();
   const token = state.status === 'authenticated' ? state.token : null;
@@ -12,9 +26,9 @@ export function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editingUser, setEditingUser] = useState<AdminUserDraft | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [newUser, setNewUser] = useState<Partial<UserProfile> & { password?: string }>({
+  const [newUser, setNewUser] = useState<AdminUserDraft>({
     name: '',
     email: '',
     password: '',
@@ -50,11 +64,17 @@ export function AdminUsersPage() {
     if (!token || !editingUser) return;
     setSaving(true);
     try {
-      // Create a shallow copy and remove undefined/null fields if necessary, 
-      // but ensure permissions is a proper array
-      const dataToSave = {
+      const normalizedDurationDays =
+        editingUser.planDurationDays === null || editingUser.planDurationDays === undefined
+          ? undefined
+          : Number(editingUser.planDurationDays);
+
+      const dataToSave: AdminUserDraft = {
         ...editingUser,
-        permissions: editingUser.permissions || []
+        permissions: editingUser.permissions || [],
+        planDurationDays: Number.isFinite(normalizedDurationDays as number)
+          ? Math.max(0, Math.floor(normalizedDurationDays as number))
+          : undefined
       };
       const updated = await updateAdminUser(token, editingUser.id, dataToSave);
       setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
@@ -73,7 +93,19 @@ export function AdminUsersPage() {
     if (!token) return;
     setSaving(true);
     try {
-      const created = await createAdminUser(token, newUser);
+      const normalizedDurationDays =
+        newUser.planDurationDays === null || newUser.planDurationDays === undefined
+          ? undefined
+          : Number(newUser.planDurationDays);
+
+      const payload: AdminUserDraft = {
+        ...newUser,
+        planDurationDays: Number.isFinite(normalizedDurationDays as number)
+          ? Math.max(0, Math.floor(normalizedDurationDays as number))
+          : undefined
+      };
+
+      const created = await createAdminUser(token, payload);
       setUsers(prev => [created, ...prev]);
       toast.success('Usuário criado com sucesso!');
       setIsCreating(false);
@@ -196,7 +228,12 @@ export function AdminUsersPage() {
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
-                          onClick={() => setEditingUser(user)}
+                          onClick={() =>
+                            setEditingUser({
+                              ...user,
+                              planDurationDays: getRemainingPlanDays(user.planExpiresAt)
+                            })
+                          }
                           className="p-2 text-gray-400 hover:text-[#C77DFF] hover:bg-[#7B2CBF]/10 rounded-lg transition-all"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -242,7 +279,7 @@ export function AdminUsersPage() {
               </div>
 
               <form onSubmit={isCreating ? handleCreate : handleSave} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-2">Nome Completo</label>
                     <input
@@ -276,7 +313,7 @@ export function AdminUsersPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-2">Telefone</label>
                     <input
@@ -301,7 +338,7 @@ export function AdminUsersPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-2">Plano</label>
                     <select
@@ -322,10 +359,44 @@ export function AdminUsersPage() {
                       value={(isCreating ? newUser.planExpiresAt : editingUser?.planExpiresAt)?.toString().slice(0, 10) || ''}
                       onChange={(e) => {
                         const val = e.target.value ? new Date(e.target.value).toISOString() : null;
-                        isCreating ? setNewUser({ ...newUser, planExpiresAt: val as any }) : setEditingUser({ ...editingUser!, planExpiresAt: val as any });
+                        if (isCreating) {
+                          setNewUser({ ...newUser, planExpiresAt: val as any, planDurationDays: undefined });
+                        } else {
+                          setEditingUser({ ...editingUser!, planExpiresAt: val as any, planDurationDays: undefined });
+                        }
                       }}
                       className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">Duracao (dias)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="Ex: 30"
+                      value={isCreating ? (newUser.planDurationDays ?? '') : (editingUser?.planDurationDays ?? '')}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        if (!raw) {
+                          if (isCreating) {
+                            setNewUser({ ...newUser, planDurationDays: undefined });
+                          } else {
+                            setEditingUser({ ...editingUser!, planDurationDays: undefined });
+                          }
+                          return;
+                        }
+
+                        const days = Math.max(0, Math.floor(Number(raw)));
+                        if (isCreating) {
+                          setNewUser({ ...newUser, planDurationDays: days, planExpiresAt: null });
+                        } else {
+                          setEditingUser({ ...editingUser!, planDurationDays: days, planExpiresAt: null });
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                    />
+                    <p className="mt-2 text-xs text-gray-500">Ao preencher os dias, a expiracao e calculada automaticamente.</p>
                   </div>
                 </div>
 
