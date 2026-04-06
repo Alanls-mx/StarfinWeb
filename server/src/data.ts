@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 import { join } from 'node:path';
 
-const dbPath = join(process.cwd(), 'server.db');
+const dbPath = process.env.DATABASE_URL || join(process.cwd(), 'server.db');
 const sqlite = new Database(dbPath);
 
 // Initialize DB tables

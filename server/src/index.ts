@@ -2924,6 +2924,15 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '..', '..', 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not Found' });
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
 if (process.env.NODE_ENV !== 'production' || !process.env.NETLIFY) {
   app.listen(port, () => {
     process.stdout.write(`StarfinPlugins API rodando em http://localhost:${port}\n`);

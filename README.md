@@ -111,6 +111,19 @@ O site estará disponível em `http://localhost:5173` e a API em `http://localho
 - `/prisma`: Esquema do banco de dados e arquivos de migração.
 - `/public`: Ativos estáticos como imagens e logos.
 
+## 🚂 Deploy no Railway
+
+Este projeto está configurado para deploy automático no **Railway**.
+
+### Configuração
+1. Conecte seu repositório GitHub ao Railway.
+2. Adicione as variáveis de ambiente (`Variables`) necessárias:
+   - `JWT_SECRET`: Uma string aleatória segura.
+   - `MP_ACCESS_TOKEN`: Seu token de produção do Mercado Pago.
+   - `NODE_ENV`: `production`
+   - `DATABASE_URL`: (Opcional) Caminho para o banco SQLite se desejar persistência em volume montado.
+3. O Railway utilizará o comando `railway:build` definido no `package.json` para compilar o frontend e o backend, e o comando `start` para iniciar o servidor único que serve ambos.
+
 ---
 
 ## 📄 Licença
