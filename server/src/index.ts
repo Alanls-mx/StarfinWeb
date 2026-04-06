@@ -2918,7 +2918,7 @@ setInterval(() => {
   maybeSendNewsletterAuto().catch(() => null);
 }, 60 * 60 * 1000);
 
-const port = process.env.PORT ? Number(process.env.PORT) : 3001;
+const port = process.env.PORT ? Number(process.env.PORT) : 8080;
 
 // Global Error Handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -2944,16 +2944,9 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-const isRailwayRuntime = Boolean(
-  process.env.RAILWAY_PROJECT_ID ||
-  process.env.RAILWAY_SERVICE_ID ||
-  process.env.RAILWAY_ENVIRONMENT_ID ||
-  process.env.RAILWAY_ENVIRONMENT_NAME
-);
-
-if (process.env.NODE_ENV !== 'production' || !process.env.NETLIFY || isRailwayRuntime) {
-  app.listen(port, () => {
-    process.stdout.write(`StarfinPlugins API rodando em http://localhost:${port}\n`);
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, '0.0.0.0', () => {
+    process.stdout.write(`StarfinPlugins API rodando em http://0.0.0.0:${port}\n`);
   });
 }
 
