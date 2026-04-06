@@ -1,228 +1,226 @@
 import crypto from 'node:crypto';
-import Database from 'better-sqlite3';
-import { join } from 'node:path';
+import Database from './mysql-sync.js';
 
-const dbPath = process.env.DATABASE_URL || join(process.cwd(), 'server.db');
-const sqlite = new Database(dbPath);
+const sqlite = new Database();
 
 // Initialize DB tables
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    email TEXT UNIQUE,
-    plan TEXT DEFAULT 'Free',
-    planExpiresAt TEXT,
-    bannedAt TEXT,
-    bannedReason TEXT,
-    passwordHash TEXT,
-    verified INTEGER,
-    createdISO TEXT,
-    settings TEXT,
-    role TEXT DEFAULT 'user',
-    phone TEXT,
-    permissions TEXT DEFAULT '[]'
-  );
+    id VARCHAR(191) PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    plan VARCHAR(64) DEFAULT 'Free',
+    planExpiresAt VARCHAR(64),
+    bannedAt VARCHAR(64),
+    bannedReason LONGTEXT,
+    passwordHash LONGTEXT,
+    verified TINYINT DEFAULT 0,
+    createdISO VARCHAR(64),
+    settings LONGTEXT,
+    role VARCHAR(32) DEFAULT 'user',
+    phone VARCHAR(64),
+    permissions LONGTEXT
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS sessions (
-    token TEXT PRIMARY KEY,
-    userId TEXT,
-    role TEXT,
-    createdISO TEXT
-  );
+    token VARCHAR(191) PRIMARY KEY,
+    userId VARCHAR(191),
+    role VARCHAR(32),
+    createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS email_verification_tokens (
-    token TEXT PRIMARY KEY,
-    userId TEXT,
-    expiresISO TEXT,
-    createdISO TEXT
-  );
+    token VARCHAR(191) PRIMARY KEY,
+    userId VARCHAR(191),
+    expiresISO VARCHAR(64),
+    createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS purchases (
-    id TEXT PRIMARY KEY,
-    userId TEXT,
+    id VARCHAR(191) PRIMARY KEY,
+    userId VARCHAR(191),
     pluginId INTEGER,
-    status TEXT,
-    licenseKey TEXT,
-    hwid TEXT,
-    allowedIp TEXT,
-    lastIp TEXT,
+    status VARCHAR(32),
+    licenseKey VARCHAR(191),
+    hwid VARCHAR(255),
+    allowedIp VARCHAR(255),
+    lastIp VARCHAR(255),
     lastPort INTEGER,
-    lastServerName TEXT,
-    lastPlatform TEXT,
-    lastPerformance TEXT,
-    createdISO TEXT,
-    updatedISO TEXT
-  );
+    lastServerName VARCHAR(255),
+    lastPlatform VARCHAR(255),
+    lastPerformance LONGTEXT,
+    createdISO VARCHAR(64),
+    updatedISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS api_keys (
-    id TEXT PRIMARY KEY,
-    userId TEXT,
+    id VARCHAR(191) PRIMARY KEY,
+    userId VARCHAR(191),
     pluginId INTEGER,
-    name TEXT,
-    key TEXT,
-    createdISO TEXT,
-    lastUsedISO TEXT
-  );
+    name VARCHAR(255),
+    "key" VARCHAR(255),
+    createdISO VARCHAR(64),
+    lastUsedISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS support_tickets (
-    id TEXT PRIMARY KEY,
-    userId TEXT,
-    email TEXT,
-    subject TEXT,
-    message TEXT,
-    status TEXT DEFAULT 'open',
-    priority TEXT DEFAULT 'medium',
-    category TEXT DEFAULT 'general',
-    createdISO TEXT,
-    updatedISO TEXT
-  );
+    id VARCHAR(191) PRIMARY KEY,
+    userId VARCHAR(191),
+    email VARCHAR(255),
+    subject VARCHAR(255),
+    message LONGTEXT,
+    status VARCHAR(32) DEFAULT 'open',
+    priority VARCHAR(32) DEFAULT 'medium',
+    category VARCHAR(64) DEFAULT 'general',
+    createdISO VARCHAR(64),
+    updatedISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS career_applications (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    email TEXT,
-    phone TEXT,
-    role TEXT,
-    message TEXT,
-    resumeUrl TEXT,
-    portfolioUrl TEXT,
-    linkedinUrl TEXT,
-    githubUrl TEXT,
-    status TEXT DEFAULT 'new',
-    createdISO TEXT
-  );
+    id VARCHAR(191) PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(64),
+    role VARCHAR(128),
+    message LONGTEXT,
+    resumeUrl LONGTEXT,
+    portfolioUrl LONGTEXT,
+    linkedinUrl LONGTEXT,
+    githubUrl LONGTEXT,
+    status VARCHAR(32) DEFAULT 'new',
+    createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS ticket_messages (
-    id TEXT PRIMARY KEY,
-    ticketId TEXT,
-    userId TEXT,
-    content TEXT,
+    id VARCHAR(191) PRIMARY KEY,
+    ticketId VARCHAR(191),
+    userId VARCHAR(191),
+    content LONGTEXT,
     isAdmin INTEGER DEFAULT 0,
-    createdISO TEXT
-  );
+    createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS doc_articles (
-    id TEXT PRIMARY KEY,
-    slug TEXT UNIQUE,
-    title TEXT,
-    content TEXT,
-    category TEXT DEFAULT 'Geral',
+    id VARCHAR(191) PRIMARY KEY,
+    slug VARCHAR(255) UNIQUE,
+    title VARCHAR(255),
+    content LONGTEXT,
+    category VARCHAR(128) DEFAULT 'Geral',
     "order" INTEGER DEFAULT 0,
-    createdISO TEXT,
-    updatedISO TEXT
-  );
+    createdISO VARCHAR(64),
+    updatedISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  );
+    "key" VARCHAR(191) PRIMARY KEY,
+    value LONGTEXT
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS newsletter_subscribers (
-    email TEXT PRIMARY KEY,
-    createdISO TEXT,
+    email VARCHAR(255) PRIMARY KEY,
+    createdISO VARCHAR(64),
     active INTEGER DEFAULT 1
-  );
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS plugins (
     id INTEGER PRIMARY KEY,
-    name TEXT,
-    description TEXT,
-    category TEXT,
-    licenseName TEXT,
-    tags TEXT,
-    mcVersion TEXT,
+    name VARCHAR(255),
+    description LONGTEXT,
+    category VARCHAR(128),
+    licenseName VARCHAR(255),
+    tags LONGTEXT,
+    mcVersion VARCHAR(64),
     rating REAL,
     downloads INTEGER,
-    downloadsDisplay TEXT,
-    imageUrl TEXT,
-    priceDisplay TEXT,
+    downloadsDisplay VARCHAR(64),
+    imageUrl LONGTEXT,
+    priceDisplay VARCHAR(64),
     priceCents INTEGER,
-    tagline TEXT,
-    version TEXT,
-    author TEXT,
-    lastUpdateISO TEXT,
+    tagline LONGTEXT,
+    version VARCHAR(64),
+    author VARCHAR(255),
+    lastUpdateISO VARCHAR(64),
     reviewsCount INTEGER,
-    screenshots TEXT,
-    features TEXT,
-    docsSections TEXT,
-    reviews TEXT
-  );
+    screenshots LONGTEXT,
+    features LONGTEXT,
+    docsSections LONGTEXT,
+    reviews LONGTEXT
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS categories (
-    name TEXT PRIMARY KEY
-  );
+    name VARCHAR(191) PRIMARY KEY
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS docs (
-    id TEXT PRIMARY KEY,
-    title TEXT,
-    body TEXT,
-    updatedISO TEXT
-  );
+    id VARCHAR(191) PRIMARY KEY,
+    title VARCHAR(255),
+    body LONGTEXT,
+    updatedISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS changelog (
-    id TEXT PRIMARY KEY,
-    version TEXT,
-    title TEXT,
-    body TEXT,
-    createdISO TEXT
-  );
+    id VARCHAR(191) PRIMARY KEY,
+    version VARCHAR(64),
+    title VARCHAR(255),
+    body LONGTEXT,
+    createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS notifications (
-    id TEXT PRIMARY KEY,
-    title TEXT,
-    message TEXT,
-    createdISO TEXT
-  );
+    id VARCHAR(191) PRIMARY KEY,
+    title VARCHAR(255),
+    message LONGTEXT,
+    createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS coupons (
-    id TEXT PRIMARY KEY,
-    code TEXT UNIQUE,
-    discountType TEXT,
+    id VARCHAR(191) PRIMARY KEY,
+    code VARCHAR(64) UNIQUE,
+    discountType VARCHAR(32),
     discountValue INTEGER,
     minPurchase INTEGER,
-    expiresAt TEXT,
+    expiresAt VARCHAR(64),
     maxUses INTEGER,
     usedCount INTEGER DEFAULT 0,
     active INTEGER DEFAULT 1,
-    createdISO TEXT
-  );
+    createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS outbox (
-    id TEXT PRIMARY KEY,
-    "to" TEXT,
-    subject TEXT,
-    html TEXT,
-    createdISO TEXT,
+    id VARCHAR(191) PRIMARY KEY,
+    "to" VARCHAR(255),
+    subject VARCHAR(255),
+    html LONGTEXT,
+    createdISO VARCHAR(64),
     delivered INTEGER,
-    error TEXT
-  );
+    error LONGTEXT
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS servers (
-    id TEXT PRIMARY KEY,
-    userId TEXT,
-    name TEXT,
-    licenseKey TEXT UNIQUE,
-    ips TEXT DEFAULT '[]',
-    createdISO TEXT
-  );
+    id VARCHAR(191) PRIMARY KEY,
+    userId VARCHAR(191),
+    name VARCHAR(255),
+    licenseKey VARCHAR(255) UNIQUE,
+    ips LONGTEXT,
+    createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS server_plugins (
-    serverId TEXT,
+    serverId VARCHAR(191),
     pluginId INTEGER,
     PRIMARY KEY (serverId, pluginId)
-  );
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS plans (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    price TEXT NOT NULL,
-    features TEXT NOT NULL,
+    id VARCHAR(191) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    price VARCHAR(64) NOT NULL,
+    features LONGTEXT NOT NULL,
     active INTEGER DEFAULT 1,
     grantsAllPlugins INTEGER DEFAULT 0
-  );
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS reviews (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(191) PRIMARY KEY,
     pluginId INTEGER NOT NULL,
-    userId TEXT NOT NULL,
-    userName TEXT NOT NULL,
+    userId VARCHAR(191) NOT NULL,
+    userName VARCHAR(255) NOT NULL,
     rating INTEGER NOT NULL,
-    comment TEXT NOT NULL,
-    createdISO TEXT NOT NULL,
+    comment LONGTEXT NOT NULL,
+    createdISO VARCHAR(64) NOT NULL,
     FOREIGN KEY(pluginId) REFERENCES plugins(id)
-  );
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS orders (
-    id TEXT PRIMARY KEY,
-    userId TEXT NOT NULL,
-    pluginIds TEXT,
-    planId TEXT,
+    id VARCHAR(191) PRIMARY KEY,
+    userId VARCHAR(191) NOT NULL,
+    pluginIds LONGTEXT,
+    planId VARCHAR(191),
     totalCents INTEGER,
-    status TEXT DEFAULT 'pending',
-    paymentProvider TEXT,
-    paymentId TEXT,
-    createdISO TEXT,
-    updatedISO TEXT
-  );
+    status VARCHAR(32) DEFAULT 'pending',
+    paymentProvider VARCHAR(64),
+    paymentId VARCHAR(191),
+    createdISO VARCHAR(64),
+    updatedISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `);
 
 // Migration: ensure new columns exist in purchases table
@@ -255,7 +253,7 @@ if (!tableInfo.some(col => col.name === 'phone')) {
   sqlite.exec("ALTER TABLE users ADD COLUMN phone TEXT");
 }
 if (!tableInfo.some(col => col.name === 'permissions')) {
-  sqlite.exec("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '[]'");
+  sqlite.exec("ALTER TABLE users ADD COLUMN permissions LONGTEXT");
 }
 if (!tableInfo.some(col => col.name === 'licenseKey')) {
   sqlite.exec("ALTER TABLE users ADD COLUMN licenseKey TEXT");
@@ -293,7 +291,7 @@ if (!pluginTableInfo.some(col => col.name === 'jarUrl')) {
   sqlite.exec("ALTER TABLE plugins ADD COLUMN jarUrl TEXT");
 }
 if (!pluginTableInfo.some(col => col.name === 'dependencies')) {
-  sqlite.exec("ALTER TABLE plugins ADD COLUMN dependencies TEXT DEFAULT '[]'");
+  sqlite.exec("ALTER TABLE plugins ADD COLUMN dependencies LONGTEXT");
 }
 if (!pluginTableInfo.some(col => col.name === 'platform')) {
   sqlite.exec("ALTER TABLE plugins ADD COLUMN platform TEXT");
@@ -395,15 +393,15 @@ if (hasPlans.count === 0) {
 
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS reviews (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(191) PRIMARY KEY,
     pluginId INTEGER NOT NULL,
-    userId TEXT NOT NULL,
-    userName TEXT NOT NULL,
+    userId VARCHAR(191) NOT NULL,
+    userName VARCHAR(255) NOT NULL,
     rating INTEGER NOT NULL,
-    comment TEXT NOT NULL,
-    createdISO TEXT NOT NULL,
+    comment LONGTEXT NOT NULL,
+    createdISO VARCHAR(64) NOT NULL,
     FOREIGN KEY(pluginId) REFERENCES plugins(id)
-  )
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `);
 
 const plansTableInfo = sqlite.prepare("PRAGMA table_info(plans)").all() as any[];
@@ -1060,7 +1058,7 @@ export function createApiKeyForUser(userId: string, pluginId: number, name: stri
   const id = `key_${crypto.randomUUID()}`;
   const key = `sk_${randomKey()}`;
   const createdISO = new Date().toISOString();
-  sqlite.prepare('INSERT INTO api_keys (id, userId, pluginId, name, key, createdISO, lastUsedISO) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, userId, pluginId, name, key, createdISO, null);
+  sqlite.prepare('INSERT INTO api_keys (id, userId, pluginId, name, `key`, createdISO, lastUsedISO) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, userId, pluginId, name, key, createdISO, null);
   return {
     id,
     pluginId,
@@ -1076,7 +1074,7 @@ export function revokeApiKeyForUser(userId: string, id: string) {
 }
 
 export function findApiKey(key: string): ApiKeyRecord | null {
-  const record = sqlite.prepare('SELECT * FROM api_keys WHERE key = ?').get(key) as ApiKeyRecord | undefined;
+  const record = sqlite.prepare('SELECT * FROM api_keys WHERE `key` = ?').get(key) as ApiKeyRecord | undefined;
   if (!record) return null;
   const now = new Date().toISOString();
   sqlite.prepare('UPDATE api_keys SET lastUsedISO = ? WHERE id = ?').run(now, record.id);
@@ -1510,7 +1508,7 @@ const defaultAdminSettings: AdminSettings = {
 };
 
 export function getAdminSettings() {
-  const row = sqlite.prepare("SELECT value FROM settings WHERE key = 'admin_settings'").get() as { value: string } | undefined;
+  const row = sqlite.prepare("SELECT value FROM settings WHERE `key` = 'admin_settings'").get() as { value: string } | undefined;
   if (!row?.value) return { ...defaultAdminSettings };
   try {
     const parsed = JSON.parse(row.value);
@@ -1523,7 +1521,7 @@ export function getAdminSettings() {
 export function saveAdminSettings(next: Partial<AdminSettings>) {
   const current = getAdminSettings();
   const merged = { ...current, ...next } as AdminSettings;
-  sqlite.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('admin_settings', JSON.stringify(merged));
+  sqlite.prepare('INSERT OR REPLACE INTO settings (`key`, value) VALUES (?, ?)').run('admin_settings', JSON.stringify(merged));
   return merged;
 }
 
@@ -1791,7 +1789,7 @@ export const integrationConfig: IntegrationConfig = {
 };
 
 export function loadSettings() {
-  const smtpRow = sqlite.prepare("SELECT value FROM settings WHERE key = 'smtp'").get() as { value: string } | undefined;
+  const smtpRow = sqlite.prepare("SELECT value FROM settings WHERE `key` = 'smtp'").get() as { value: string } | undefined;
   if (smtpRow && smtpRow.value) {
     try {
       Object.assign(smtpConfig, JSON.parse(smtpRow.value));
@@ -1799,7 +1797,7 @@ export function loadSettings() {
       console.error('Failed to parse SMTP settings:', e);
     }
   }
-  const intRow = sqlite.prepare("SELECT value FROM settings WHERE key = 'integration'").get() as { value: string } | undefined;
+  const intRow = sqlite.prepare("SELECT value FROM settings WHERE `key` = 'integration'").get() as { value: string } | undefined;
   if (intRow && intRow.value) {
     try {
       Object.assign(integrationConfig, JSON.parse(intRow.value));
@@ -1811,12 +1809,12 @@ export function loadSettings() {
 
 export function saveSmtpConfig(config: SmtpConfig) {
   Object.assign(smtpConfig, config);
-  sqlite.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('smtp', JSON.stringify(smtpConfig));
+  sqlite.prepare('INSERT OR REPLACE INTO settings (`key`, value) VALUES (?, ?)').run('smtp', JSON.stringify(smtpConfig));
 }
 
 export function saveIntegrationConfig(config: IntegrationConfig) {
   Object.assign(integrationConfig, config);
-  sqlite.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('integration', JSON.stringify(integrationConfig));
+  sqlite.prepare('INSERT OR REPLACE INTO settings (`key`, value) VALUES (?, ?)').run('integration', JSON.stringify(integrationConfig));
 }
 
 loadSettings();

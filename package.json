@@ -58,7 +58,6 @@
     "@upstash/ratelimit": "2.0.6",
     "@upstash/redis": "1.35.3",
     "bcryptjs": "3.0.2",
-    "better-sqlite3": "^12.8.0",
     "canvas-confetti": "1.9.4",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -97,7 +96,6 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "2.8.18",
     "@types/express": "5.0.3",
     "@types/jsonwebtoken": "9.0.10",
