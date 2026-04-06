@@ -2918,7 +2918,6 @@ setInterval(() => {
   maybeSendNewsletterAuto().catch(() => null);
 }, 60 * 60 * 1000);
 
-const port = process.env.PORT ? Number(process.env.PORT) : 8080;
 const isProdRuntime = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_PROJECT_ID);
 
 // Global Error Handler
@@ -2955,6 +2954,11 @@ process.on('unhandledRejection', (reason) => {
 
 const start = async () => {
   try {
+    const port = Number(process.env.PORT);
+    if (!Number.isFinite(port) || port <= 0) {
+      throw new Error('PORT não definida');
+    }
+
     console.log('Iniciando servidor...');
     await new Promise<void>((resolve, reject) => {
       const server = app.listen(port, '0.0.0.0', () => resolve());
