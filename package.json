@@ -11,7 +11,7 @@
     "server:build": "tsc -p server/tsconfig.json",
     "server:typecheck": "tsc -p server/tsconfig.json --noEmit",
     "server:start": "node server/dist/index.js",
-    "start": "NODE_ENV=production node server/dist/index.js",
+    "start": "node server/dist/index.js",
     "postinstall": "npm run prisma:generate",
     "railway:build": "npm run build && npm run server:build",
     "next:dev": "next dev -p 3002",

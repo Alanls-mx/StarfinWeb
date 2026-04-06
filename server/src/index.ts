@@ -2919,6 +2919,7 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 const port = process.env.PORT ? Number(process.env.PORT) : 8080;
+const isProdRuntime = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_PROJECT_ID);
 
 // Global Error Handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -2932,7 +2933,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-if (process.env.NODE_ENV === 'production') {
+if (isProdRuntime) {
   const distPath = path.join(__dirname, '..', '..', 'dist');
   app.use(express.static(distPath));
   app.use((req, res) => {
@@ -2946,7 +2947,7 @@ if (process.env.NODE_ENV === 'production') {
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, '0.0.0.0', () => {
-    process.stdout.write(`StarfinPlugins API rodando em http://0.0.0.0:${port}\n`);
+    process.stdout.write(`StarfinPlugins API rodando em http://0.0.0.0:${port} (${isProdRuntime ? 'prod' : 'dev'})\n`);
   });
 }
 
