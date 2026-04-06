@@ -2927,13 +2927,23 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', '..', 'dist');
   app.use(express.static(distPath));
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not Found' });
+  app.use((req, res) => {
+    if (req.path.startsWith('/api/')) {
+      res.status(404).json({ error: 'Not Found' });
+      return;
+    }
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
 
-if (process.env.NODE_ENV !== 'production' || !process.env.NETLIFY) {
+const isRailwayRuntime = Boolean(
+  process.env.RAILWAY_PROJECT_ID ||
+  process.env.RAILWAY_SERVICE_ID ||
+  process.env.RAILWAY_ENVIRONMENT_ID ||
+  process.env.RAILWAY_ENVIRONMENT_NAME
+);
+
+if (process.env.NODE_ENV !== 'production' || !process.env.NETLIFY || isRailwayRuntime) {
   app.listen(port, () => {
     process.stdout.write(`StarfinPlugins API rodando em http://localhost:${port}\n`);
   });
