@@ -2945,10 +2945,31 @@ if (isProdRuntime) {
   });
 }
 
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(port, '0.0.0.0', () => {
+process.on('uncaughtException', (error) => {
+  console.error('[fatal] uncaughtException:', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[fatal] unhandledRejection:', reason);
+});
+
+const start = async () => {
+  try {
+    console.log('Iniciando servidor...');
+    await new Promise<void>((resolve, reject) => {
+      const server = app.listen(port, '0.0.0.0', () => resolve());
+      server.once('error', reject);
+    });
+    console.log(`Server rodando na porta ${port}`);
     process.stdout.write(`StarfinPlugins API rodando em http://0.0.0.0:${port} (${isProdRuntime ? 'prod' : 'dev'})\n`);
-  });
+  } catch (err) {
+    console.error('Erro ao iniciar servidor:', err);
+    process.exit(1);
+  }
+};
+
+if (process.env.NODE_ENV !== 'test') {
+  start();
 }
 
 export { app };
