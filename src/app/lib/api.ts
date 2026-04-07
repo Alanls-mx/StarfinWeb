@@ -49,7 +49,7 @@ export interface Purchase {
   id: string;
   userId: string;
   pluginId: number;
-  status: 'pending' | 'approved' | 'cancelled';
+  status: 'pending' | 'approved' | 'cancelled' | 'rejected';
   licenseKey: string | null;
   createdISO: string;
   updatedISO: string;
@@ -248,9 +248,19 @@ export function adminDeleteReview(token: string, id: string) {
 }
 
 export interface AdminStats {
-  topPlugins: Array<{ id: string; name: string; slug: string; sales: number }>;
+  topPlugins: Array<{ id: string; name: string; slug: string; sales: number; revenueCents: number }>;
   topCustomers: Array<{ id: string; name: string; email: string; pluginCount: number }>;
-  stats: { totalSales: number; totalRevenueCents: number };
+  stats: {
+    totalSales: number;
+    totalRevenueCents: number;
+    totalUsers: number;
+    totalOrders: number;
+    totalPlugins: number;
+    pluginsWithSales: number;
+  };
+  paymentStatus: { pending: number; approved: number; rejected: number; cancelled: number };
+  pluginStatus: { pending: number; approved: number; rejected: number; cancelled: number };
+  tickets: { open: number; answered: number; closed: number };
 }
 
 export function getAdminStats(token?: string | null) {
@@ -750,7 +760,7 @@ export function adminDeleteChangelog(token: string, id: string) {
 }
 
 export function adminListNotifications(token: string) {
-  return apiFetch<{ items: any[] }>('/api/admin/notifications', { token });
+  return apiFetch<{ items: AdminNotification[] }>('/api/admin/notifications', { token });
 }
 
 export function adminListNewsletterSubscribers(token: string) {
@@ -765,8 +775,29 @@ export function adminSendNewsletter(token: string, data: { subject: string; body
   });
 }
 
-export function adminCreateNotification(token: string, data: { title: string; message: string; userId?: string | null }) {
-  return apiFetch<{ item: any }>('/api/admin/notifications', {
+export interface AdminNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'manual' | 'sale' | 'support' | 'raffle';
+  priority: 'low' | 'normal' | 'high';
+  source: string | null;
+  metadata: Record<string, unknown> | null;
+  createdISO: string;
+}
+
+export function adminCreateNotification(
+  token: string,
+  data: {
+    title: string;
+    message: string;
+    type?: 'manual' | 'sale' | 'support' | 'raffle';
+    priority?: 'low' | 'normal' | 'high';
+    source?: string | null;
+    userId?: string | null;
+  }
+) {
+  return apiFetch<{ item: AdminNotification }>('/api/admin/notifications', {
     method: 'POST',
     token,
     body: JSON.stringify(data)
@@ -778,6 +809,65 @@ export function adminDeleteNotification(token: string, id: string) {
     method: 'DELETE',
     token
   });
+}
+
+export interface AdminRaffle {
+  id: string;
+  title: string;
+  description: string | null;
+  prize: string | null;
+  eligibility: 'all_users' | 'approved_buyers' | 'premium_users';
+  status: 'open' | 'closed' | 'drawn';
+  winnerUserId: string | null;
+  winnerName: string | null;
+  createdISO: string;
+  updatedISO: string;
+  drawnISO: string | null;
+  entrantsCount: number;
+}
+
+export function adminListRaffles(token: string) {
+  return apiFetch<{ items: AdminRaffle[] }>('/api/admin/raffles', { token });
+}
+
+export function adminCreateRaffle(
+  token: string,
+  data: { title: string; description?: string; prize?: string; eligibility: AdminRaffle['eligibility'] }
+) {
+  return apiFetch<{ item: AdminRaffle }>('/api/admin/raffles', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(data)
+  });
+}
+
+export function adminUpdateRaffle(
+  token: string,
+  id: string,
+  data: Partial<{ title: string; description: string; prize: string; eligibility: AdminRaffle['eligibility']; status: AdminRaffle['status'] }>
+) {
+  return apiFetch<{ item: AdminRaffle }>(`/api/admin/raffles/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    token,
+    body: JSON.stringify(data)
+  });
+}
+
+export function adminDeleteRaffle(token: string, id: string) {
+  return apiFetch<{ ok: true }>(`/api/admin/raffles/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    token
+  });
+}
+
+export function adminDrawRaffle(token: string, id: string) {
+  return apiFetch<{ raffle: AdminRaffle; winner: { id: string; name: string; email: string } | null }>(
+    `/api/admin/raffles/${encodeURIComponent(id)}/draw`,
+    {
+      method: 'POST',
+      token
+    }
+  );
 }
 
 export function adminUploadFile(token: string, file: File) {

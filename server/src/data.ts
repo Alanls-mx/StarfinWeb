@@ -155,6 +155,10 @@ sqlite.exec(`
     id VARCHAR(191) PRIMARY KEY,
     title VARCHAR(255),
     message LONGTEXT,
+    type VARCHAR(64) DEFAULT 'manual',
+    priority VARCHAR(32) DEFAULT 'normal',
+    source VARCHAR(128),
+    metadata LONGTEXT,
     createdISO VARCHAR(64)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS coupons (
@@ -220,6 +224,25 @@ sqlite.exec(`
     paymentId VARCHAR(191),
     createdISO VARCHAR(64),
     updatedISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CREATE TABLE IF NOT EXISTS raffles (
+    id VARCHAR(191) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description LONGTEXT,
+    prize VARCHAR(255),
+    eligibility VARCHAR(64) DEFAULT 'approved_buyers',
+    status VARCHAR(32) DEFAULT 'open',
+    winnerUserId VARCHAR(191),
+    createdISO VARCHAR(64),
+    updatedISO VARCHAR(64),
+    drawnISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CREATE TABLE IF NOT EXISTS raffle_entries (
+    id VARCHAR(191) PRIMARY KEY,
+    raffleId VARCHAR(191) NOT NULL,
+    userId VARCHAR(191) NOT NULL,
+    createdISO VARCHAR(64),
+    UNIQUE KEY uniq_raffle_user (raffleId, userId)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `);
 
@@ -378,6 +401,20 @@ if (!newsletterTableInfo.some(col => col.name === 'createdISO')) {
 }
 if (!newsletterTableInfo.some(col => col.name === 'active')) {
   sqlite.exec("ALTER TABLE newsletter_subscribers ADD COLUMN active INTEGER DEFAULT 1");
+}
+
+const notificationsTableInfo = sqlite.prepare("PRAGMA table_info(notifications)").all() as any[];
+if (!notificationsTableInfo.some(col => col.name === 'type')) {
+  sqlite.exec("ALTER TABLE notifications ADD COLUMN type TEXT DEFAULT 'manual'");
+}
+if (!notificationsTableInfo.some(col => col.name === 'priority')) {
+  sqlite.exec("ALTER TABLE notifications ADD COLUMN priority TEXT DEFAULT 'normal'");
+}
+if (!notificationsTableInfo.some(col => col.name === 'source')) {
+  sqlite.exec("ALTER TABLE notifications ADD COLUMN source TEXT");
+}
+if (!notificationsTableInfo.some(col => col.name === 'metadata')) {
+  sqlite.exec("ALTER TABLE notifications ADD COLUMN metadata LONGTEXT");
 }
 
 const hasPlans = sqlite.prepare('SELECT COUNT(*) as count FROM plans').get() as { count: number };
@@ -961,11 +998,20 @@ if (hasChangelog.count === 0) {
 const hasNotifications = sqlite.prepare('SELECT COUNT(*) as count FROM notifications').get() as { count: number };
 if (hasNotifications.count === 0) {
   const defaults = [
-    { id: 'n1', title: 'Bem-vindo!', message: 'Obrigado por se juntar à StarfinPlugins.', createdISO: new Date().toISOString() },
-    { id: 'n2', title: 'Nova atualização', message: 'EconomyPlus Pro v2.5.1 já disponível.', createdISO: new Date().toISOString() }
+    { id: 'n1', title: 'Bem-vindo!', message: 'Obrigado por se juntar à StarfinPlugins.', type: 'manual', priority: 'normal', source: 'system', metadata: '{}', createdISO: new Date().toISOString() },
+    { id: 'n2', title: 'Nova atualização', message: 'EconomyPlus Pro v2.5.1 já disponível.', type: 'manual', priority: 'normal', source: 'system', metadata: '{}', createdISO: new Date().toISOString() }
   ];
   for (const n of defaults) {
-    sqlite.prepare('INSERT INTO notifications (id, title, message, createdISO) VALUES (?, ?, ?, ?)').run(n.id, n.title, n.message, n.createdISO);
+    sqlite.prepare('INSERT INTO notifications (id, title, message, type, priority, source, metadata, createdISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+      n.id,
+      n.title,
+      n.message,
+      n.type,
+      n.priority,
+      n.source,
+      n.metadata,
+      n.createdISO
+    );
   }
 }
 
@@ -1676,7 +1722,7 @@ export interface EmailVerificationToken {
   createdISO: string;
 }
 
-export type PurchaseStatus = 'pending' | 'approved' | 'cancelled';
+export type PurchaseStatus = 'pending' | 'approved' | 'cancelled' | 'rejected';
 
 export interface Purchase {
   id: string;
@@ -1688,6 +1734,51 @@ export interface Purchase {
   allowedIp: string | null;
   createdISO: string;
   updatedISO: string;
+}
+
+export interface OrderRecord {
+  id: string;
+  userId: string;
+  pluginIds: number[];
+  planId: string | null;
+  totalCents: number;
+  status: string;
+  paymentProvider: string;
+  paymentId: string | null;
+  createdISO: string;
+  updatedISO: string;
+}
+
+export type NotificationType = 'manual' | 'sale' | 'support' | 'raffle';
+export type NotificationPriority = 'low' | 'normal' | 'high';
+
+export interface NotificationRecord {
+  id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  priority: NotificationPriority;
+  source: string | null;
+  metadata: Record<string, unknown> | null;
+  createdISO: string;
+}
+
+export type RaffleEligibility = 'all_users' | 'approved_buyers' | 'premium_users';
+export type RaffleStatus = 'open' | 'closed' | 'drawn';
+
+export interface RaffleRecord {
+  id: string;
+  title: string;
+  description: string | null;
+  prize: string | null;
+  eligibility: RaffleEligibility;
+  status: RaffleStatus;
+  winnerUserId: string | null;
+  winnerName: string | null;
+  createdISO: string;
+  updatedISO: string;
+  drawnISO: string | null;
+  entrantsCount: number;
 }
 
 export interface SmtpConfig {
@@ -1929,27 +2020,61 @@ export function updateOutboxStatus(id: string, delivered: boolean, error: string
   syncOutbox();
 }
 
-export const notifications: any[] = [];
+export const notifications: NotificationRecord[] = [];
 export function syncNotifications() {
   const rows = sqlite.prepare('SELECT * FROM notifications ORDER BY createdISO DESC').all() as any[];
   notifications.length = 0;
   for (const row of rows) {
+    let metadata: Record<string, unknown> | null = null;
+    try {
+      metadata = row.metadata ? JSON.parse(row.metadata) : null;
+    } catch {
+      metadata = null;
+    }
     notifications.push({
       id: row.id,
       title: row.title,
       message: row.message,
+      type: (row.type || 'manual') as NotificationType,
+      priority: (row.priority || 'normal') as NotificationPriority,
+      source: row.source || null,
+      metadata,
       createdISO: row.createdISO
     });
   }
 }
 syncNotifications();
 
-export function addNotification(title: string, message: string) {
-  const id = `n_${Date.now()}`;
+export function addNotification(
+  title: string,
+  message: string,
+  options: {
+    type?: NotificationType;
+    priority?: NotificationPriority;
+    source?: string | null;
+    metadata?: Record<string, unknown> | null;
+  } = {}
+) {
+  const id = `n_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
-  sqlite.prepare('INSERT INTO notifications (id, title, message, createdISO) VALUES (?, ?, ?, ?)').run(id, title, message, now);
+  const type = options.type || 'manual';
+  const priority = options.priority || 'normal';
+  const source = options.source ?? null;
+  const metadata = options.metadata ? JSON.stringify(options.metadata) : null;
+  sqlite.prepare(
+    'INSERT INTO notifications (id, title, message, type, priority, source, metadata, createdISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(id, title, message, type, priority, source, metadata, now);
   syncNotifications();
-  return { id, title, message, createdISO: now };
+  return notifications.find((n) => n.id === id) ?? {
+    id,
+    title,
+    message,
+    type,
+    priority,
+    source,
+    metadata: options.metadata ?? null,
+    createdISO: now
+  };
 }
 
 export function clearNotifications() {
@@ -2620,11 +2745,194 @@ export function updateOrderStatus(id: string, status: string, paymentId?: string
   }
 }
 
-export function findOrderById(id: string) {
+function mapOrderRow(row: any): OrderRecord {
+  return {
+    id: row.id,
+    userId: row.userId,
+    pluginIds: JSON.parse(row.pluginIds || '[]'),
+    planId: row.planId ?? null,
+    totalCents: Number(row.totalCents || 0),
+    status: String(row.status || 'pending'),
+    paymentProvider: String(row.paymentProvider || ''),
+    paymentId: row.paymentId ?? null,
+    createdISO: row.createdISO,
+    updatedISO: row.updatedISO
+  };
+}
+
+export function findOrderById(id: string): OrderRecord | null {
   const row = sqlite.prepare('SELECT * FROM orders WHERE id = ?').get(id) as any;
   if (!row) return null;
+  return mapOrderRow(row);
+}
+
+export function listAllOrders(): OrderRecord[] {
+  const rows = sqlite.prepare('SELECT * FROM orders ORDER BY createdISO DESC').all() as any[];
+  return rows.map(mapOrderRow);
+}
+
+function mapRaffleRow(row: any): RaffleRecord {
+  const winner = row.winnerUserId ? findUserById(row.winnerUserId) : null;
+  const entrantRow = sqlite
+    .prepare('SELECT COUNT(*) as count FROM raffle_entries WHERE raffleId = ?')
+    .get(row.id) as { count: number };
+
   return {
-    ...row,
-    pluginIds: JSON.parse(row.pluginIds || '[]')
+    id: row.id,
+    title: row.title,
+    description: row.description ?? null,
+    prize: row.prize ?? null,
+    eligibility: (row.eligibility || 'approved_buyers') as RaffleEligibility,
+    status: (row.status || 'open') as RaffleStatus,
+    winnerUserId: row.winnerUserId ?? null,
+    winnerName: winner?.name ?? null,
+    createdISO: row.createdISO,
+    updatedISO: row.updatedISO,
+    drawnISO: row.drawnISO ?? null,
+    entrantsCount: Number(entrantRow?.count || 0)
+  };
+}
+
+export function listRaffles(): RaffleRecord[] {
+  const rows = sqlite.prepare('SELECT * FROM raffles ORDER BY createdISO DESC').all() as any[];
+  return rows.map(mapRaffleRow);
+}
+
+export function findRaffleById(id: string): RaffleRecord | null {
+  const row = sqlite.prepare('SELECT * FROM raffles WHERE id = ?').get(id) as any;
+  if (!row) return null;
+  return mapRaffleRow(row);
+}
+
+export function createRaffle(data: {
+  title: string;
+  description?: string | null;
+  prize?: string | null;
+  eligibility?: RaffleEligibility;
+}): RaffleRecord {
+  const id = `raffle_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    INSERT INTO raffles (id, title, description, prize, eligibility, status, winnerUserId, createdISO, updatedISO, drawnISO)
+    VALUES (?, ?, ?, ?, ?, 'open', NULL, ?, ?, NULL)
+  `).run(
+    id,
+    data.title,
+    data.description ?? null,
+    data.prize ?? null,
+    data.eligibility ?? 'approved_buyers',
+    now,
+    now
+  );
+  return findRaffleById(id)!;
+}
+
+export function updateRaffle(id: string, data: Partial<{
+  title: string;
+  description: string | null;
+  prize: string | null;
+  eligibility: RaffleEligibility;
+  status: RaffleStatus;
+}>): RaffleRecord | null {
+  const current = sqlite.prepare('SELECT * FROM raffles WHERE id = ?').get(id) as any;
+  if (!current) return null;
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    UPDATE raffles
+    SET title = ?, description = ?, prize = ?, eligibility = ?, status = ?, updatedISO = ?
+    WHERE id = ?
+  `).run(
+    data.title ?? current.title,
+    data.description !== undefined ? data.description : current.description,
+    data.prize !== undefined ? data.prize : current.prize,
+    data.eligibility ?? current.eligibility,
+    data.status ?? current.status,
+    now,
+    id
+  );
+  return findRaffleById(id);
+}
+
+export function deleteRaffle(id: string): boolean {
+  sqlite.prepare('DELETE FROM raffle_entries WHERE raffleId = ?').run(id);
+  const info = sqlite.prepare('DELETE FROM raffles WHERE id = ?').run(id);
+  return info.changes > 0;
+}
+
+export function addRaffleEntry(raffleId: string, userId: string): boolean {
+  const raffle = sqlite.prepare('SELECT * FROM raffles WHERE id = ?').get(raffleId) as any;
+  if (!raffle || raffle.status !== 'open') return false;
+  const id = `re_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    INSERT INTO raffle_entries (id, raffleId, userId, createdISO)
+    VALUES (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE createdISO = createdISO
+  `).run(id, raffleId, userId, now);
+  return true;
+}
+
+export function listRaffleEntries(raffleId: string): Array<{ userId: string; name: string; email: string }> {
+  const rows = sqlite
+    .prepare('SELECT userId FROM raffle_entries WHERE raffleId = ? ORDER BY createdISO ASC')
+    .all(raffleId) as Array<{ userId: string }>;
+  return rows
+    .map((r) => findUserById(r.userId))
+    .filter((u): u is AccountUser => Boolean(u))
+    .map((u) => ({ userId: u.id, name: u.name, email: u.email }));
+}
+
+export function autoPopulateRaffleEntries(raffleId: string, eligibility: RaffleEligibility): number {
+  const users = listAllUsers();
+  const purchases = listAllPurchases();
+  const hasApprovedPurchase = new Set(
+    purchases.filter((p) => p.status === 'approved').map((p) => p.userId)
+  );
+
+  let eligibleUserIds: string[] = [];
+  if (eligibility === 'all_users') {
+    eligibleUserIds = users.map((u) => u.id);
+  } else if (eligibility === 'premium_users') {
+    eligibleUserIds = users
+      .filter((u) => u.plan === 'Premium' || u.role === 'premium' || u.role === 'admin')
+      .map((u) => u.id);
+  } else {
+    eligibleUserIds = users
+      .filter((u) => hasApprovedPurchase.has(u.id))
+      .map((u) => u.id);
+  }
+
+  for (const userId of eligibleUserIds) {
+    addRaffleEntry(raffleId, userId);
+  }
+
+  return eligibleUserIds.length;
+}
+
+export function drawRaffleWinner(raffleId: string): { raffle: RaffleRecord; winner: { id: string; name: string; email: string } | null } | null {
+  const current = sqlite.prepare('SELECT * FROM raffles WHERE id = ?').get(raffleId) as any;
+  if (!current) return null;
+  if (current.status !== 'open') return null;
+
+  autoPopulateRaffleEntries(raffleId, (current.eligibility || 'approved_buyers') as RaffleEligibility);
+  const entries = listRaffleEntries(raffleId);
+  if (entries.length === 0) return null;
+
+  const winner = entries[Math.floor(Math.random() * entries.length)] ?? null;
+  if (!winner) return null;
+
+  const now = new Date().toISOString();
+  sqlite.prepare(`
+    UPDATE raffles
+    SET status = 'drawn', winnerUserId = ?, drawnISO = ?, updatedISO = ?
+    WHERE id = ?
+  `).run(winner.userId, now, now, raffleId);
+
+  const raffle = findRaffleById(raffleId);
+  if (!raffle) return null;
+
+  return {
+    raffle,
+    winner: { id: winner.userId, name: winner.name, email: winner.email }
   };
 }

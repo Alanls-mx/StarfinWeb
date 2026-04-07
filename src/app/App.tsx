@@ -44,6 +44,7 @@ import { AdminPlansPage } from './pages/admin/AdminPlansPage';
 import { AdminSettingsPage } from './pages/admin/AdminSettingsPage';
 import { AdminReviewsPage } from './pages/admin/AdminReviewsPage';
 import { AdminContentPage } from './pages/admin/AdminContentPage';
+import { AdminRafflesPage } from './pages/admin/AdminRafflesPage';
 
 import { getPublicSettings } from './lib/api';
 import { CartProvider } from './lib/cart';
@@ -128,6 +129,7 @@ export default function App() {
                 <Route path="status" element={<AdminStatusPage />} />
                 <Route path="changelog" element={<AdminChangelogPage />} />
                 <Route path="notifications" element={<AdminNotificationsPage />} />
+                <Route path="raffles" element={<AdminRafflesPage />} />
                 <Route path="coupons" element={<AdminCouponsPage />} />
                 <Route path="newsletter" element={<AdminNewsletterPage />} />
                 <Route path="plans" element={<AdminPlansPage />} />

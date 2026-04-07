@@ -106,10 +106,12 @@ export function AdminPurchasesPage() {
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                         item.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' :
+                        item.status === 'rejected' ? 'bg-red-600/20 text-red-300' :
                         item.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
                         'bg-amber-500/20 text-amber-400'
                       }`}>
                         {item.status === 'approved' ? <CheckCircle className="w-3 h-3" /> : 
+                         item.status === 'rejected' ? <XCircle className="w-3 h-3" /> :
                          item.status === 'cancelled' ? <XCircle className="w-3 h-3" /> : 
                          <Clock className="w-3 h-3" />}
                         {item.status}
@@ -162,6 +164,7 @@ export function AdminPurchasesPage() {
                   >
                     <option value="pending">Pendente</option>
                     <option value="approved">Aprovada</option>
+                    <option value="rejected">Recusada</option>
                     <option value="cancelled">Cancelada</option>
                   </select>
                 </div>
@@ -228,4 +231,3 @@ export function AdminPurchasesPage() {
     </div>
   );
 }
-

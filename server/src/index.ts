@@ -90,6 +90,7 @@ import {
   findServerByLicenseKey,
   createOrder,
   updateOrderStatus,
+  listAllOrders,
   findOrderById,
   users,
   verifyEmailToken,
@@ -99,6 +100,12 @@ import {
   listAllPurchases,
   findPurchaseByLicenseKey,
   updatePurchaseTelemetry,
+  listRaffles,
+  findRaffleById,
+  createRaffle,
+  updateRaffle,
+  deleteRaffle,
+  drawRaffleWinner,
   createPlugin,
   updatePlugin,
   deletePlugin,
@@ -1320,8 +1327,21 @@ app.get('/api/admin/notifications', (req, res) => {
 
 app.post('/api/admin/notifications', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
-  const { title, message } = req.body;
-  const item = addNotification(title, message);
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!title || !message) {
+    return res.status(400).json({ error: 'title e message são obrigatórios' });
+  }
+  const type =
+    req.body?.type === 'sale' || req.body?.type === 'support' || req.body?.type === 'raffle'
+      ? req.body.type
+      : 'manual';
+  const priority =
+    req.body?.priority === 'low' || req.body?.priority === 'high'
+      ? req.body.priority
+      : 'normal';
+  const source = typeof req.body?.source === 'string' ? req.body.source.trim() : null;
+  const item = addNotification(title, message, { type, priority, source });
   res.status(201).json({ item });
 });
 
@@ -1334,6 +1354,93 @@ app.delete('/api/admin/notifications', (req, res) => {
     clearNotifications();
   }
   res.json({ ok: true });
+});
+
+app.get('/api/admin/raffles', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  res.json({ items: listRaffles() });
+});
+
+app.post('/api/admin/raffles', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const title = parseStringParam(req.body?.title) ?? '';
+  const description = parseStringParam(req.body?.description);
+  const prize = parseStringParam(req.body?.prize);
+  const eligibility = parseStringParam(req.body?.eligibility) as 'all_users' | 'approved_buyers' | 'premium_users' | null;
+  if (!title) {
+    return res.status(400).json({ error: 'title é obrigatório' });
+  }
+  const item = createRaffle({
+    title,
+    description,
+    prize,
+    eligibility: eligibility && ['all_users', 'approved_buyers', 'premium_users'].includes(eligibility)
+      ? eligibility
+      : 'approved_buyers'
+  });
+  addNotification(
+    'Novo sorteio criado',
+    `Sorteio "${item.title}" criado no painel admin.`,
+    {
+      type: 'raffle',
+      priority: 'normal',
+      source: 'admin_raffle_create',
+      metadata: { raffleId: item.id, eligibility: item.eligibility }
+    }
+  );
+  res.status(201).json({ item });
+});
+
+app.put('/api/admin/raffles/:id', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const id = req.params.id;
+  const title = parseStringParam(req.body?.title);
+  const description = typeof req.body?.description === 'string' ? req.body.description.trim() : undefined;
+  const prize = typeof req.body?.prize === 'string' ? req.body.prize.trim() : undefined;
+  const eligibility = parseStringParam(req.body?.eligibility) as 'all_users' | 'approved_buyers' | 'premium_users' | null;
+  const status = parseStringParam(req.body?.status) as 'open' | 'closed' | 'drawn' | null;
+
+  const item = updateRaffle(id, {
+    title: title ?? undefined,
+    description: description !== undefined ? (description || null) : undefined,
+    prize: prize !== undefined ? (prize || null) : undefined,
+    eligibility: eligibility && ['all_users', 'approved_buyers', 'premium_users'].includes(eligibility) ? eligibility : undefined,
+    status: status && ['open', 'closed', 'drawn'].includes(status) ? status : undefined
+  });
+  if (!item) return res.status(404).json({ error: 'sorteio não encontrado' });
+  res.json({ item });
+});
+
+app.delete('/api/admin/raffles/:id', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const ok = deleteRaffle(req.params.id);
+  if (!ok) return res.status(404).json({ error: 'sorteio não encontrado' });
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/raffles/:id/draw', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const id = req.params.id;
+  const raffle = findRaffleById(id);
+  if (!raffle) return res.status(404).json({ error: 'sorteio não encontrado' });
+
+  const result = drawRaffleWinner(id);
+  if (!result) {
+    return res.status(400).json({ error: 'não foi possível sortear (sem participantes elegíveis ou sorteio fechado)' });
+  }
+
+  addNotification(
+    'Sorteio concluído',
+    `Vencedor do sorteio "${result.raffle.title}": ${result.winner?.name || 'N/A'}.`,
+    {
+      type: 'raffle',
+      priority: 'high',
+      source: 'admin_raffle_draw',
+      metadata: { raffleId: result.raffle.id, winnerUserId: result.winner?.id || null }
+    }
+  );
+
+  res.json(result);
 });
 
 app.post('/api/commerce/checkout', async (req, res) => {
@@ -1442,6 +1549,17 @@ app.post('/api/commerce/checkout', async (req, res) => {
     paymentProvider: 'mercadopago'
   });
 
+  addNotification(
+    'Nova venda pendente',
+    `Pedido ${orderId} criado por ${user.email} no valor de R$ ${(totalCents / 100).toFixed(2)}.`,
+    {
+      type: 'sale',
+      priority: 'normal',
+      source: 'checkout',
+      metadata: { orderId, userId: user.id, totalCents }
+    }
+  );
+
   try {
     const { accessToken, client } = getMpCredentials();
     
@@ -1476,6 +1594,16 @@ app.post('/api/commerce/checkout', async (req, res) => {
     if (validItems.length === 0) {
       // If total is 0 (e.g. 100% discount), we can complete the order immediately
       updateOrderStatus(orderId, 'completed', 'FREE_BY_COUPON');
+      addNotification(
+        'Venda aprovada automaticamente',
+        `Pedido ${orderId} concluído automaticamente por cupom/valor zero.`,
+        {
+          type: 'sale',
+          priority: 'high',
+          source: 'checkout',
+          metadata: { orderId, paymentId: 'FREE_BY_COUPON', totalCents: 0 }
+        }
+      );
       
       let origin = req.headers.origin || req.headers.referer;
       if (origin) {
@@ -1535,6 +1663,17 @@ app.post('/api/commerce/checkout', async (req, res) => {
     }
 
     const response = await preference.create(preferenceData);
+
+    addNotification(
+      'Pagamento iniciado',
+      `Checkout Mercado Pago criado para o pedido ${orderId}.`,
+      {
+        type: 'sale',
+        priority: 'normal',
+        source: 'mercadopago',
+        metadata: { orderId, checkoutUrl: response.init_point }
+      }
+    );
 
     res.json({
       orderId,
@@ -1603,33 +1742,59 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
       });
       const payment = (await response.json()) as { status?: string; external_reference?: string };
       
-      if (payment.status === 'approved') {
-        const orderId = payment.external_reference;
-        if (!orderId) return res.sendStatus(200);
-        const order = findOrderById(orderId);
-        
-        if (order && order.status === 'pending') {
-          updateOrderStatus(orderId, 'completed', paymentId);
-          
-          // Grant items
-          if (order.planId) {
-            const plan = findPlanById(order.planId);
-            if (plan) {
-              updateUserAdmin(order.userId, { 
-                plan: toUserPlan(plan.name),
-                role: plan.grantsAllPlugins ? 'premium' : 'user'
-              });
-              const expiresAt = new Date();
-              expiresAt.setMonth(expiresAt.getMonth() + 1);
-              updateUserAdmin(order.userId, { planExpiresAt: expiresAt.toISOString() });
-            }
-          }
-          
-          for (const pid of order.pluginIds) {
-            const p = createPurchase(order.userId, pid);
-            updatePurchaseStatus(p.id, 'approved');
+      const orderId = payment.external_reference;
+      if (!orderId) return res.sendStatus(200);
+      const order = findOrderById(orderId);
+      if (!order) return res.sendStatus(200);
+
+      const paymentStatus = String(payment.status || '').toLowerCase();
+      const approvedStatuses = new Set(['approved']);
+      const rejectedStatuses = new Set(['rejected', 'cancelled', 'canceled', 'refunded', 'charged_back']);
+
+      if (approvedStatuses.has(paymentStatus)) {
+        updateOrderStatus(orderId, 'completed', paymentId);
+
+        // Grant items
+        if (order.planId) {
+          const plan = findPlanById(order.planId);
+          if (plan) {
+            updateUserAdmin(order.userId, { 
+              plan: toUserPlan(plan.name),
+              role: plan.grantsAllPlugins ? 'premium' : 'user'
+            });
+            const expiresAt = new Date();
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
+            updateUserAdmin(order.userId, { planExpiresAt: expiresAt.toISOString() });
           }
         }
+        
+        for (const pid of order.pluginIds) {
+          const p = createPurchase(order.userId, pid);
+          updatePurchaseStatus(p.id, 'approved');
+        }
+
+        addNotification(
+          'Venda aprovada',
+          `Pedido ${orderId} aprovado no Mercado Pago.`,
+          {
+            type: 'sale',
+            priority: 'high',
+            source: 'mercadopago_webhook',
+            metadata: { orderId, paymentId, status: paymentStatus }
+          }
+        );
+      } else if (rejectedStatuses.has(paymentStatus)) {
+        updateOrderStatus(orderId, paymentStatus === 'rejected' ? 'rejected' : 'cancelled', paymentId);
+        addNotification(
+          'Pagamento recusado/cancelado',
+          `Pedido ${orderId} retornou status ${paymentStatus}.`,
+          {
+            type: 'sale',
+            priority: 'high',
+            source: 'mercadopago_webhook',
+            metadata: { orderId, paymentId, status: paymentStatus }
+          }
+        );
       }
     } catch (err) {
       console.error('Webhook Error:', err);
@@ -1928,6 +2093,16 @@ app.post('/api/support/tickets', async (req, res) => {
       priority: priority as any,
       message
     });
+    addNotification(
+      'Novo ticket de suporte',
+      `Ticket ${ticket?.id || 'novo'} aberto por usuário autenticado: ${subject}.`,
+      {
+        type: 'support',
+        priority: 'high',
+        source: 'support_ticket',
+        metadata: { ticketId: ticket?.id || null, category, priority, by: ctx.userId }
+      }
+    );
     res.status(201).json(ticket);
     return;
   }
@@ -1939,6 +2114,16 @@ app.post('/api/support/tickets', async (req, res) => {
   }
 
   const ticket = createSupportTicket({ email, subject, message });
+  addNotification(
+    'Novo ticket de suporte',
+    `Ticket ${ticket?.id || 'novo'} aberto por ${email}: ${subject}.`,
+    {
+      type: 'support',
+      priority: 'high',
+      source: 'support_ticket',
+      metadata: { ticketId: ticket?.id || null, category, priority, email }
+    }
+  );
   if (ticket?.email) {
     await sendEmail({
       to: ticket.email,
@@ -2020,6 +2205,16 @@ app.post('/api/support/tickets/:id/messages', (req, res) => {
     res.status(404).json({ error: 'ticket não encontrado' });
     return;
   }
+  addNotification(
+    isAdmin(req) ? 'Resposta do suporte enviada' : 'Nova resposta de cliente em ticket',
+    `Ticket ${id} recebeu uma nova mensagem.`,
+    {
+      type: 'support',
+      priority: 'normal',
+      source: isAdmin(req) ? 'support_admin_reply' : 'support_user_reply',
+      metadata: { ticketId: id, by: ctx.userId, isAdmin: isAdmin(req) }
+    }
+  );
   res.status(201).json(msg);
 });
 
@@ -2040,6 +2235,16 @@ app.post('/api/support/tickets/:id/close', (req, res) => {
     return;
   }
   closeSupportTicket(id);
+  addNotification(
+    'Ticket encerrado',
+    `Ticket ${id} foi encerrado.`,
+    {
+      type: 'support',
+      priority: 'low',
+      source: 'support_ticket_close',
+      metadata: { ticketId: id, by: ctx.userId }
+    }
+  );
   res.json({ ok: true });
 });
 
@@ -2272,6 +2477,16 @@ app.post('/api/admin/support/tickets/:id/messages', async (req, res) => {
     res.status(404).json({ error: 'ticket não encontrado' });
     return;
   }
+  addNotification(
+    'Resposta do suporte enviada',
+    `Ticket ${id} recebeu resposta da equipe.`,
+    {
+      type: 'support',
+      priority: 'normal',
+      source: 'support_admin_reply',
+      metadata: { ticketId: id, by: ctx?.userId ?? null }
+    }
+  );
   if (ticket.email) {
     await sendEmail({
       to: ticket.email,
@@ -2310,6 +2525,16 @@ app.put('/api/admin/support/tickets/:id', async (req, res) => {
     res.status(404).json({ error: 'ticket não encontrado' });
     return;
   }
+  addNotification(
+    'Status de ticket atualizado',
+    `Ticket ${id} alterado para ${status}.`,
+    {
+      type: 'support',
+      priority: status === 'closed' ? 'low' : 'normal',
+      source: 'support_status_update',
+      metadata: { ticketId: id, status }
+    }
+  );
   if (ticket.email) {
     await sendEmail({
       to: ticket.email,
@@ -2575,28 +2800,107 @@ app.get('/api/admin/stats', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  
+
   const allUsers = listAllUsers();
   const allPurchases = listAllPurchases();
-  const totalRevenueCents = allPurchases.reduce((acc, p) => acc + 1990, 0); // Exemplo fixo por enquanto
-  
+  const allOrders = listAllOrders();
+  const allTickets = listSupportTickets();
+
+  const normalizeStatus = (value: string): 'pending' | 'approved' | 'rejected' | 'cancelled' => {
+    const s = String(value || '').toLowerCase();
+    if (['approved', 'completed', 'paid', 'success'].includes(s)) return 'approved';
+    if (['rejected', 'failed', 'denied', 'refused'].includes(s)) return 'rejected';
+    if (['cancelled', 'canceled', 'voided', 'refunded', 'charged_back'].includes(s)) return 'cancelled';
+    return 'pending';
+  };
+
+  const pluginById = new Map(pluginSummaries.map((p) => [p.id, p]));
+
+  const purchaseSummary = { pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+  for (const purchase of allPurchases) {
+    purchaseSummary[normalizeStatus(purchase.status)] += 1;
+  }
+
+  const paymentSummary = { pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+  for (const order of allOrders) {
+    paymentSummary[normalizeStatus(order.status)] += 1;
+  }
+
+  const approvedOrderRevenue = allOrders
+    .filter((o) => normalizeStatus(o.status) === 'approved')
+    .reduce((acc, order) => acc + Math.max(0, Number(order.totalCents || 0)), 0);
+
+  const fallbackApprovedPurchaseRevenue = allPurchases
+    .filter((p) => normalizeStatus(p.status) === 'approved')
+    .reduce((acc, purchase) => {
+      const plugin = pluginById.get(purchase.pluginId);
+      return acc + Math.max(0, Math.round(Number(plugin?.priceCents || 0)));
+    }, 0);
+
+  const totalRevenueCents = approvedOrderRevenue > 0 ? approvedOrderRevenue : fallbackApprovedPurchaseRevenue;
+
+  const salesByPlugin = new Map<number, number>();
+  for (const purchase of allPurchases) {
+    if (normalizeStatus(purchase.status) !== 'approved') continue;
+    salesByPlugin.set(purchase.pluginId, (salesByPlugin.get(purchase.pluginId) || 0) + 1);
+  }
+
+  const topPlugins = [...salesByPlugin.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([pluginId, sales]) => {
+      const plugin = pluginById.get(pluginId);
+      const fallbackName = `Plugin #${pluginId}`;
+      return {
+        id: String(pluginId),
+        name: plugin?.name || fallbackName,
+        slug: (plugin?.name || fallbackName).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        sales,
+        revenueCents: sales * Math.max(0, Math.round(Number(plugin?.priceCents || 0)))
+      };
+    });
+
+  const purchasesByCustomer = new Map<string, number>();
+  for (const purchase of allPurchases) {
+    if (normalizeStatus(purchase.status) !== 'approved') continue;
+    purchasesByCustomer.set(purchase.userId, (purchasesByCustomer.get(purchase.userId) || 0) + 1);
+  }
+
+  const topCustomers = [...purchasesByCustomer.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([userId, pluginCount]) => {
+      const user = findUserById(userId);
+      return {
+        id: userId,
+        name: user?.name || 'Usuário removido',
+        email: user?.email || '-',
+        pluginCount
+      };
+    });
+
+  const ticketsSummary = {
+    open: allTickets.filter((t) => t.status === 'open').length,
+    answered: allTickets.filter((t) => t.status === 'answered').length,
+    closed: allTickets.filter((t) => t.status === 'closed').length
+  };
+
+  const pluginsWithSales = new Set(allPurchases.filter((p) => normalizeStatus(p.status) === 'approved').map((p) => p.pluginId)).size;
+
   res.json({
-    topPlugins: pluginSummaries.slice(0, 5).map(p => ({
-      id: p.id,
-      name: p.name,
-      slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-      sales: allPurchases.filter(pur => pur.pluginId === p.id).length
-    })),
-    topCustomers: allUsers.slice(0, 5).map(u => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      pluginCount: allPurchases.filter(pur => pur.userId === u.id).length
-    })),
+    topPlugins,
+    topCustomers,
     stats: {
       totalSales: allPurchases.length,
-      totalRevenueCents
-    }
+      totalRevenueCents,
+      totalUsers: allUsers.length,
+      totalOrders: allOrders.length,
+      totalPlugins: pluginSummaries.length,
+      pluginsWithSales
+    },
+    paymentStatus: paymentSummary,
+    pluginStatus: purchaseSummary,
+    tickets: ticketsSummary
   });
 });
 
@@ -2870,7 +3174,25 @@ app.put('/api/admin/purchases/:id', async (req, res) => {
   const plugin = getPluginDetail(purchase.pluginId);
   if (user && body.status) {
     const pluginName = plugin?.name ?? purchase.pluginId;
-    const statusText = purchase.status === 'approved' ? 'Aprovada' : purchase.status === 'cancelled' ? 'Cancelada' : 'Pendente';
+    const statusText =
+      purchase.status === 'approved'
+        ? 'Aprovada'
+        : purchase.status === 'cancelled'
+          ? 'Cancelada'
+          : purchase.status === 'rejected'
+            ? 'Recusada'
+            : 'Pendente';
+
+    addNotification(
+      'Status de venda atualizado',
+      `Compra ${purchase.id} (${pluginName}) agora está ${statusText.toLowerCase()}.`,
+      {
+        type: 'sale',
+        priority: purchase.status === 'approved' ? 'high' : 'normal',
+        source: 'admin_purchase_update',
+        metadata: { purchaseId: purchase.id, status: purchase.status, pluginId: purchase.pluginId, userId: purchase.userId }
+      }
+    );
     
     let extraHtml = '';
     if (purchase.status === 'approved' && purchase.licenseKey) {
