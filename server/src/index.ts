@@ -417,8 +417,13 @@ app.post('/v1/license/check', (req, res) => {
   const requestedPluginNames = [requestedPluginNameRaw, requestedPluginNameById]
     .filter((v): v is string => Boolean(v))
     .map((v) => v.toLowerCase());
+  const bootstrapPluginAliases = new Set(['starfinlicense', 'starfin-license']);
+  const isBootstrapRequest = requestedPluginNames.some((name) => bootstrapPluginAliases.has(name));
   const isRequestedPluginAllowed = (allowedPlugins: string[]) => {
+    // Backward compatibility: old StarfinLicense bootstrap may not send plugin name/id.
     if (requestedPluginNames.length === 0) return true;
+    // Bootstrap plugin itself is an auth loader, not a licensable marketplace plugin.
+    if (isBootstrapRequest) return true;
     const allowedSet = new Set(allowedPlugins.map((name) => name.toLowerCase()));
     return requestedPluginNames.some((name) => allowedSet.has(name));
   };
@@ -435,14 +440,6 @@ app.post('/v1/license/check', (req, res) => {
     res.status(400).json(errorBody);
     return;
   }
-  if (requestedPluginNames.length === 0) {
-    return res.status(200).json({
-      valid: false,
-      ok: false,
-      reason: 'pluginName ou pluginId obrigatorio para validar licenca.'
-    });
-  }
-
   const ipResolution = resolveEffectiveRequestIp(req);
   if (!ipResolution.ok) {
     return res.status(200).json({
