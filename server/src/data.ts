@@ -19,7 +19,9 @@ sqlite.exec(`
     settings LONGTEXT,
     role VARCHAR(32) DEFAULT 'user',
     phone VARCHAR(64),
-    permissions LONGTEXT
+    permissions LONGTEXT,
+    licenseHwid VARCHAR(255),
+    licenseHwidResetISO VARCHAR(64)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS sessions (
     token VARCHAR(191) PRIMARY KEY,
@@ -287,6 +289,12 @@ if (!tableInfo.some(col => col.name === 'licenseKey')) {
 }
 if (!tableInfo.some(col => col.name === 'allowedIp')) {
   sqlite.exec("ALTER TABLE users ADD COLUMN allowedIp TEXT");
+}
+if (!tableInfo.some(col => col.name === 'licenseHwid')) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN licenseHwid TEXT");
+}
+if (!tableInfo.some(col => col.name === 'licenseHwidResetISO')) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN licenseHwidResetISO TEXT");
 }
 if (!tableInfo.some(col => col.name === 'avatarUrl')) {
   sqlite.exec("ALTER TABLE users ADD COLUMN avatarUrl TEXT");
@@ -1718,6 +1726,8 @@ export interface AccountUser {
   permissions: string[];
   licenseKey: string | null;
   allowedIp: string | null;
+  licenseHwid: string | null;
+  licenseHwidResetISO?: string | null;
   avatarUrl: string | null;
   bio: string | null;
   discordId: string | null;
@@ -2151,6 +2161,8 @@ export function findUserByEmail(email: string) {
     permissions,
     licenseKey: row.licenseKey || null,
     allowedIp: row.allowedIp || null,
+    licenseHwid: row.licenseHwid || null,
+    licenseHwidResetISO: row.licenseHwidResetISO || null,
     avatarUrl: row.avatarUrl || null,
     bio: row.bio || null,
     discordId: row.discordId || null,
@@ -2175,6 +2187,8 @@ export function findUserById(id: string) {
     permissions,
     licenseKey: row.licenseKey || null,
     allowedIp: row.allowedIp || null,
+    licenseHwid: row.licenseHwid || null,
+    licenseHwidResetISO: row.licenseHwidResetISO || null,
     avatarUrl: row.avatarUrl || null,
     bio: row.bio || null,
     discordId: row.discordId || null,
@@ -2195,7 +2209,17 @@ export function listAllUsers() {
     return {
       ...row,
       verified: Boolean(row.verified),
-      permissions
+      banned: Boolean(row.banned),
+      permissions,
+      licenseKey: row.licenseKey || null,
+      allowedIp: row.allowedIp || null,
+      licenseHwid: row.licenseHwid || null,
+      licenseHwidResetISO: row.licenseHwidResetISO || null,
+      avatarUrl: row.avatarUrl || null,
+      bio: row.bio || null,
+      discordId: row.discordId || null,
+      githubUrl: row.githubUrl || null,
+      twitterUrl: row.twitterUrl || null
     };
   }) as AccountUser[];
 }
@@ -2247,6 +2271,8 @@ export function updateUserAdmin(id: string, data: Partial<AccountUser> & { planD
   const permissions = data.permissions ? JSON.stringify(data.permissions) : JSON.stringify(current.permissions);
   const licenseKey = data.licenseKey ?? current.licenseKey;
   const allowedIp = data.allowedIp !== undefined ? data.allowedIp : current.allowedIp;
+  const licenseHwid = data.licenseHwid !== undefined ? data.licenseHwid : current.licenseHwid;
+  const licenseHwidResetISO = data.licenseHwidResetISO !== undefined ? data.licenseHwidResetISO : (current.licenseHwidResetISO || null);
   const avatarUrl = data.avatarUrl !== undefined ? data.avatarUrl : current.avatarUrl;
   const bio = data.bio !== undefined ? data.bio : current.bio;
   const discordId = data.discordId !== undefined ? data.discordId : current.discordId;
@@ -2255,10 +2281,10 @@ export function updateUserAdmin(id: string, data: Partial<AccountUser> & { planD
 
   sqlite.prepare(`
     UPDATE users SET 
-      name = ?, email = ?, plan = ?, planExpiresAt = ?, role = ?, phone = ?, banned = ?, permissions = ?, licenseKey = ?, allowedIp = ?,
+      name = ?, email = ?, plan = ?, planExpiresAt = ?, role = ?, phone = ?, banned = ?, permissions = ?, licenseKey = ?, allowedIp = ?, licenseHwid = ?, licenseHwidResetISO = ?,
       avatarUrl = ?, bio = ?, discordId = ?, githubUrl = ?, twitterUrl = ?
     WHERE id = ?
-  `).run(name, email, plan, planExpiresAt, role, phone, banned, permissions, licenseKey, allowedIp, avatarUrl, bio, discordId, githubUrl, twitterUrl, id);
+  `).run(name, email, plan, planExpiresAt, role, phone, banned, permissions, licenseKey, allowedIp, licenseHwid, licenseHwidResetISO, avatarUrl, bio, discordId, githubUrl, twitterUrl, id);
 
   return findUserById(id);
 }
@@ -2299,9 +2325,9 @@ export function createUserAdmin(data: Partial<AccountUser> & { password?: string
   const banned = data.banned ? 1 : 0;
 
   sqlite.prepare(`
-    INSERT INTO users (id, name, email, plan, planExpiresAt, passwordHash, verified, banned, createdISO, settings, role, phone, permissions, licenseKey, allowedIp)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, name, email, plan, planExpiresAt, passwordHash, 1, banned, createdISO, settings, role, phone, permissions, licenseKey, null);
+    INSERT INTO users (id, name, email, plan, planExpiresAt, passwordHash, verified, banned, createdISO, settings, role, phone, permissions, licenseKey, allowedIp, licenseHwid, licenseHwidResetISO)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, name, email, plan, planExpiresAt, passwordHash, 1, banned, createdISO, settings, role, phone, permissions, licenseKey, null, null, null);
 
   return findUserById(id);
 }
@@ -2337,6 +2363,17 @@ export function regenerateUserLicense(userId: string) {
 export function updateUserAllowedIp(userId: string, ip: string | null) {
   sqlite.prepare('UPDATE users SET allowedIp = ? WHERE id = ?').run(ip, userId);
   return true;
+}
+
+export function bindUserLicenseHwid(userId: string, hwid: string) {
+  sqlite.prepare('UPDATE users SET licenseHwid = ? WHERE id = ?').run(hwid, userId);
+  return findUserById(userId);
+}
+
+export function resetUserLicenseHwid(userId: string) {
+  const resetISO = new Date().toISOString();
+  sqlite.prepare('UPDATE users SET licenseHwid = NULL, licenseHwidResetISO = ? WHERE id = ?').run(resetISO, userId);
+  return findUserById(userId);
 }
 
 export function findUserByLicenseKey(licenseKey: string) {

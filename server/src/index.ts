@@ -55,6 +55,8 @@ import {
   updateUserProfile,
   regenerateUserLicense,
   updateUserAllowedIp,
+  bindUserLicenseHwid,
+  resetUserLicenseHwid,
   findUserByLicenseKey,
   listSupportTickets,
   listSupportTicketsForUser,
@@ -205,6 +207,14 @@ function normalizeIp(ip: string | undefined | null): string {
 
   clean = clean.toLowerCase();
   return net.isIP(clean) ? clean : '';
+}
+
+function normalizeHwid(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const clean = value.trim();
+  if (!clean) return '';
+  if (clean.length > 255) return clean.slice(0, 255);
+  return clean;
 }
 
 function readHeaderValue(value: string | string[] | undefined): string {
@@ -406,6 +416,12 @@ app.post('/v1/license/check', (req, res) => {
   const serverName = req.body?.serverName || req.body?.name;
   const platform = req.body?.platform || req.body?.os;
   const performance = req.body?.performance || req.body?.perf;
+  const normalizedHwid = normalizeHwid(hwid);
+  const normalizedServerPort = Number.isFinite(Number(serverPort)) ? Number(serverPort) : 0;
+  const normalizedServerName = parseStringParam(serverName) || 'Unknown';
+  const normalizedPlatform = parseStringParam(platform) || 'unknown';
+  const normalizedPerformance = typeof performance === 'string' ? performance : JSON.stringify(performance ?? {});
+  const bootstrapPluginName = 'StarfinLicense';
   const requestedPluginNameRaw =
     parseStringParam(req.body?.pluginName) ||
     parseStringParam(req.body?.plugin) ||
@@ -419,6 +435,19 @@ app.post('/v1/license/check', (req, res) => {
     .map((v) => v.toLowerCase());
   const bootstrapPluginAliases = new Set(['starfinlicense', 'starfin-license']);
   const isBootstrapRequest = requestedPluginNames.some((name) => bootstrapPluginAliases.has(name));
+  const pluginByLowerName = new Map(pluginSummaries.map((p) => [p.name.toLowerCase(), p] as const));
+  const withBootstrapPlugin = (plugins: string[]) => {
+    return Array.from(new Set([bootstrapPluginName, ...plugins.filter(Boolean)]));
+  };
+  const buildUpdates = (allowedPlugins: string[]) => {
+    const entries: Array<[string, string]> = [];
+    for (const pluginName of allowedPlugins) {
+      const plugin = pluginByLowerName.get(pluginName.toLowerCase());
+      if (!plugin) continue;
+      entries.push([pluginName, `https://starfinplugins.com/download/${plugin.id}/latest.jar`]);
+    }
+    return Object.fromEntries(entries);
+  };
   const isRequestedPluginAllowed = (allowedPlugins: string[]) => {
     // Backward compatibility: old StarfinLicense bootstrap may not send plugin name/id.
     if (requestedPluginNames.length === 0) return true;
@@ -440,6 +469,13 @@ app.post('/v1/license/check', (req, res) => {
     res.status(400).json(errorBody);
     return;
   }
+  if (!normalizedHwid) {
+    return res.status(200).json({
+      valid: false,
+      ok: false,
+      reason: 'HWID nao informado.'
+    });
+  }
   const ipResolution = resolveEffectiveRequestIp(req);
   if (!ipResolution.ok) {
     return res.status(200).json({
@@ -449,6 +485,7 @@ app.post('/v1/license/check', (req, res) => {
     });
   }
   const incomingIp = ipResolution.effectiveIp;
+  const auditPrefix = `[License Check] [${licenseKey}]`;
 
   // 1. Try finding User by Global License Key (New Auto-IP Detection)
   const user = findUserByLicenseKey(licenseKey);
@@ -458,12 +495,46 @@ app.post('/v1/license/check', (req, res) => {
     }
     const userServers = listServersForUser(user.id);
     const matchingServer = userServers.find(s => s.ips.map(normalizeIp).includes(incomingIp));
+    const globalAllowedIp = normalizeIp(user.allowedIp || '');
+    if (!matchingServer && globalAllowedIp && globalAllowedIp !== incomingIp) {
+      return res.status(200).json({
+        valid: false,
+        ok: false,
+        reason: `IP ${incomingIp} nao autorizado. Configure este IP ou crie um servidor no painel.`,
+        licenseOwner: user.name,
+        plan: user.plan
+      });
+    }
 
     // Check if user has a plan that grants all plugins
     const allPlans = listPlans();
     const userPlan = allPlans.find(p => p.name === user.plan && p.active);
     const hasActivePlan = !user.planExpiresAt || new Date(user.planExpiresAt).getTime() > Date.now();
     const hasGlobalAccess = Boolean(user.role === 'admin' || (hasActivePlan && userPlan?.grantsAllPlugins));
+    const storedUserHwid = normalizeHwid(user.licenseHwid || '');
+    if (!storedUserHwid) {
+      bindUserLicenseHwid(user.id, normalizedHwid);
+      console.log(`${auditPrefix} Global HWID bound on first activation. user=${user.id} hwid=${normalizedHwid} ip=${incomingIp}`);
+    } else if (storedUserHwid !== normalizedHwid) {
+      console.warn(`${auditPrefix} Global HWID mismatch. user=${user.id} expected=${storedUserHwid} received=${normalizedHwid} ip=${incomingIp}`);
+      addNotification(
+        'Tentativa de uso indevido de licença',
+        `HWID divergente para a licença global de ${user.email}.`,
+        {
+          type: 'sale',
+          priority: 'high',
+          source: 'license_hwid_mismatch',
+          metadata: { userId: user.id, expectedHwid: storedUserHwid, receivedHwid: normalizedHwid, ip: incomingIp }
+        }
+      );
+      return res.status(200).json({
+        valid: false,
+        ok: false,
+        reason: 'HWID nao autorizado. Licenca ja ativa em outro servidor.',
+        licenseOwner: user.name,
+        plan: user.plan
+      });
+    }
 
     if (matchingServer) {
       // Server-specific assignment found for this IP
@@ -475,16 +546,7 @@ app.post('/v1/license/check', (req, res) => {
       if (hasGlobalAccess) {
         allowedPlugins = pluginSummaries.map(p => p.name);
       }
-
-      if (allowedPlugins.length === 0) {
-        return res.status(200).json({ 
-          valid: false, 
-          ok: false, 
-          reason: `Nenhum plugin atribuido ao servidor '${matchingServer.name}' para este IP.`, 
-          licenseOwner: user.name, 
-          plan: user.plan 
-        });
-      }
+      allowedPlugins = withBootstrapPlugin(allowedPlugins);
       if (!isRequestedPluginAllowed(allowedPlugins)) {
         return res.status(200).json({
           valid: false,
@@ -494,6 +556,7 @@ app.post('/v1/license/check', (req, res) => {
           plan: user.plan
         });
       }
+      console.log(`${auditPrefix} Validated via server assignment. user=${user.id} server=${matchingServer.id} hwid=${normalizedHwid} ip=${incomingIp}`);
 
       return res.status(200).json({
         valid: true,
@@ -502,20 +565,8 @@ app.post('/v1/license/check', (req, res) => {
         licenseOwner: user.name,
         plan: user.plan,
         serverName: matchingServer.name,
-        allowedPlugins: [...allowedPlugins, '*'],
-        updates: Object.fromEntries(allowedPlugins.map(name => [name, `https://starfinplugins.com/download/redirect/${name}`]))
-      });
-    }
-
-    // No specific server found, check Global Allowed IP
-    const globalAllowedIp = normalizeIp(user.allowedIp || '');
-    if (globalAllowedIp && globalAllowedIp !== incomingIp) {
-      return res.status(200).json({ 
-        valid: false, 
-        ok: false, 
-        reason: `IP ${incomingIp} nao autorizado. Configure este IP ou crie um servidor no painel.`, 
-        licenseOwner: user.name, 
-        plan: user.plan 
+        allowedPlugins,
+        updates: buildUpdates(allowedPlugins)
       });
     }
 
@@ -526,16 +577,7 @@ app.post('/v1/license/check', (req, res) => {
     if (hasGlobalAccess) {
       allowedPlugins = pluginSummaries.map(p => p.name);
     }
-
-    if (allowedPlugins.length === 0) {
-      return res.status(200).json({ 
-        valid: false, 
-        ok: false, 
-        reason: 'Nenhum plugin ativo encontrado para este usuario.', 
-        licenseOwner: user.name, 
-        plan: user.plan 
-      });
-    }
+    allowedPlugins = withBootstrapPlugin(allowedPlugins);
     if (!isRequestedPluginAllowed(allowedPlugins)) {
       return res.status(200).json({
         valid: false,
@@ -545,6 +587,7 @@ app.post('/v1/license/check', (req, res) => {
         plan: user.plan
       });
     }
+    console.log(`${auditPrefix} Validated via global license. user=${user.id} hwid=${normalizedHwid} ip=${incomingIp}`);
 
     return res.status(200).json({
       valid: true,
@@ -552,11 +595,8 @@ app.post('/v1/license/check', (req, res) => {
       reason: 'Licenca global validada!',
       licenseOwner: user.name,
       plan: user.plan,
-      allowedPlugins: [...allowedPlugins, '*'],
-      updates: Object.fromEntries(
-        (hasGlobalAccess ? pluginSummaries : userLicenses.filter(l => l.status === 'Ativo'))
-          .map(l => [l.name, `https://starfinplugins.com/download/${l.id || (l as any).pluginId}/latest.jar`])
-      )
+      allowedPlugins,
+      updates: buildUpdates(allowedPlugins)
     });
   }
 
@@ -573,11 +613,7 @@ app.post('/v1/license/check', (req, res) => {
     }
 
     const assignedPluginIds = listPluginsForServer(server.id);
-    const allowedPlugins = pluginSummaries.filter(p => assignedPluginIds.includes(p.id)).map(p => p.name);
-
-    if (allowedPlugins.length === 0) {
-      return res.status(200).json({ valid: false, ok: false, reason: 'Nenhum plugin atribuido a este servidor.' });
-    }
+    const allowedPlugins = withBootstrapPlugin(pluginSummaries.filter(p => assignedPluginIds.includes(p.id)).map(p => p.name));
     if (!isRequestedPluginAllowed(allowedPlugins)) {
       return res.status(200).json({ valid: false, ok: false, reason: 'Plugin solicitado nao autorizado para esta licenca de servidor.' });
     }
@@ -588,7 +624,8 @@ app.post('/v1/license/check', (req, res) => {
       reason: 'Licenca de servidor validada!',
       licenseOwner: owner.name,
       plan: owner.plan,
-      allowedPlugins: [...allowedPlugins, '*']
+      allowedPlugins,
+      updates: buildUpdates(allowedPlugins)
     });
   }
 
@@ -605,6 +642,46 @@ app.post('/v1/license/check', (req, res) => {
     const owner = findUserById(purchase.userId);
     if (owner?.banned) return res.status(200).json({ valid: false, ok: false, reason: 'Sua conta esta banida.' });
     const plugin = getPluginDetail(purchase.pluginId);
+    const storedPurchaseHwid = normalizeHwid(purchase.hwid || '');
+    if (!storedPurchaseHwid) {
+      updatePurchaseTelemetry(purchase.id, {
+        hwid: normalizedHwid,
+        allowedIp: incomingIp,
+        ip: incomingIp,
+        port: normalizedServerPort,
+        serverName: normalizedServerName,
+        platform: normalizedPlatform,
+        performance: normalizedPerformance
+      });
+      console.log(`${auditPrefix} Purchase HWID bound on first activation. purchase=${purchase.id} hwid=${normalizedHwid} ip=${incomingIp}`);
+    } else if (storedPurchaseHwid !== normalizedHwid) {
+      console.warn(`${auditPrefix} Purchase HWID mismatch. purchase=${purchase.id} expected=${storedPurchaseHwid} received=${normalizedHwid} ip=${incomingIp}`);
+      addNotification(
+        'Tentativa de uso indevido de licença',
+        `HWID divergente para a licença ${purchase.id}.`,
+        {
+          type: 'sale',
+          priority: 'high',
+          source: 'license_hwid_mismatch',
+          metadata: { purchaseId: purchase.id, userId: purchase.userId, expectedHwid: storedPurchaseHwid, receivedHwid: normalizedHwid, ip: incomingIp }
+        }
+      );
+      return res.status(200).json({
+        valid: false,
+        ok: false,
+        reason: 'HWID nao autorizado. Licenca ja ativa em outro servidor.'
+      });
+    } else {
+      updatePurchaseTelemetry(purchase.id, {
+        hwid: normalizedHwid,
+        allowedIp: incomingIp,
+        ip: incomingIp,
+        port: normalizedServerPort,
+        serverName: normalizedServerName,
+        platform: normalizedPlatform,
+        performance: normalizedPerformance
+      });
+    }
     if (requestedPluginNames.length > 0 && plugin?.name && !requestedPluginNames.includes(plugin.name.toLowerCase())) {
       return res.status(200).json({
         valid: false,
@@ -612,13 +689,16 @@ app.post('/v1/license/check', (req, res) => {
         reason: 'Plugin solicitado nao autorizado para esta licenca.'
       });
     }
+    const allowedPlugins = withBootstrapPlugin(plugin?.name ? [plugin.name] : []);
+    console.log(`${auditPrefix} Validated via purchase license. purchase=${purchase.id} hwid=${normalizedHwid} ip=${incomingIp}`);
     return res.status(200).json({
       valid: true,
       ok: true,
       reason: 'Licenca legada validada!',
       licenseOwner: owner?.name || 'Cliente',
       plan: owner?.plan || 'Free',
-      allowedPlugins: [plugin?.name || '*', '*']
+      allowedPlugins,
+      updates: buildUpdates(allowedPlugins)
     });
   }
 
@@ -1078,6 +1158,44 @@ app.patch('/api/users/me/allowed-ip', (req, res) => {
   const ctx = getAuthContext(req)!;
   updateUserAllowedIp(ctx.userId, req.body.allowedIp);
   res.json({ success: true });
+});
+
+app.post('/api/users/me/license/hwid/reset', (req, res) => {
+  if (!hasValidAuthHeader(req)) {
+    res.status(401).json({ error: 'nÃ£o autorizado' });
+    return;
+  }
+  const ctx = getAuthContext(req)!;
+  const user = findUserById(ctx.userId);
+  if (!user) {
+    res.status(404).json({ error: 'usuÃ¡rio nÃ£o encontrado' });
+    return;
+  }
+
+  const lastReset = user.licenseHwidResetISO ? new Date(user.licenseHwidResetISO).getTime() : 0;
+  const cooldownMs = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  if (lastReset && now - lastReset < cooldownMs) {
+    const retryAfterDays = Math.ceil((cooldownMs - (now - lastReset)) / (24 * 60 * 60 * 1000));
+    return res.status(429).json({ error: `Reset de HWID disponivel em ${retryAfterDays} dia(s).` });
+  }
+
+  const updated = resetUserLicenseHwid(ctx.userId);
+  if (!updated) {
+    res.status(500).json({ error: 'falha ao resetar HWID' });
+    return;
+  }
+  addNotification(
+    'Reset de HWID solicitado',
+    `UsuÃ¡rio ${updated.email} resetou o HWID da licenÃ§a global.`,
+    {
+      type: 'manual',
+      priority: 'normal',
+      source: 'user_hwid_reset',
+      metadata: { userId: updated.id }
+    }
+  );
+  res.json({ ok: true });
 });
 
 app.get('/api/users/me/servers', (req, res) => {
@@ -3053,6 +3171,34 @@ app.get('/api/admin/users/:id', (req, res) => {
     return;
   }
   res.json(user);
+});
+
+app.post('/api/admin/users/:id/license/hwid/reset', (req, res) => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: 'admin token requerido' });
+    return;
+  }
+  const user = findUserById(req.params.id);
+  if (!user) {
+    res.status(404).json({ error: 'usuÃ¡rio nÃ£o encontrado' });
+    return;
+  }
+  const updated = resetUserLicenseHwid(user.id);
+  if (!updated) {
+    res.status(500).json({ error: 'falha ao resetar HWID' });
+    return;
+  }
+  addNotification(
+    'HWID global resetado por admin',
+    `HWID global do usuÃ¡rio ${user.email} foi resetado.`,
+    {
+      type: 'manual',
+      priority: 'high',
+      source: 'admin_hwid_reset',
+      metadata: { userId: user.id }
+    }
+  );
+  res.json({ ok: true, userId: user.id });
 });
 
 function mapAdminUserPluginAssignment(purchase: any) {
