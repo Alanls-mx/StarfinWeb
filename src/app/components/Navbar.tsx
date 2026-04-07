@@ -111,7 +111,10 @@ export function Navbar() {
                   ) : (
                     <User className="w-4 h-4" />
                   )}
-                  <span className="text-sm">{state.user.name}</span>
+                  <span className="flex flex-col leading-tight text-left">
+                    <span className="text-sm font-medium">{state.user.name}</span>
+                    <span className="text-[10px] text-white/80">Minha conta</span>
+                  </span>
                 </button>
                 <button
                   onClick={logout}
