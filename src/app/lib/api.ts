@@ -817,6 +817,10 @@ export interface AdminRaffle {
   description: string | null;
   prize: string | null;
   eligibility: 'all_users' | 'approved_buyers' | 'premium_users';
+  rewardKind: 'none' | 'plugin' | 'plan';
+  rewardPluginId: number | null;
+  rewardPlanId: string | null;
+  rewardPlanDays: number | null;
   status: 'open' | 'closed' | 'drawn';
   winnerUserId: string | null;
   winnerName: string | null;
@@ -832,7 +836,16 @@ export function adminListRaffles(token: string) {
 
 export function adminCreateRaffle(
   token: string,
-  data: { title: string; description?: string; prize?: string; eligibility: AdminRaffle['eligibility'] }
+  data: {
+    title: string;
+    description?: string;
+    prize?: string;
+    eligibility: AdminRaffle['eligibility'];
+    rewardKind?: AdminRaffle['rewardKind'];
+    rewardPluginId?: number | null;
+    rewardPlanId?: string | null;
+    rewardPlanDays?: number | null;
+  }
 ) {
   return apiFetch<{ item: AdminRaffle }>('/api/admin/raffles', {
     method: 'POST',
@@ -844,7 +857,17 @@ export function adminCreateRaffle(
 export function adminUpdateRaffle(
   token: string,
   id: string,
-  data: Partial<{ title: string; description: string; prize: string; eligibility: AdminRaffle['eligibility']; status: AdminRaffle['status'] }>
+  data: Partial<{
+    title: string;
+    description: string;
+    prize: string;
+    eligibility: AdminRaffle['eligibility'];
+    rewardKind: AdminRaffle['rewardKind'];
+    rewardPluginId: number | null;
+    rewardPlanId: string | null;
+    rewardPlanDays: number | null;
+    status: AdminRaffle['status'];
+  }>
 ) {
   return apiFetch<{ item: AdminRaffle }>(`/api/admin/raffles/${encodeURIComponent(id)}`, {
     method: 'PUT',

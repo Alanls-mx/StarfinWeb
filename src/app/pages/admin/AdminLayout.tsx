@@ -1,12 +1,13 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '../../components/ui/sidebar';
 import { AdminSidebar } from '../../components/AdminSidebar';
 import { useAuth } from '../../lib/auth';
-import { Navigate, Outlet } from 'react-router';
+import { Navigate, Outlet, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { Bell, Search } from 'lucide-react';
 
 export function AdminLayout() {
   const { state } = useAuth();
+  const navigate = useNavigate();
 
   // If not authenticated or not an admin, redirect to login
   if (state.status !== 'authenticated') {
@@ -39,7 +40,12 @@ export function AdminLayout() {
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="p-2.5 rounded-xl bg-[#1A1A22]/60 border border-[#7B2CBF]/10 text-gray-400 hover:text-white hover:bg-[#7B2CBF]/10 transition-all relative">
+              <button
+                onClick={() => navigate('/admin/notifications')}
+                className="p-2.5 rounded-xl bg-[#1A1A22]/60 border border-[#7B2CBF]/10 text-gray-400 hover:text-white hover:bg-[#7B2CBF]/10 transition-all relative"
+                title="Abrir notificações"
+                aria-label="Abrir notificações"
+              >
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-2 right-2 w-2 h-2 bg-[#7B2CBF] rounded-full border-2 border-[#13131A]"></span>
               </button>

@@ -406,6 +406,22 @@ app.post('/v1/license/check', (req, res) => {
   const serverName = req.body?.serverName || req.body?.name;
   const platform = req.body?.platform || req.body?.os;
   const performance = req.body?.performance || req.body?.perf;
+  const requestedPluginNameRaw =
+    parseStringParam(req.body?.pluginName) ||
+    parseStringParam(req.body?.plugin) ||
+    parseStringParam(req.body?.plugin_name);
+  const requestedPluginIdRaw = Number(req.body?.pluginId ?? req.body?.pluginid ?? req.body?.id);
+  const requestedPluginNameById = Number.isFinite(requestedPluginIdRaw)
+    ? getPluginDetail(requestedPluginIdRaw)?.name ?? null
+    : null;
+  const requestedPluginNames = [requestedPluginNameRaw, requestedPluginNameById]
+    .filter((v): v is string => Boolean(v))
+    .map((v) => v.toLowerCase());
+  const isRequestedPluginAllowed = (allowedPlugins: string[]) => {
+    if (requestedPluginNames.length === 0) return true;
+    const allowedSet = new Set(allowedPlugins.map((name) => name.toLowerCase()));
+    return requestedPluginNames.some((name) => allowedSet.has(name));
+  };
 
   if (!licenseKey) {
     const errorBody = { 
@@ -418,6 +434,13 @@ app.post('/v1/license/check', (req, res) => {
     };
     res.status(400).json(errorBody);
     return;
+  }
+  if (requestedPluginNames.length === 0) {
+    return res.status(200).json({
+      valid: false,
+      ok: false,
+      reason: 'pluginName ou pluginId obrigatorio para validar licenca.'
+    });
   }
 
   const ipResolution = resolveEffectiveRequestIp(req);
@@ -442,7 +465,8 @@ app.post('/v1/license/check', (req, res) => {
     // Check if user has a plan that grants all plugins
     const allPlans = listPlans();
     const userPlan = allPlans.find(p => p.name === user.plan && p.active);
-    const hasGlobalAccess = userPlan?.grantsAllPlugins || user.role === 'admin';
+    const hasActivePlan = !user.planExpiresAt || new Date(user.planExpiresAt).getTime() > Date.now();
+    const hasGlobalAccess = Boolean(user.role === 'admin' || (hasActivePlan && userPlan?.grantsAllPlugins));
 
     if (matchingServer) {
       // Server-specific assignment found for this IP
@@ -462,6 +486,15 @@ app.post('/v1/license/check', (req, res) => {
           reason: `Nenhum plugin atribuido ao servidor '${matchingServer.name}' para este IP.`, 
           licenseOwner: user.name, 
           plan: user.plan 
+        });
+      }
+      if (!isRequestedPluginAllowed(allowedPlugins)) {
+        return res.status(200).json({
+          valid: false,
+          ok: false,
+          reason: 'Plugin solicitado nao autorizado para esta licenca.',
+          licenseOwner: user.name,
+          plan: user.plan
         });
       }
 
@@ -506,6 +539,15 @@ app.post('/v1/license/check', (req, res) => {
         plan: user.plan 
       });
     }
+    if (!isRequestedPluginAllowed(allowedPlugins)) {
+      return res.status(200).json({
+        valid: false,
+        ok: false,
+        reason: 'Plugin solicitado nao autorizado para esta licenca.',
+        licenseOwner: user.name,
+        plan: user.plan
+      });
+    }
 
     return res.status(200).json({
       valid: true,
@@ -539,6 +581,9 @@ app.post('/v1/license/check', (req, res) => {
     if (allowedPlugins.length === 0) {
       return res.status(200).json({ valid: false, ok: false, reason: 'Nenhum plugin atribuido a este servidor.' });
     }
+    if (!isRequestedPluginAllowed(allowedPlugins)) {
+      return res.status(200).json({ valid: false, ok: false, reason: 'Plugin solicitado nao autorizado para esta licenca de servidor.' });
+    }
 
     return res.status(200).json({
       valid: true,
@@ -553,9 +598,23 @@ app.post('/v1/license/check', (req, res) => {
   // 3. Fallback to Legacy Purchase Key
   const purchase = findPurchaseByLicenseKey(licenseKey);
   if (purchase) {
+    if (purchase.status !== 'approved') {
+      return res.status(200).json({
+        valid: false,
+        ok: false,
+        reason: 'Licenca vinculada a compra nao aprovada.'
+      });
+    }
     const owner = findUserById(purchase.userId);
     if (owner?.banned) return res.status(200).json({ valid: false, ok: false, reason: 'Sua conta esta banida.' });
     const plugin = getPluginDetail(purchase.pluginId);
+    if (requestedPluginNames.length > 0 && plugin?.name && !requestedPluginNames.includes(plugin.name.toLowerCase())) {
+      return res.status(200).json({
+        valid: false,
+        ok: false,
+        reason: 'Plugin solicitado nao autorizado para esta licenca.'
+      });
+    }
     return res.status(200).json({
       valid: true,
       ok: true,
@@ -1367,28 +1426,46 @@ app.post('/api/admin/raffles', (req, res) => {
   const description = parseStringParam(req.body?.description);
   const prize = parseStringParam(req.body?.prize);
   const eligibility = parseStringParam(req.body?.eligibility) as 'all_users' | 'approved_buyers' | 'premium_users' | null;
+  const rewardKind = parseStringParam(req.body?.rewardKind) as 'none' | 'plugin' | 'plan' | null;
+  const rewardPluginIdRaw = Number(req.body?.rewardPluginId);
+  const rewardPluginId = Number.isFinite(rewardPluginIdRaw) && rewardPluginIdRaw > 0 ? rewardPluginIdRaw : null;
+  const rewardPlanId = parseStringParam(req.body?.rewardPlanId);
+  const rewardPlanDaysRaw = Number(req.body?.rewardPlanDays);
+  const rewardPlanDays = Number.isFinite(rewardPlanDaysRaw) && rewardPlanDaysRaw > 0 ? Math.floor(rewardPlanDaysRaw) : null;
   if (!title) {
     return res.status(400).json({ error: 'title é obrigatório' });
   }
-  const item = createRaffle({
+  const normalizedRewardKind = rewardKind && ['none', 'plugin', 'plan'].includes(rewardKind) ? rewardKind : 'none';
+  if (normalizedRewardKind === 'plugin' && !rewardPluginId) {
+    return res.status(400).json({ error: 'rewardPluginId Ã© obrigatÃ³rio para recompensa de plugin' });
+  }
+  if (normalizedRewardKind === 'plan' && !rewardPlanId) {
+    return res.status(400).json({ error: 'rewardPlanId Ã© obrigatÃ³rio para recompensa de plano' });
+  }
+
+  const withReward = createRaffle({
     title,
     description,
     prize,
     eligibility: eligibility && ['all_users', 'approved_buyers', 'premium_users'].includes(eligibility)
       ? eligibility
-      : 'approved_buyers'
+      : 'approved_buyers',
+    rewardKind: normalizedRewardKind,
+    rewardPluginId,
+    rewardPlanId,
+    rewardPlanDays
   });
   addNotification(
     'Novo sorteio criado',
-    `Sorteio "${item.title}" criado no painel admin.`,
+    `Sorteio "${withReward.title}" criado no painel admin.`,
     {
       type: 'raffle',
       priority: 'normal',
       source: 'admin_raffle_create',
-      metadata: { raffleId: item.id, eligibility: item.eligibility }
+      metadata: { raffleId: withReward.id, eligibility: withReward.eligibility, rewardKind: withReward.rewardKind }
     }
   );
-  res.status(201).json({ item });
+  res.status(201).json({ item: withReward });
 });
 
 app.put('/api/admin/raffles/:id', (req, res) => {
@@ -1399,12 +1476,34 @@ app.put('/api/admin/raffles/:id', (req, res) => {
   const prize = typeof req.body?.prize === 'string' ? req.body.prize.trim() : undefined;
   const eligibility = parseStringParam(req.body?.eligibility) as 'all_users' | 'approved_buyers' | 'premium_users' | null;
   const status = parseStringParam(req.body?.status) as 'open' | 'closed' | 'drawn' | null;
+  const rewardKind = parseStringParam(req.body?.rewardKind) as 'none' | 'plugin' | 'plan' | null;
+  const rewardPluginIdRaw = Number(req.body?.rewardPluginId);
+  const rewardPluginId = Number.isFinite(rewardPluginIdRaw) && rewardPluginIdRaw > 0 ? rewardPluginIdRaw : (req.body?.rewardPluginId === null ? null : undefined);
+  const rewardPlanId = req.body?.rewardPlanId === null ? null : parseStringParam(req.body?.rewardPlanId);
+  const rewardPlanDaysRaw = Number(req.body?.rewardPlanDays);
+  const rewardPlanDays = Number.isFinite(rewardPlanDaysRaw) && rewardPlanDaysRaw > 0 ? Math.floor(rewardPlanDaysRaw) : (req.body?.rewardPlanDays === null ? null : undefined);
+  const current = findRaffleById(id);
+  if (!current) return res.status(404).json({ error: 'sorteio nÃ£o encontrado' });
+  const normalizedRewardKind = rewardKind && ['none', 'plugin', 'plan'].includes(rewardKind) ? rewardKind : undefined;
+  const nextRewardKind = normalizedRewardKind ?? current.rewardKind;
+  const nextRewardPluginId = rewardPluginId !== undefined ? rewardPluginId : current.rewardPluginId;
+  const nextRewardPlanId = rewardPlanId !== undefined ? rewardPlanId : current.rewardPlanId;
+  if (nextRewardKind === 'plugin' && !nextRewardPluginId) {
+    return res.status(400).json({ error: 'rewardPluginId e obrigatorio para recompensa de plugin' });
+  }
+  if (nextRewardKind === 'plan' && !nextRewardPlanId) {
+    return res.status(400).json({ error: 'rewardPlanId e obrigatorio para recompensa de plano' });
+  }
 
   const item = updateRaffle(id, {
     title: title ?? undefined,
     description: description !== undefined ? (description || null) : undefined,
     prize: prize !== undefined ? (prize || null) : undefined,
     eligibility: eligibility && ['all_users', 'approved_buyers', 'premium_users'].includes(eligibility) ? eligibility : undefined,
+    rewardKind: normalizedRewardKind,
+    rewardPluginId,
+    rewardPlanId: rewardPlanId !== undefined ? rewardPlanId : undefined,
+    rewardPlanDays,
     status: status && ['open', 'closed', 'drawn'].includes(status) ? status : undefined
   });
   if (!item) return res.status(404).json({ error: 'sorteio não encontrado' });
@@ -1837,25 +1936,38 @@ app.post('/api/plugin-auth/verify', (req, res) => {
   }
 
   const user = findUserById(keyRecord.userId);
-  const isPremium = user?.plan === 'Premium' && (!user.planExpiresAt || new Date(user.planExpiresAt) > new Date());
+  if (!user) {
+    res.status(404).json({ error: 'usuario nao encontrado' });
+    return;
+  }
+  if (user.banned) {
+    res.status(403).json({ error: 'usuario banido' });
+    return;
+  }
+  const activePlans = listPlans().filter((p) => p.active);
+  const userPlan = activePlans.find((p) => p.name === user.plan);
+  const hasActivePlan = !user.planExpiresAt || new Date(user.planExpiresAt).getTime() > Date.now();
+  const hasGlobalPlanAccess = Boolean(user.role === 'admin' || (hasActivePlan && userPlan?.grantsAllPlugins));
 
+  let entitlementSource: 'purchase' | 'global_plan' | null = null;
   let license = getLicensesForUser(keyRecord.userId).find(
-    (p) => p.pluginId === pluginId && p.licenseKey === licenseKey
+    (p) => p.pluginId === pluginId && p.licenseKey === licenseKey && p.status === 'Ativo'
   );
+  if (license) {
+    entitlementSource = 'purchase';
+  }
 
-  // If user is premium, they have access to all plugins even without a specific license key,
-  // but they still need to provide a valid user license key if they don't have a plugin-specific one.
-  // Actually, let's allow premium users to use their user-level licenseKey as a universal key.
-  if (!license && isPremium && user?.licenseKey === licenseKey) {
+  if (!license && hasGlobalPlanAccess && user.licenseKey === licenseKey) {
     license = {
       id: pluginId,
-      pluginId: pluginId,
-      name: 'Premium Access',
+      pluginId,
+      name: 'Plan Global Access',
       version: 'Latest',
       purchaseDateISO: new Date().toISOString(),
-      licenseKey: licenseKey,
+      licenseKey,
       status: 'Ativo'
     };
+    entitlementSource = 'global_plan';
   }
 
   if (!license) {
@@ -1876,7 +1988,7 @@ app.post('/api/plugin-auth/verify', (req, res) => {
   }
   const effectiveIp = ipResolution.effectiveIp;
 
-  const normalizedUserAllowedIp = normalizeIp(user?.allowedIp || '');
+  const normalizedUserAllowedIp = normalizeIp(user.allowedIp || '');
   if (normalizedUserAllowedIp && normalizedUserAllowedIp !== effectiveIp) {
     res.status(403).json({ error: 'IP mismatch (user.allowedIp)' });
     return;
@@ -1885,6 +1997,14 @@ app.post('/api/plugin-auth/verify', (req, res) => {
   const purchase = findPurchaseByLicenseKey(licenseKey);
 
   if (purchase) {
+    if (purchase.userId !== keyRecord.userId || purchase.pluginId !== pluginId) {
+      res.status(403).json({ error: 'licenseKey nao corresponde ao plugin/usuario informado' });
+      return;
+    }
+    if (purchase.status !== 'approved') {
+      res.status(403).json({ error: 'compra nao aprovada para esta licenca' });
+      return;
+    }
     if (purchase.hwid && purchase.hwid !== (serverId || '')) {
       res.status(403).json({ error: 'HWID mismatch' });
       return;
@@ -1905,13 +2025,17 @@ app.post('/api/plugin-auth/verify', (req, res) => {
       platform: 'unknown',
       performance: '{}'
     });
+  } else if (entitlementSource === 'purchase') {
+    res.status(403).json({ error: 'compra nao encontrada para a licenseKey informada' });
+    return;
   }
 
   res.json({
     ok: true,
     userId: keyRecord.userId,
-    plan: findUserById(keyRecord.userId)?.plan ?? demoUser.plan,
+    plan: user.plan,
     licenseStatus: license.status,
+    entitlementSource,
     serverId
   });
 });

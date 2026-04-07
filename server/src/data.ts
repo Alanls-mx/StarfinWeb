@@ -231,6 +231,10 @@ sqlite.exec(`
     description LONGTEXT,
     prize VARCHAR(255),
     eligibility VARCHAR(64) DEFAULT 'approved_buyers',
+    rewardKind VARCHAR(32) DEFAULT 'none',
+    rewardPluginId INTEGER,
+    rewardPlanId VARCHAR(191),
+    rewardPlanDays INTEGER,
     status VARCHAR(32) DEFAULT 'open',
     winnerUserId VARCHAR(191),
     createdISO VARCHAR(64),
@@ -415,6 +419,22 @@ if (!notificationsTableInfo.some(col => col.name === 'source')) {
 }
 if (!notificationsTableInfo.some(col => col.name === 'metadata')) {
   sqlite.exec("ALTER TABLE notifications ADD COLUMN metadata LONGTEXT");
+}
+
+const raffleTableInfo = sqlite.prepare("PRAGMA table_info(raffles)").all() as any[];
+if (raffleTableInfo.length > 0) {
+  if (!raffleTableInfo.some(col => col.name === 'rewardKind')) {
+    sqlite.exec("ALTER TABLE raffles ADD COLUMN rewardKind TEXT DEFAULT 'none'");
+  }
+  if (!raffleTableInfo.some(col => col.name === 'rewardPluginId')) {
+    sqlite.exec("ALTER TABLE raffles ADD COLUMN rewardPluginId INTEGER");
+  }
+  if (!raffleTableInfo.some(col => col.name === 'rewardPlanId')) {
+    sqlite.exec("ALTER TABLE raffles ADD COLUMN rewardPlanId TEXT");
+  }
+  if (!raffleTableInfo.some(col => col.name === 'rewardPlanDays')) {
+    sqlite.exec("ALTER TABLE raffles ADD COLUMN rewardPlanDays INTEGER");
+  }
 }
 
 const hasPlans = sqlite.prepare('SELECT COUNT(*) as count FROM plans').get() as { count: number };
@@ -1765,6 +1785,7 @@ export interface NotificationRecord {
 
 export type RaffleEligibility = 'all_users' | 'approved_buyers' | 'premium_users';
 export type RaffleStatus = 'open' | 'closed' | 'drawn';
+export type RaffleRewardKind = 'none' | 'plugin' | 'plan';
 
 export interface RaffleRecord {
   id: string;
@@ -1772,6 +1793,10 @@ export interface RaffleRecord {
   description: string | null;
   prize: string | null;
   eligibility: RaffleEligibility;
+  rewardKind: RaffleRewardKind;
+  rewardPluginId: number | null;
+  rewardPlanId: string | null;
+  rewardPlanDays: number | null;
   status: RaffleStatus;
   winnerUserId: string | null;
   winnerName: string | null;
@@ -2579,7 +2604,9 @@ export function getLicensesForUser(userId: string): PurchasedPlugin[] {
   const user = findUserById(userId);
   const globalKey = user?.licenseKey || '';
   
-  const base = userId === demoUser.id ? purchasedPlugins.slice().map(p => ({ ...p, licenseKey: globalKey })) : [];
+  const base = userId === demoUser.id
+    ? purchasedPlugins.slice().map((p) => ({ ...p, licenseKey: p.licenseKey || globalKey }))
+    : [];
   
   const rows = sqlite.prepare("SELECT * FROM purchases WHERE userId = ? AND status = 'approved'").all(userId) as any[];
   
@@ -2591,7 +2618,7 @@ export function getLicensesForUser(userId: string): PurchasedPlugin[] {
       name: plugin?.name ?? `Plugin ${p.pluginId}`,
       version: plugin?.version ?? '1.0.0',
       purchaseDateISO: p.updatedISO,
-      licenseKey: globalKey,
+      licenseKey: p.licenseKey || globalKey,
       status: 'Ativo' as const
     };
   });
@@ -2783,6 +2810,10 @@ function mapRaffleRow(row: any): RaffleRecord {
     description: row.description ?? null,
     prize: row.prize ?? null,
     eligibility: (row.eligibility || 'approved_buyers') as RaffleEligibility,
+    rewardKind: (row.rewardKind || 'none') as RaffleRewardKind,
+    rewardPluginId: row.rewardPluginId !== null && row.rewardPluginId !== undefined ? Number(row.rewardPluginId) : null,
+    rewardPlanId: row.rewardPlanId ?? null,
+    rewardPlanDays: row.rewardPlanDays !== null && row.rewardPlanDays !== undefined ? Number(row.rewardPlanDays) : null,
     status: (row.status || 'open') as RaffleStatus,
     winnerUserId: row.winnerUserId ?? null,
     winnerName: winner?.name ?? null,
@@ -2809,18 +2840,26 @@ export function createRaffle(data: {
   description?: string | null;
   prize?: string | null;
   eligibility?: RaffleEligibility;
+  rewardKind?: RaffleRewardKind;
+  rewardPluginId?: number | null;
+  rewardPlanId?: string | null;
+  rewardPlanDays?: number | null;
 }): RaffleRecord {
   const id = `raffle_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
   sqlite.prepare(`
-    INSERT INTO raffles (id, title, description, prize, eligibility, status, winnerUserId, createdISO, updatedISO, drawnISO)
-    VALUES (?, ?, ?, ?, ?, 'open', NULL, ?, ?, NULL)
+    INSERT INTO raffles (id, title, description, prize, eligibility, rewardKind, rewardPluginId, rewardPlanId, rewardPlanDays, status, winnerUserId, createdISO, updatedISO, drawnISO)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', NULL, ?, ?, NULL)
   `).run(
     id,
     data.title,
     data.description ?? null,
     data.prize ?? null,
     data.eligibility ?? 'approved_buyers',
+    data.rewardKind ?? 'none',
+    data.rewardPluginId ?? null,
+    data.rewardPlanId ?? null,
+    data.rewardPlanDays ?? null,
     now,
     now
   );
@@ -2832,6 +2871,10 @@ export function updateRaffle(id: string, data: Partial<{
   description: string | null;
   prize: string | null;
   eligibility: RaffleEligibility;
+  rewardKind: RaffleRewardKind;
+  rewardPluginId: number | null;
+  rewardPlanId: string | null;
+  rewardPlanDays: number | null;
   status: RaffleStatus;
 }>): RaffleRecord | null {
   const current = sqlite.prepare('SELECT * FROM raffles WHERE id = ?').get(id) as any;
@@ -2839,13 +2882,17 @@ export function updateRaffle(id: string, data: Partial<{
   const now = new Date().toISOString();
   sqlite.prepare(`
     UPDATE raffles
-    SET title = ?, description = ?, prize = ?, eligibility = ?, status = ?, updatedISO = ?
+    SET title = ?, description = ?, prize = ?, eligibility = ?, rewardKind = ?, rewardPluginId = ?, rewardPlanId = ?, rewardPlanDays = ?, status = ?, updatedISO = ?
     WHERE id = ?
   `).run(
     data.title ?? current.title,
     data.description !== undefined ? data.description : current.description,
     data.prize !== undefined ? data.prize : current.prize,
     data.eligibility ?? current.eligibility,
+    data.rewardKind ?? current.rewardKind ?? 'none',
+    data.rewardPluginId !== undefined ? data.rewardPluginId : (current.rewardPluginId ?? null),
+    data.rewardPlanId !== undefined ? data.rewardPlanId : (current.rewardPlanId ?? null),
+    data.rewardPlanDays !== undefined ? data.rewardPlanDays : (current.rewardPlanDays ?? null),
     data.status ?? current.status,
     now,
     id
@@ -2927,6 +2974,39 @@ export function drawRaffleWinner(raffleId: string): { raffle: RaffleRecord; winn
     SET status = 'drawn', winnerUserId = ?, drawnISO = ?, updatedISO = ?
     WHERE id = ?
   `).run(winner.userId, now, now, raffleId);
+
+  const rewardKind = (current.rewardKind || 'none') as RaffleRewardKind;
+  if (rewardKind === 'plugin') {
+    const pluginId = Number(current.rewardPluginId || 0);
+    if (Number.isFinite(pluginId) && pluginId > 0) {
+      const alreadyApproved = listAllPurchases().some(
+        (p) => p.userId === winner.userId && Number(p.pluginId) === pluginId && p.status === 'approved'
+      );
+      if (!alreadyApproved) {
+        const created = createPurchase(winner.userId, pluginId);
+        updatePurchaseStatus(created.id, 'approved');
+      }
+    }
+  } else if (rewardKind === 'plan') {
+    const planId = current.rewardPlanId ? String(current.rewardPlanId) : '';
+    const rewardDaysRaw = Number(current.rewardPlanDays);
+    const rewardPlanDays = Number.isFinite(rewardDaysRaw) && rewardDaysRaw > 0 ? rewardDaysRaw : 30;
+    if (planId) {
+      const plan = findPlanById(planId);
+      if (plan) {
+        const winnerUser = findUserById(winner.userId);
+        const nextRole =
+          winnerUser?.role === 'admin' || winnerUser?.role === 'staff'
+            ? winnerUser.role
+            : (plan.grantsAllPlugins ? 'premium' : 'user');
+        updateUserAdmin(winner.userId, {
+          plan: /premium/i.test(plan.name) ? 'Premium' : 'Free',
+          role: nextRole,
+          planDurationDays: rewardPlanDays
+        });
+      }
+    }
+  }
 
   const raffle = findRaffleById(raffleId);
   if (!raffle) return null;

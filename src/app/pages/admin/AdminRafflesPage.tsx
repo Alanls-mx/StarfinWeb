@@ -4,22 +4,34 @@ import {
   adminCreateRaffle,
   adminDeleteRaffle,
   adminDrawRaffle,
+  adminListPlans,
   adminListRaffles,
   adminUpdateRaffle,
+  getPlugins,
   type AdminRaffle
 } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 
 const eligibilityLabel: Record<AdminRaffle['eligibility'], string> = {
-  all_users: 'Todos os usuários',
+  all_users: 'Todos os usuarios',
   approved_buyers: 'Compradores aprovados',
-  premium_users: 'Usuários premium'
+  premium_users: 'Usuarios premium'
 };
+
+const rewardLabel: Record<AdminRaffle['rewardKind'], string> = {
+  none: 'Sem entrega automatica',
+  plugin: 'Plugin',
+  plan: 'Plano'
+};
+
+type RewardKind = AdminRaffle['rewardKind'];
 
 export function AdminRafflesPage() {
   const { state } = useAuth();
   const token = state.status === 'authenticated' ? state.token : null;
   const [items, setItems] = useState<AdminRaffle[]>([]);
+  const [plugins, setPlugins] = useState<Array<{ id: number; name: string }>>([]);
+  const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [drawingId, setDrawingId] = useState<string | null>(null);
@@ -27,14 +39,30 @@ export function AdminRafflesPage() {
     title: '',
     description: '',
     prize: '',
-    eligibility: 'approved_buyers' as AdminRaffle['eligibility']
+    eligibility: 'approved_buyers' as AdminRaffle['eligibility'],
+    rewardKind: 'none' as RewardKind,
+    rewardPluginId: '',
+    rewardPlanId: '',
+    rewardPlanDays: '30'
   });
 
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    adminListRaffles(token)
-      .then((res) => setItems(res.items))
+    Promise.all([
+      adminListRaffles(token),
+      adminListPlans(token),
+      getPlugins({ page: 1, limit: 200, sort: 'popular' })
+    ])
+      .then(([rafflesRes, plansRes, pluginsRes]) => {
+        setItems(rafflesRes.items);
+        setPlans((plansRes.items || []).map((p: any) => ({ id: String(p.id), name: String(p.name) })));
+        setPlugins(
+          (pluginsRes.items || [])
+            .map((p) => ({ id: Number(p.id), name: p.name }))
+            .filter((p) => Number.isFinite(p.id) && p.id > 0)
+        );
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [token]);
@@ -44,9 +72,32 @@ export function AdminRafflesPage() {
     if (!token) return;
     setSaving(true);
     try {
-      const res = await adminCreateRaffle(token, form);
+      const rewardKind = form.rewardKind;
+      const rewardPluginId = rewardKind === 'plugin' && form.rewardPluginId ? Number(form.rewardPluginId) : null;
+      const rewardPlanId = rewardKind === 'plan' && form.rewardPlanId ? form.rewardPlanId : null;
+      const rewardPlanDays = rewardKind === 'plan' ? Math.max(1, Number(form.rewardPlanDays) || 30) : null;
+      const payload = {
+        title: form.title,
+        description: form.description || undefined,
+        prize: form.prize || undefined,
+        eligibility: form.eligibility,
+        rewardKind,
+        rewardPluginId,
+        rewardPlanId,
+        rewardPlanDays
+      };
+      const res = await adminCreateRaffle(token, payload);
       setItems((prev) => [res.item, ...prev]);
-      setForm({ title: '', description: '', prize: '', eligibility: 'approved_buyers' });
+      setForm({
+        title: '',
+        description: '',
+        prize: '',
+        eligibility: 'approved_buyers',
+        rewardKind: 'none',
+        rewardPluginId: '',
+        rewardPlanId: '',
+        rewardPlanDays: '30'
+      });
     } catch (error) {
       console.error(error);
     } finally {
@@ -80,7 +131,7 @@ export function AdminRafflesPage() {
     setDrawingId(id);
     try {
       const res = await adminDrawRaffle(token, id);
-      alert(`Vencedor: ${res.winner?.name || 'Não encontrado'} (${res.winner?.email || '-'})`);
+      alert(`Vencedor: ${res.winner?.name || 'Nao encontrado'} (${res.winner?.email || '-'})`);
       setItems((prev) => prev.map((r) => (r.id === id ? res.raffle : r)));
     } catch (error: any) {
       alert(error?.message || 'Falha ao sortear');
@@ -93,12 +144,12 @@ export function AdminRafflesPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Sistema de Sorteio</h1>
-        <p className="text-gray-400">Crie sorteios, defina elegibilidade e realize o sorteio de forma auditável no painel.</p>
+        <p className="text-gray-400">Crie sorteios, defina elegibilidade e entregue plugin/plano automaticamente ao vencedor.</p>
       </div>
 
       <form onSubmit={handleCreate} className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
-          <label className="block text-sm text-gray-400 mb-2">Título</label>
+          <label className="block text-sm text-gray-400 mb-2">Titulo</label>
           <input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -107,7 +158,7 @@ export function AdminRafflesPage() {
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-2">Prêmio</label>
+          <label className="block text-sm text-gray-400 mb-2">Premio (texto)</label>
           <input
             value={form.prize}
             onChange={(e) => setForm((f) => ({ ...f, prize: e.target.value }))}
@@ -122,12 +173,67 @@ export function AdminRafflesPage() {
             className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
           >
             <option value="approved_buyers">Compradores aprovados</option>
-            <option value="premium_users">Usuários premium</option>
-            <option value="all_users">Todos os usuários</option>
+            <option value="premium_users">Usuarios premium</option>
+            <option value="all_users">Todos os usuarios</option>
           </select>
         </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Entrega automatica</label>
+          <select
+            value={form.rewardKind}
+            onChange={(e) => setForm((f) => ({ ...f, rewardKind: e.target.value as RewardKind }))}
+            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+          >
+            <option value="none">Sem entrega automatica</option>
+            <option value="plugin">Entregar plugin</option>
+            <option value="plan">Entregar plano</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Plugin recompensa</label>
+          <select
+            value={form.rewardPluginId}
+            onChange={(e) => setForm((f) => ({ ...f, rewardPluginId: e.target.value }))}
+            disabled={form.rewardKind !== 'plugin'}
+            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF] disabled:opacity-60"
+          >
+            <option value="">Selecione um plugin</option>
+            {plugins.map((p) => (
+              <option key={p.id} value={String(p.id)}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Plano recompensa</label>
+          <select
+            value={form.rewardPlanId}
+            onChange={(e) => setForm((f) => ({ ...f, rewardPlanId: e.target.value }))}
+            disabled={form.rewardKind !== 'plan'}
+            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF] disabled:opacity-60"
+          >
+            <option value="">Selecione um plano</option>
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Dias do plano</label>
+          <input
+            type="number"
+            min={1}
+            value={form.rewardPlanDays}
+            onChange={(e) => setForm((f) => ({ ...f, rewardPlanDays: e.target.value }))}
+            disabled={form.rewardKind !== 'plan'}
+            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF] disabled:opacity-60"
+          />
+        </div>
         <div className="md:col-span-2">
-          <label className="block text-sm text-gray-400 mb-2">Descrição</label>
+          <label className="block text-sm text-gray-400 mb-2">Descricao</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -157,7 +263,7 @@ export function AdminRafflesPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-xl font-bold">{item.title}</h3>
-                  <p className="text-gray-400 text-sm">{item.description || 'Sem descrição'}</p>
+                  <p className="text-gray-400 text-sm">{item.description || 'Sem descricao'}</p>
                 </div>
                 <span
                   className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full ${
@@ -174,7 +280,7 @@ export function AdminRafflesPage() {
 
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-[#0B0B0F]/50 rounded-lg p-3">
-                  <p className="text-gray-500 mb-1">Prêmio</p>
+                  <p className="text-gray-500 mb-1">Premio</p>
                   <p className="font-medium">{item.prize || '-'}</p>
                 </div>
                 <div className="bg-[#0B0B0F]/50 rounded-lg p-3">
@@ -184,6 +290,14 @@ export function AdminRafflesPage() {
                 <div className="bg-[#0B0B0F]/50 rounded-lg p-3 col-span-2">
                   <p className="text-gray-500 mb-1">Elegibilidade</p>
                   <p className="font-medium">{eligibilityLabel[item.eligibility]}</p>
+                </div>
+                <div className="bg-[#0B0B0F]/50 rounded-lg p-3 col-span-2">
+                  <p className="text-gray-500 mb-1">Recompensa automatica</p>
+                  <p className="font-medium">
+                    {rewardLabel[item.rewardKind]}
+                    {item.rewardKind === 'plugin' && item.rewardPluginId ? ` (Plugin #${item.rewardPluginId})` : ''}
+                    {item.rewardKind === 'plan' && item.rewardPlanId ? ` (${item.rewardPlanId}, ${item.rewardPlanDays || 30} dias)` : ''}
+                  </p>
                 </div>
                 <div className="bg-[#0B0B0F]/50 rounded-lg p-3 col-span-2">
                   <p className="text-gray-500 mb-1">Vencedor</p>
@@ -221,7 +335,7 @@ export function AdminRafflesPage() {
           {items.length === 0 && (
             <div className="col-span-full bg-[#1A1A22]/20 border border-dashed border-[#7B2CBF]/15 rounded-2xl p-16 text-center text-gray-500">
               <Gift className="w-8 h-8 mx-auto mb-3 text-[#C77DFF]" />
-              Nenhum sorteio criado até o momento.
+              Nenhum sorteio criado ate o momento.
             </div>
           )}
         </div>
