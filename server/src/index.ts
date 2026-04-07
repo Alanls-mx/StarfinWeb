@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
+import net from 'net';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -168,6 +169,109 @@ function getAuthContext(req: express.Request): { token: string; userId: string; 
   return null;
 }
 
+function normalizeIp(ip: string | undefined | null): string {
+  if (!ip) return '';
+
+  let clean = ip.trim();
+  if (!clean) return '';
+
+  if (clean.includes(',')) {
+    clean = clean.split(',')[0]?.trim() ?? '';
+  }
+
+  clean = clean.replace(/^"+|"+$/g, '');
+
+  const bracketIpv6 = clean.match(/^\[([^\]]+)\](?::\d+)?$/);
+  if (bracketIpv6?.[1]) {
+    clean = bracketIpv6[1];
+  } else if (/^\d+\.\d+\.\d+\.\d+:\d+$/.test(clean)) {
+    clean = clean.split(':')[0] ?? clean;
+  }
+
+  if (clean.startsWith('::ffff:')) clean = clean.slice(7);
+  if (clean === '::1' || clean.toLowerCase() === 'localhost') return '127.0.0.1';
+
+  const zoneIndex = clean.indexOf('%');
+  if (zoneIndex > -1) {
+    clean = clean.slice(0, zoneIndex);
+  }
+
+  clean = clean.toLowerCase();
+  return net.isIP(clean) ? clean : '';
+}
+
+function readHeaderValue(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return typeof value === 'string' ? value : '';
+}
+
+function getObservedRequestIp(req: express.Request): string {
+  const candidates: string[] = [
+    readHeaderValue(req.headers['cf-connecting-ip']),
+    readHeaderValue(req.headers['x-real-ip']),
+    readHeaderValue(req.headers['x-forwarded-for']),
+    req.ip || '',
+    req.socket.remoteAddress || ''
+  ];
+
+  for (const candidate of candidates) {
+    const ip = normalizeIp(candidate);
+    if (ip) return ip;
+  }
+  return '';
+}
+
+function getDeclaredRequestIp(req: express.Request): string {
+  const body = req.body as Record<string, unknown> | undefined;
+  const raw =
+    (typeof body?.serverIp === 'string' ? body.serverIp : undefined) ||
+    (typeof body?.serverip === 'string' ? body.serverip : undefined) ||
+    (typeof body?.ip === 'string' ? body.ip : undefined) ||
+    (typeof body?.hostIp === 'string' ? body.hostIp : undefined) ||
+    (typeof body?.hostip === 'string' ? body.hostip : undefined);
+
+  return normalizeIp(raw ?? '');
+}
+
+function resolveEffectiveRequestIp(req: express.Request): {
+  ok: boolean;
+  observedIp: string;
+  declaredIp: string;
+  effectiveIp: string;
+  reason?: string;
+} {
+  const observedIp = getObservedRequestIp(req);
+  const declaredIp = getDeclaredRequestIp(req);
+
+  if (declaredIp && observedIp && declaredIp !== observedIp) {
+    return {
+      ok: false,
+      observedIp,
+      declaredIp,
+      effectiveIp: '',
+      reason: `IP informado (${declaredIp}) nao confere com o IP de origem (${observedIp}).`
+    };
+  }
+
+  const effectiveIp = observedIp || declaredIp;
+  if (!effectiveIp) {
+    return {
+      ok: false,
+      observedIp,
+      declaredIp,
+      effectiveIp: '',
+      reason: 'Nao foi possivel identificar o IP de origem.'
+    };
+  }
+
+  return {
+    ok: true,
+    observedIp,
+    declaredIp,
+    effectiveIp
+  };
+}
+
 function toUserPlan(planName: string): 'Free' | 'Premium' {
   return /premium/i.test(planName) ? 'Premium' : 'Free';
 }
@@ -278,7 +382,8 @@ app.post('/api/users/me/plans/subscribe', (req, res) => {
 });
 
 app.all('/v1/license/check', (req, res, next) => {
-  console.log(`[License Check] [${req.method}] from ${req.ip}`);
+  const observedIp = getObservedRequestIp(req) || req.ip;
+  console.log(`[License Check] [${req.method}] from ${observedIp}`);
 
   if (req.method !== 'POST') {
     return res.status(405).json({ valid: false, reason: 'Método não permitido. Use POST.' });
@@ -290,7 +395,6 @@ app.post('/v1/license/check', (req, res) => {
   // Handle various field name casings from different plugin implementations
   const licenseKey = req.body?.licenseKey || req.body?.licensekey || req.body?.LicenseKey || req.body?.key;
   const hwid = req.body?.hwid || req.body?.HWID || req.body?.serverId;
-  const serverIp = req.body?.serverIp || req.body?.serverip || req.body?.ip;
   const serverPort = req.body?.serverPort || req.body?.port;
   const serverName = req.body?.serverName || req.body?.name;
   const platform = req.body?.platform || req.body?.os;
@@ -309,15 +413,15 @@ app.post('/v1/license/check', (req, res) => {
     return;
   }
 
-  const normalizeIp = (ip: string | undefined): string => {
-    if (!ip) return '';
-    let clean = ip.trim();
-    if (clean.startsWith('::ffff:')) clean = clean.substring(7);
-    if (clean === '::1') return '127.0.0.1';
-    return clean;
-  };
-
-  const incomingIp = normalizeIp(serverIp || req.ip);
+  const ipResolution = resolveEffectiveRequestIp(req);
+  if (!ipResolution.ok) {
+    return res.status(200).json({
+      valid: false,
+      ok: false,
+      reason: ipResolution.reason
+    });
+  }
+  const incomingIp = ipResolution.effectiveIp;
 
   // 1. Try finding User by Global License Key (New Auto-IP Detection)
   const user = findUserByLicenseKey(licenseKey);
@@ -1600,15 +1704,28 @@ app.post('/api/plugin-auth/verify', (req, res) => {
   }
 
   // Find actual purchase to check security
+  const ipResolution = resolveEffectiveRequestIp(req);
+  if (!ipResolution.ok) {
+    res.status(403).json({ error: ipResolution.reason || 'IP invalido' });
+    return;
+  }
+  const effectiveIp = ipResolution.effectiveIp;
+
+  const normalizedUserAllowedIp = normalizeIp(user?.allowedIp || '');
+  if (normalizedUserAllowedIp && normalizedUserAllowedIp !== effectiveIp) {
+    res.status(403).json({ error: 'IP mismatch (user.allowedIp)' });
+    return;
+  }
+
   const purchase = findPurchaseByLicenseKey(licenseKey);
-  const effectiveIp = req.ip || 'unknown';
 
   if (purchase) {
     if (purchase.hwid && purchase.hwid !== (serverId || '')) {
       res.status(403).json({ error: 'HWID mismatch' });
       return;
     }
-    if (purchase.allowedIp && purchase.allowedIp !== effectiveIp) {
+    const normalizedPurchaseAllowedIp = normalizeIp(purchase.allowedIp || '');
+    if (normalizedPurchaseAllowedIp && normalizedPurchaseAllowedIp !== effectiveIp) {
       res.status(403).json({ error: 'IP mismatch' });
       return;
     }
