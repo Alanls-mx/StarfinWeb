@@ -683,6 +683,35 @@ export function createAdminUser(token: string, data: Partial<UserProfile> & { pa
   });
 }
 
+export interface AdminUserPluginAssignment {
+  purchaseId: string;
+  pluginId: number;
+  pluginName: string;
+  status: 'pending' | 'approved' | 'cancelled' | 'rejected';
+  licenseKey: string | null;
+  createdISO: string;
+  updatedISO: string;
+}
+
+export function adminListUserPlugins(token: string, userId: string) {
+  return apiFetch<{ items: AdminUserPluginAssignment[] }>(`/api/admin/users/${encodeURIComponent(userId)}/plugins`, { token });
+}
+
+export function adminAssignPluginToUser(token: string, userId: string, pluginId: number) {
+  return apiFetch<{ item: AdminUserPluginAssignment }>(`/api/admin/users/${encodeURIComponent(userId)}/plugins`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ pluginId })
+  });
+}
+
+export function adminRemovePluginFromUser(token: string, userId: string, pluginId: number) {
+  return apiFetch<{ ok: true; revokedCount: number }>(`/api/admin/users/${encodeURIComponent(userId)}/plugins/${encodeURIComponent(String(pluginId))}`, {
+    method: 'DELETE',
+    token
+  });
+}
+
 export function adminGetSmtp(token: string) {
   return apiFetch<SmtpConfig>('/api/admin/smtp', { token });
 }

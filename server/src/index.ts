@@ -3058,6 +3058,139 @@ app.get('/api/admin/users/:id', (req, res) => {
   res.json(user);
 });
 
+function mapAdminUserPluginAssignment(purchase: any) {
+  const plugin = getPluginDetail(Number(purchase.pluginId));
+  return {
+    purchaseId: purchase.id,
+    pluginId: Number(purchase.pluginId),
+    pluginName: plugin?.name || `Plugin #${purchase.pluginId}`,
+    status: purchase.status,
+    licenseKey: purchase.licenseKey || null,
+    createdISO: purchase.createdISO,
+    updatedISO: purchase.updatedISO
+  };
+}
+
+app.get('/api/admin/users/:id/plugins', (req, res) => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: 'admin token requerido' });
+    return;
+  }
+  const user = findUserById(req.params.id);
+  if (!user) {
+    res.status(404).json({ error: 'usuário não encontrado' });
+    return;
+  }
+  const items = listAllPurchases()
+    .filter((p) => p.userId === user.id && p.status === 'approved')
+    .map(mapAdminUserPluginAssignment);
+  res.json({ items });
+});
+
+app.post('/api/admin/users/:id/plugins', (req, res) => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: 'admin token requerido' });
+    return;
+  }
+  const user = findUserById(req.params.id);
+  if (!user) {
+    res.status(404).json({ error: 'usuário não encontrado' });
+    return;
+  }
+
+  const pluginIdRaw = typeof req.body?.pluginId === 'number' ? req.body.pluginId : Number(req.body?.pluginId);
+  const pluginId = Number.isFinite(pluginIdRaw) ? Number(pluginIdRaw) : 0;
+  if (!pluginId || pluginId <= 0) {
+    res.status(400).json({ error: 'pluginId inválido' });
+    return;
+  }
+
+  const plugin = getPluginDetail(pluginId);
+  if (!plugin) {
+    res.status(404).json({ error: 'plugin não encontrado' });
+    return;
+  }
+
+  const userPurchases = listAllPurchases().filter((p) => p.userId === user.id && Number(p.pluginId) === pluginId);
+  const existingApproved = userPurchases.find((p) => p.status === 'approved');
+  if (existingApproved) {
+    res.json({ item: mapAdminUserPluginAssignment(existingApproved) });
+    return;
+  }
+
+  const reusablePurchase = userPurchases.find((p) => p.status !== 'approved');
+  const basePurchase = reusablePurchase || createPurchase(user.id, pluginId);
+  const approved = updatePurchaseStatus(basePurchase.id, 'approved');
+  if (!approved) {
+    res.status(500).json({ error: 'falha ao aprovar licença' });
+    return;
+  }
+
+  addNotification(
+    'Plugin atribuído manualmente',
+    `Plugin ${plugin.name} atribuído ao usuário ${user.email}.`,
+    {
+      type: 'sale',
+      priority: 'normal',
+      source: 'admin_user_plugin_assign',
+      metadata: { userId: user.id, pluginId, purchaseId: approved.id }
+    }
+  );
+
+  res.status(201).json({ item: mapAdminUserPluginAssignment(approved) });
+});
+
+app.delete('/api/admin/users/:id/plugins/:pluginId', (req, res) => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: 'admin token requerido' });
+    return;
+  }
+  const user = findUserById(req.params.id);
+  if (!user) {
+    res.status(404).json({ error: 'usuário não encontrado' });
+    return;
+  }
+
+  const pluginId = Number(req.params.pluginId);
+  if (!Number.isFinite(pluginId) || pluginId <= 0) {
+    res.status(400).json({ error: 'pluginId inválido' });
+    return;
+  }
+
+  const plugin = getPluginDetail(pluginId);
+  if (!plugin) {
+    res.status(404).json({ error: 'plugin não encontrado' });
+    return;
+  }
+
+  const approvedPurchases = listAllPurchases().filter(
+    (p) => p.userId === user.id && Number(p.pluginId) === pluginId && p.status === 'approved'
+  );
+  if (approvedPurchases.length === 0) {
+    res.status(404).json({ error: 'usuário não possui este plugin' });
+    return;
+  }
+
+  let revokedCount = 0;
+  for (const purchase of approvedPurchases) {
+    const updated = updatePurchaseStatus(purchase.id, 'cancelled');
+    if (updated) revokedCount += 1;
+  }
+
+  addNotification(
+    'Plugin removido manualmente',
+    `Plugin ${plugin.name} removido do usuário ${user.email}.`,
+    {
+      type: 'sale',
+      priority: 'normal',
+      source: 'admin_user_plugin_remove',
+      metadata: { userId: user.id, pluginId, revokedCount }
+    }
+  );
+
+  res.json({ ok: true, revokedCount });
+});
+
 app.put('/api/admin/users/:id', (req, res) => {
   if (!isAdmin(req)) {
     res.status(403).json({ error: 'admin token requerido' });

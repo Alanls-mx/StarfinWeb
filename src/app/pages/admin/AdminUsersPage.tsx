@@ -1,7 +1,19 @@
-import { Edit2, Search, Shield, User, X, Trash2, Plus } from 'lucide-react';
+import { Edit2, PackagePlus, Search, User, X, Trash2, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { getAdminUsers, updateAdminUser, deleteAdminUser, createAdminUser, adminListPlans, type UserProfile } from '../../lib/api';
+import {
+  adminAssignPluginToUser,
+  adminListPlans,
+  adminListPlugins,
+  adminListUserPlugins,
+  adminRemovePluginFromUser,
+  createAdminUser,
+  deleteAdminUser,
+  getAdminUsers,
+  updateAdminUser,
+  type AdminUserPluginAssignment,
+  type UserProfile
+} from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { toast } from 'sonner';
 
@@ -38,6 +50,12 @@ export function AdminUsersPage() {
   });
   const [saving, setSaving] = useState(false);
   const [plans, setPlans] = useState<{ id: string; name: string }[]>([]);
+  const [plugins, setPlugins] = useState<{ id: number; name: string }[]>([]);
+  const [managingUser, setManagingUser] = useState<UserProfile | null>(null);
+  const [userPlugins, setUserPlugins] = useState<AdminUserPluginAssignment[]>([]);
+  const [pluginsLoading, setPluginsLoading] = useState(false);
+  const [assignPluginId, setAssignPluginId] = useState('');
+  const [assigningPlugin, setAssigningPlugin] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -46,10 +64,12 @@ export function AdminUsersPage() {
     // Load users and plans in parallel
     Promise.all([
       getAdminUsers(token),
-      adminListPlans(token)
-    ]).then(([usersRes, plansRes]) => {
+      adminListPlans(token),
+      adminListPlugins(token)
+    ]).then(([usersRes, plansRes, pluginsRes]) => {
       setUsers(usersRes.items || []);
       setPlans(plansRes.items || []);
+      setPlugins((pluginsRes.items || []).map((p) => ({ id: Number(p.id), name: String(p.name) })).filter((p) => Number.isFinite(p.id)));
     }).catch(console.error)
       .finally(() => setLoading(false));
   }, [token]);
@@ -127,6 +147,60 @@ export function AdminUsersPage() {
     } catch (e) {
       console.error(e);
       toast.error('Erro ao excluir usuário.');
+    }
+  };
+
+  const openPluginManager = async (user: UserProfile) => {
+    if (!token) return;
+    setManagingUser(user);
+    setAssignPluginId('');
+    setPluginsLoading(true);
+    try {
+      const payload = await adminListUserPlugins(token, user.id);
+      setUserPlugins(payload.items || []);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao carregar plugins do usuário.');
+    } finally {
+      setPluginsLoading(false);
+    }
+  };
+
+  const handleAssignPlugin = async () => {
+    if (!token || !managingUser) return;
+    const pluginId = Number(assignPluginId);
+    if (!Number.isFinite(pluginId) || pluginId <= 0) {
+      toast.error('Selecione um plugin válido.');
+      return;
+    }
+
+    setAssigningPlugin(true);
+    try {
+      const payload = await adminAssignPluginToUser(token, managingUser.id, pluginId);
+      setUserPlugins((prev) => {
+        const exists = prev.some((p) => p.pluginId === payload.item.pluginId);
+        return exists ? prev.map((p) => (p.pluginId === payload.item.pluginId ? payload.item : p)) : [payload.item, ...prev];
+      });
+      setAssignPluginId('');
+      toast.success('Plugin atribuído com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao atribuir plugin.');
+    } finally {
+      setAssigningPlugin(false);
+    }
+  };
+
+  const handleRemovePlugin = async (pluginId: number) => {
+    if (!token || !managingUser) return;
+    if (!window.confirm('Remover este plugin do usuário?')) return;
+    try {
+      await adminRemovePluginFromUser(token, managingUser.id, pluginId);
+      setUserPlugins((prev) => prev.filter((p) => p.pluginId !== pluginId));
+      toast.success('Plugin removido com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao remover plugin.');
     }
   };
 
@@ -227,10 +301,17 @@ export function AdminUsersPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() =>
-                            setEditingUser({
-                              ...user,
+	                        <button 
+	                          onClick={() => openPluginManager(user)}
+	                          className="p-2 text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all"
+	                          title="Gerenciar plugins do usuário"
+	                        >
+	                          <PackagePlus className="w-4 h-4" />
+	                        </button>
+	                        <button 
+	                          onClick={() =>
+	                            setEditingUser({
+	                              ...user,
                               planDurationDays: getRemainingPlanDays(user.planExpiresAt)
                             })
                           }
@@ -445,6 +526,94 @@ export function AdminUsersPage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {managingUser && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setManagingUser(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+                <div>
+                  <h3 className="text-xl text-white font-medium flex items-center gap-2">
+                    <PackagePlus className="w-5 h-5 text-[#C77DFF]" />
+                    Plugins do Usuário
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1">{managingUser.name} • {managingUser.email}</p>
+                </div>
+                <button onClick={() => setManagingUser(null)} className="p-2 text-gray-400 hover:text-white transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+                  <select
+                    value={assignPluginId}
+                    onChange={(e) => setAssignPluginId(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                  >
+                    <option value="">Selecione um plugin para atribuir</option>
+                    {plugins.map((plugin) => (
+                      <option key={plugin.id} value={String(plugin.id)}>
+                        {plugin.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAssignPlugin}
+                    disabled={assigningPlugin || !assignPluginId}
+                    className="px-5 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                  >
+                    {assigningPlugin ? 'Atribuindo...' : 'Atribuir plugin'}
+                  </button>
+                </div>
+
+                <div className="bg-[#0B0B0F]/60 border border-[#7B2CBF]/10 rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#7B2CBF]/10 text-sm text-gray-400">
+                    Plugins já atribuídos ({userPlugins.length})
+                  </div>
+                  {pluginsLoading ? (
+                    <div className="p-6 text-sm text-gray-500">Carregando plugins do usuário...</div>
+                  ) : userPlugins.length === 0 ? (
+                    <div className="p-6 text-sm text-gray-500">Nenhum plugin atribuído manualmente.</div>
+                  ) : (
+                    <div className="divide-y divide-[#7B2CBF]/10">
+                      {userPlugins.map((item) => (
+                        <div key={`${item.pluginId}-${item.purchaseId}`} className="px-4 py-3 flex items-center justify-between gap-4">
+                          <div>
+                            <div className="text-sm text-white font-medium">{item.pluginName}</div>
+                            <div className="text-[11px] text-gray-500">
+                              Licença: {item.licenseKey || 'Pendente'} • Status: {item.status}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePlugin(item.pluginId)}
+                            className="px-3 py-2 text-xs bg-red-500/10 border border-red-500/20 text-red-300 rounded-lg hover:bg-red-500/20 transition-all"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
