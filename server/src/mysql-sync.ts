@@ -142,7 +142,8 @@ export default class Database {
   rewriteSql(rawSql: string) {
     return rawSql
       .replace(/\bINSERT\s+OR\s+IGNORE\b/gi, 'INSERT IGNORE')
-      .replace(/\bINSERT\s+OR\s+REPLACE\b/gi, 'REPLACE INTO')
+      .replace(/\bINSERT\s+OR\s+REPLACE\s+INTO\b/gi, 'REPLACE INTO')
+      .replace(/\bINSERT\s+OR\s+REPLACE\b/gi, 'REPLACE')
       .replace(/"([A-Za-z_][A-Za-z0-9_]*)"/g, '`$1`');
   }
 
