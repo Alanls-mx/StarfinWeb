@@ -75,7 +75,14 @@ export function AdminPluginsPage() {
     event.preventDefault();
     if (!editing) return;
     setSaving(true);
-    try { if (await update(editing.id, editing)) setEditing(null); }
+    try {
+      const changes = {
+        name: editing.name, description: editing.description, category: editing.category,
+        licenseName: editing.licenseName, mcVersion: editing.mcVersion,
+        priceDisplay: editing.priceDisplay, version: editing.version, imageUrl: editing.imageUrl
+      };
+      if (await update(editing.id, changes)) setEditing(null);
+    }
     finally { setSaving(false); }
   }
 

@@ -840,9 +840,9 @@ export function syncPluginArrays() {
       pluginDetailsById[row.id] = {
         ...p,
         tagline: row.tagline || '',
-        version: row.version || '1.0.0',
-        author: row.author || 'Desconhecido',
-        lastUpdateISO: row.lastUpdateISO || '2026-01-01',
+        version: row.version || '',
+        author: row.author || 'StarfinPlugins',
+        lastUpdateISO: row.lastUpdateISO || '',
         reviewsCount: row.reviewsCount || 0,
         screenshots: row.screenshots ? JSON.parse(row.screenshots) : [],
         features: row.features ? JSON.parse(row.features) : [],
@@ -1603,7 +1603,7 @@ export function createPlugin(input: {
     INSERT INTO plugins (id, name, description, category, licenseName, tags, mcVersion, rating, downloads, downloadsDisplay, imageUrl, priceDisplay, priceCents, tagline, version, author, lastUpdateISO, reviewsCount, screenshots, features, docsSections, reviews, jarUrl, dependencies, platform, featured)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    id, input.name, input.description, input.category, input.licenseName || null, JSON.stringify(input.tags), input.mcVersion, rating, downloads, downloadsDisplay, input.imageUrl, input.priceDisplay, priceCents, '', '1.0.0', 'Desconhecido', new Date().toISOString().slice(0, 10), 0, '[]', '[]', '[]', '[]', input.jarUrl || null, JSON.stringify(input.dependencies || []), input.platform || null, input.featured ? 1 : 0
+    id, input.name, input.description, input.category, input.licenseName || null, JSON.stringify(input.tags), input.mcVersion, rating, downloads, downloadsDisplay, input.imageUrl, input.priceDisplay, priceCents, '', '', 'StarfinPlugins', new Date().toISOString().slice(0, 10), 0, '[]', '[]', '[]', '[]', null, JSON.stringify(input.dependencies || []), input.platform || null, input.featured ? 1 : 0
   );
   
   syncPluginArrays();

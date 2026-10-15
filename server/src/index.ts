@@ -182,8 +182,8 @@ function getAuthContext(req: express.Request): { token: string; userId: string; 
   const session = findSession(token);
   if (session) {
     const user = findUserById(session.userId);
-    if (user?.banned) return null;
-    return { token, userId: session.userId, role: (user?.role || 'user') as any };
+    if (!user || user.banned) return null;
+    return { token, userId: session.userId, role: user.role };
   }
   return null;
 }
@@ -902,8 +902,8 @@ app.post('/api/auth/register', async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
 
-  if (!name || !email || !email.includes('@') || !password || password.length < 6) {
-    res.status(400).json({ error: 'name, email válido e password (mín 6) são obrigatórios' });
+  if (!name || !email || !email.includes('@') || password.length < 8) {
+    res.status(400).json({ error: 'nome, email válido e senha de pelo menos 8 caracteres são obrigatórios' });
     return;
   }
 
@@ -2563,6 +2563,20 @@ app.post('/api/admin/plugins', (req, res) => {
       return;
     }
   }
+  const priceDisplay = String(body.priceDisplay).trim();
+  if (!/^(?:R\$\s*)?\d{1,6}(?:\.\d{3})*(?:,\d{2})?$/.test(priceDisplay) ||
+      Number(priceDisplay.replace('R$', '').replaceAll('.', '').replace(',', '.').trim()) <= 0) {
+    res.status(400).json({ error: 'preço inválido; use, por exemplo, R$ 29,90' });
+    return;
+  }
+  if (body.licenseName && !/^[a-z0-9_]{2,64}$/.test(String(body.licenseName))) {
+    res.status(400).json({ error: 'ID de licença inválido' });
+    return;
+  }
+  if (body.licenseName && pluginSummaries.some(plugin => plugin.licenseName === body.licenseName)) {
+    res.status(409).json({ error: 'ID de licença já utilizado' });
+    return;
+  }
   const detail = createPlugin({
     name: String(body.name),
     description: String(body.description),
@@ -2571,12 +2585,12 @@ app.post('/api/admin/plugins', (req, res) => {
     tags: Array.isArray(body.tags) ? (body.tags as any) : [],
     mcVersion: String(body.mcVersion),
     imageUrl: String(body.imageUrl),
-    priceDisplay: String(body.priceDisplay),
+    priceDisplay,
     featured: body.featured === true,
     platform: typeof body.platform === 'string' ? body.platform : undefined,
     dependencies: Array.isArray(body.dependencies) ? body.dependencies.map(String) : undefined,
-    rating: typeof body.rating === 'number' ? body.rating : undefined,
-    downloadsDisplay: typeof body.downloadsDisplay === 'string' ? body.downloadsDisplay : undefined
+    rating: 0,
+    downloadsDisplay: '0'
   });
 
   // Notify newsletter subscribers about the new plugin
@@ -2615,7 +2629,28 @@ app.put('/api/admin/plugins/:id', (req, res) => {
     res.status(400).json({ error: 'id inválido' });
     return;
   }
-  const next = updatePlugin(id, req.body ?? {});
+  const body = req.body ?? {};
+  const writable = ['name', 'description', 'category', 'licenseName', 'tags', 'mcVersion', 'imageUrl', 'priceDisplay', 'tagline', 'version', 'author', 'screenshots', 'features', 'docsSections', 'dependencies', 'platform', 'featured'];
+  if (Object.keys(body).some(key => !writable.includes(key))) {
+    res.status(400).json({ error: 'campo de produto não editável nesta operação' });
+    return;
+  }
+  if (body.licenseName !== undefined && body.licenseName !== null && body.licenseName !== '' &&
+      !/^[a-z0-9_]{2,64}$/.test(String(body.licenseName))) {
+    res.status(400).json({ error: 'ID de licença inválido' });
+    return;
+  }
+  if (body.licenseName && pluginSummaries.some(plugin => plugin.id !== id && plugin.licenseName === body.licenseName)) {
+    res.status(409).json({ error: 'ID de licença já utilizado' });
+    return;
+  }
+  if (body.priceDisplay !== undefined &&
+      (!/^(?:R\$\s*)?\d{1,6}(?:\.\d{3})*(?:,\d{2})?$/.test(String(body.priceDisplay).trim()) ||
+       Number(String(body.priceDisplay).replace('R$', '').replaceAll('.', '').replace(',', '.').trim()) <= 0)) {
+    res.status(400).json({ error: 'preço inválido; use, por exemplo, R$ 29,90' });
+    return;
+  }
+  const next = updatePlugin(id, body);
   if (!next) {
     res.status(404).json({ error: 'plugin não encontrado' });
     return;

@@ -37,8 +37,11 @@ Verificações locais: build Vite, typecheck estrito do frontend, typecheck do s
 - O editor de compras não aceita mais aprovar pagamentos ou editar chaves. Apenas IP autorizado e reset de HWID podem ser alterados nessa rota, com notificação administrativa. A concessão manual de plugins em usuários ainda existe e precisa receber indicação explícita de origem e trilha de auditoria persistida.
 - Cupons fixos foram removidos. O checkout recusa um cupom que deixou de ser válido após a consulta e mostra que planos ainda não estão homologados.
 - Upload administrativo aceita somente JPEG, PNG, WebP e GIF com assinatura de arquivo válida; SVG foi bloqueado.
+- Sessões de usuários excluídos deixam de autenticar. Cadastro e recuperação exigem senha de pelo menos oito caracteres. A edição administrativa de produtos rejeita métricas de avaliação e download inventadas, valida preço e ID canônico e impede IDs de licença duplicados.
 
 Revisão visual local feita em viewport estreito: home, carrinho vazio e recuperação de senha. O backend local não subiu sem PostgreSQL; a revisão visual de páginas com dados, desktop, tablet, admin e conta permanece pendente.
+
+Commits locais na `main`: `bda16cc` (PostgreSQL, licenças e segurança da API), `3404049` (loja, conta inicial e navegação administrativa). O reforço de validação de produto está em um commit posterior. Todos ainda sem push para evitar publicação automática não verificada.
 
 ## Próximas fases
 
