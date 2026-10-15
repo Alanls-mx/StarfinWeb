@@ -1276,38 +1276,10 @@ app.delete('/api/users/me/api-keys/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/purchases', async (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const pluginId = typeof req.body?.pluginId === 'number' ? req.body.pluginId : Number(req.body?.pluginId);
-  if (!Number.isFinite(pluginId) || pluginId <= 0) {
-    res.status(400).json({ error: 'pluginId obrigatório' });
-    return;
-  }
-
-  const user = ctx.token === auth.demoToken ? demoUser : findUserById(ctx.userId);
-  if (!user) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  if (!user.verified && ctx.token !== auth.demoToken) {
-    res.status(403).json({ error: 'confirme seu email antes de comprar' });
-    return;
-  }
-
-  const purchase = createPurchase(user.id, pluginId);
-  const plugin = getPluginDetail(pluginId);
-  updatePurchaseStatus(purchase.id, 'approved'); // Simulação imediata
-  
-  await sendEmail({
-    to: user.email,
-    subject: 'Compra recebida - StarfinPlugins',
-    html: getOrderConfirmationHtml(user.name, purchase.id, plugin?.name ?? 'Plugin', purchase.licenseKey ?? '')
-  });
-  res.status(201).json(purchase);
+// Disabled: legacy self-service endpoint previously approved a purchase with no payment.
+// All commercial grants must originate from reconciliation or explicit audited admin action.
+app.post('/api/purchases', (_req, res) => {
+  res.status(410).json({ error: 'Compra direta desativada. Utilize o checkout Mercado Pago.' });
 });
 
 app.post('/api/commerce/coupon/validate', (req, res) => {

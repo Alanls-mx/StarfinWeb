@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     });
 
     await sendDiscordWebhook({
-      content: `✅ Licença criada (admin)\nuser=${user.email}\nlicenseKey=${license.licenseKey}\nplugins=${plugins.map((p) => p.slug).join(', ')}`
+      content: `Licença criada pelo painel administrativo. usuarioId=${user.id}; licenciaId=${license.id}; produtos=${plugins.length}`
     });
 
     return jsonOk(
