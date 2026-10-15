@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
 import net from 'net';
+import { createHash } from 'node:crypto';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -223,19 +224,19 @@ function readHeaderValue(value: string | string[] | undefined): string {
 }
 
 function getObservedRequestIp(req: express.Request): string {
-  const candidates: string[] = [
-    readHeaderValue(req.headers['cf-connecting-ip']),
-    readHeaderValue(req.headers['x-real-ip']),
-    readHeaderValue(req.headers['x-forwarded-for']),
-    req.ip || '',
-    req.socket.remoteAddress || ''
-  ];
-
-  for (const candidate of candidates) {
-    const ip = normalizeIp(candidate);
-    if (ip) return ip;
+  // Never trust client-supplied forwarding headers by default.
+  // If a reverse proxy is used, both its socket IP and forwarding header
+  // must be explicitly configured, and the proxy must scrub spoofed headers.
+  const peerIp = normalizeIp(req.socket.remoteAddress || '');
+  const trustedPeers = (process.env.TRUSTED_PROXY_IPS || '')
+    .split(',').map(normalizeIp).filter(Boolean);
+  const headerName = (process.env.TRUSTED_PROXY_HEADER || '').trim().toLowerCase();
+  const permittedHeaders = new Set(['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for']);
+  if (peerIp && trustedPeers.includes(peerIp) && permittedHeaders.has(headerName)) {
+    const forwarded = normalizeIp(readHeaderValue(req.headers[headerName]));
+    if (forwarded) return forwarded;
   }
-  return '';
+  return peerIp;
 }
 
 function getDeclaredRequestIp(req: express.Request): string {
@@ -421,7 +422,7 @@ app.post('/v1/license/check', (req, res) => {
   const normalizedServerName = parseStringParam(serverName) || 'Unknown';
   const normalizedPlatform = parseStringParam(platform) || 'unknown';
   const normalizedPerformance = typeof performance === 'string' ? performance : JSON.stringify(performance ?? {});
-  const bootstrapPluginName = 'StarfinLicense';
+  const bootstrapPluginNames = ['StarfinCore', 'StarfinLicense'];
   const requestedPluginNameRaw =
     parseStringParam(req.body?.pluginName) ||
     parseStringParam(req.body?.plugin) ||
@@ -433,11 +434,11 @@ app.post('/v1/license/check', (req, res) => {
   const requestedPluginNames = [requestedPluginNameRaw, requestedPluginNameById]
     .filter((v): v is string => Boolean(v))
     .map((v) => v.toLowerCase());
-  const bootstrapPluginAliases = new Set(['starfinlicense', 'starfin-license']);
+  const bootstrapPluginAliases = new Set(['starfincore', 'starfin-core', 'starfinlicense', 'starfin-license']);
   const isBootstrapRequest = requestedPluginNames.some((name) => bootstrapPluginAliases.has(name));
   const pluginByLowerName = new Map(pluginSummaries.map((p) => [p.name.toLowerCase(), p] as const));
   const withBootstrapPlugin = (plugins: string[]) => {
-    return Array.from(new Set([bootstrapPluginName, ...plugins.filter(Boolean)]));
+    return Array.from(new Set([...bootstrapPluginNames, ...plugins.filter(Boolean)]));
   };
   const buildUpdates = (allowedPlugins: string[]) => {
     const entries: Array<[string, string]> = [];
@@ -485,7 +486,8 @@ app.post('/v1/license/check', (req, res) => {
     });
   }
   const incomingIp = ipResolution.effectiveIp;
-  const auditPrefix = `[License Check] [${licenseKey}]`;
+  const keyRef = createHash('sha256').update(String(licenseKey)).digest('hex').slice(0, 12);
+  const auditPrefix = `[License Check] [key:${keyRef}]`;
 
   // 1. Try finding User by Global License Key (New Auto-IP Detection)
   const user = findUserByLicenseKey(licenseKey);
