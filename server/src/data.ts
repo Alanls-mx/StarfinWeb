@@ -2648,7 +2648,7 @@ export function getLicensesForUser(userId: string): PurchasedPlugin[] {
   const user = findUserById(userId);
   const globalKey = user?.licenseKey || '';
   
-  const base = userId === demoUser.id
+  const base = demoCatalogEnabled && userId === demoUser.id
     ? purchasedPlugins.slice().map((p) => ({ ...p, licenseKey: p.licenseKey || globalKey }))
     : [];
   

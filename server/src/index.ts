@@ -518,6 +518,12 @@ app.post('/v1/license/check', (req, res) => {
     const userPlan = allPlans.find(p => p.name === user.plan && p.active);
     const hasActivePlan = !user.planExpiresAt || new Date(user.planExpiresAt).getTime() > Date.now();
     const hasGlobalAccess = Boolean(user.role === 'admin' || (hasActivePlan && userPlan?.grantsAllPlugins));
+    const ownedProductIds = new Set(getLicensesForUser(user.id)
+      .filter(p => p.status === 'Ativo').map(p => p.pluginId));
+    if (!hasGlobalAccess && ownedProductIds.size === 0) {
+      return res.status(200).json({ valid: false, ok: false,
+        reason: 'Nenhum produto adquirido ou autorizado para esta conta.' });
+    }
     const storedUserHwid = normalizeHwid(user.licenseHwid || '');
     if (!storedUserHwid) {
       bindUserLicenseHwid(user.id, normalizedHwid);
@@ -547,7 +553,7 @@ app.post('/v1/license/check', (req, res) => {
       // Server-specific assignment found for this IP
       const assignedPluginIds = listPluginsForServer(matchingServer.id);
       let allowedPlugins = pluginSummaries
-        .filter(p => assignedPluginIds.includes(p.id))
+        .filter(p => assignedPluginIds.includes(p.id) && (hasGlobalAccess || ownedProductIds.has(p.id)))
         .map(p => p.name);
 
       if (hasGlobalAccess) {
@@ -626,7 +632,14 @@ app.post('/v1/license/check', (req, res) => {
     }
 
     const assignedPluginIds = listPluginsForServer(server.id);
-    const allowedPlugins = withBootstrapPlugin(pluginSummaries.filter(p => assignedPluginIds.includes(p.id)).map(p => p.name));
+    const activeOwnerProducts = new Set(getLicensesForUser(owner.id)
+      .filter(p => p.status === 'Ativo').map(p => p.pluginId));
+    const ownerPlan = listPlans().find(p => p.name === owner.plan && p.active);
+    const planActive = Boolean(owner.planExpiresAt && new Date(owner.planExpiresAt).getTime() > Date.now());
+    const ownerGlobalAccess = owner.role === 'admin' || (planActive && Boolean(ownerPlan?.grantsAllPlugins));
+    const allowedPlugins = withBootstrapPlugin(pluginSummaries
+      .filter(p => assignedPluginIds.includes(p.id) && (ownerGlobalAccess || activeOwnerProducts.has(p.id)))
+      .map(p => p.name));
     if (!isRequestedPluginAllowed(allowedPlugins)) {
       return res.status(200).json({ valid: false, ok: false, reason: 'Plugin solicitado nao autorizado para esta licenca de servidor.' });
     }
@@ -698,7 +711,8 @@ app.post('/v1/license/check', (req, res) => {
         performance: normalizedPerformance
       });
     }
-    if (requestedPluginNames.length > 0 && plugin?.name && !requestedPluginNames.includes(plugin.name.toLowerCase())) {
+    if (requestedPluginNames.length > 0 && !isBootstrapRequest &&
+        plugin?.name && !requestedPluginNames.includes(plugin.name.toLowerCase())) {
       return res.status(200).json({
         valid: false,
         ok: false,
@@ -1133,7 +1147,7 @@ app.get('/api/plugins/:id/config', (req, res) => {
   }
   const id = Number(req.params.id);
   const ctx = getAuthContext(req)!;
-  const purchase = listAllPurchases().find(p => p.userId === ctx.userId && p.pluginId === id);
+  const purchase = listAllPurchases().find(p => p.userId === ctx.userId && p.pluginId === id && p.status === 'approved');
   if (!purchase) return res.status(404).json({ error: 'licença não encontrada' });
   
   res.json({
@@ -1145,18 +1159,9 @@ app.get('/api/plugins/:id/config', (req, res) => {
   });
 });
 
-app.patch('/api/plugins/:id/config', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const id = Number(req.params.id);
-  const ctx = getAuthContext(req)!;
-  const purchase = listAllPurchases().find(p => p.userId === ctx.userId && p.pluginId === id);
-  if (!purchase) return res.status(404).json({ error: 'licença não encontrada' });
-  
-  updatePurchaseAdmin(purchase.id, req.body);
-  res.json({ success: true });
+// Changes to license status and keys must never be accepted from customer input.
+app.patch('/api/plugins/:id/config', (_req, res) => {
+  res.status(403).json({ error: 'Alteracao de licencas pelo cliente nao permitida.' });
 });
 
 app.post('/api/users/me/license/regenerate', (req, res) => {
@@ -1217,72 +1222,7 @@ app.post('/api/users/me/license/hwid/reset', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/users/me/servers', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const servers = listServersForUser(ctx.userId);
-  const items = servers.map(s => ({
-    ...s,
-    plugins: listPluginsForServer(s.id)
-  }));
-  res.json({ items });
-});
-
-app.post('/api/users/me/servers', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const { name, ips } = req.body;
-  const server = createServer(ctx.userId, name, ips);
-  res.status(201).json({ ...server, plugins: [] });
-});
-
-app.patch('/api/users/me/servers/:id', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const id = req.params.id;
-  const server = updateServer(id, req.body);
-  if (!server) return res.status(404).json({ error: 'servidor não encontrado' });
-  res.json({ ...server, plugins: listPluginsForServer(id) });
-});
-
-app.delete('/api/users/me/servers/:id', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  deleteServer(req.params.id);
-  res.json({ ok: true });
-});
-
-app.post('/api/users/me/servers/:serverId/plugins', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const { serverId } = req.params;
-  const { pluginId } = req.body;
-  assignPluginToServer(serverId, pluginId);
-  res.json({ ok: true });
-});
-
-app.delete('/api/users/me/servers/:serverId/plugins/:pluginId', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const { serverId, pluginId } = req.params;
-  unassignPluginFromServer(serverId, Number(pluginId));
-  res.json({ ok: true });
-});
-
+// Server management routes are defined once below with authorization checks.
 app.get('/api/users/me/api-keys', (req, res) => {
   if (!hasValidAuthHeader(req)) {
     res.status(401).json({ error: 'não autorizado' });
@@ -1703,7 +1643,11 @@ app.post('/api/commerce/checkout', async (req, res) => {
     return;
   }
 
-  const user = ctx.token === auth.demoToken ? demoUser : findUserById(ctx.userId);
+  if (ctx.token === auth.demoToken) {
+    res.status(403).json({ error: 'Conta de demonstracao nao pode comprar.' });
+    return;
+  }
+  const user = findUserById(ctx.userId);
   if (!user) {
     res.status(401).json({ error: 'não autorizado' });
     return;
