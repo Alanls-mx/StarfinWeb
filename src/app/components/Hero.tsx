@@ -1,132 +1,76 @@
-import { ArrowRight, Sparkles } from 'lucide-react';
-import { useNavigate } from 'react-router';
-import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
-import { getPublicSettings } from '../lib/api';
+import { ArrowRight, ArrowUpRight, BookOpen, CheckCircle2, Layers3, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router';
+
+const projects = [
+  { name: 'StarfinBans', description: 'Moderação e gerenciamento de punições', status: 'Em desenvolvimento', icon: ShieldCheck },
+  { name: 'StarfinCore', description: 'Infraestrutura de licenciamento', status: 'Em desenvolvimento', icon: Layers3 }
+];
 
 export function Hero() {
-  const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    plugins: '500+',
-    servers: '50K+',
-    rating: '4.9/5',
-    support: '24/7'
-  });
-
-  useEffect(() => {
-    getPublicSettings().then(settings => {
-      setStats({
-        plugins: settings.homeStatsPlugins || '500+',
-        servers: settings.homeStatsServers || '50K+',
-        rating: settings.homeStatsRating || '4.9/5',
-        support: settings.homeStatsSupport || '24/7'
-      });
-    }).catch(console.error);
-  }, []);
-
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0F] via-[#1A1A22] to-[#0B0B0F]">
-        {/* Particle Effect */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at center, transparent 0%, #0B0B0F 100%),
-                           radial-gradient(2px 2px at 20% 30%, #7B2CBF 1px, transparent 1px),
-                           radial-gradient(2px 2px at 60% 70%, #C77DFF 1px, transparent 1px),
-                           radial-gradient(1px 1px at 50% 50%, #7B2CBF 1px, transparent 1px),
-                           radial-gradient(1px 1px at 80% 10%, #9D4EDD 1px, transparent 1px)`,
-          backgroundSize: '100% 100%, 200px 200px, 150px 150px, 100px 100px, 250px 250px',
-          backgroundPosition: 'center, 0 0, 40px 60px, 130px 270px, 70px 100px',
-          animation: 'particle-float 20s ease-in-out infinite'
-        }}></div>
-
-        {/* Gradient Orbs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#7B2CBF] rounded-full blur-[120px] opacity-20 animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#C77DFF] rounded-full blur-[120px] opacity-20 animate-pulse" style={{ animationDelay: '1s' }}></div>
-      </div>
-
-      {/* Content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/30 rounded-full mb-8 group hover:border-[#C77DFF]/50 transition-all duration-300">
-          <Sparkles className="w-4 h-4 text-[#C77DFF] group-hover:rotate-180 transition-transform duration-500" />
-          <span className="text-sm text-gray-300">Mais de 500+ plugins premium</span>
+    <section className="relative overflow-hidden border-b border-white/10 bg-[#0d1118] pt-32 pb-20 sm:pt-40 sm:pb-28">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.14]" style={{
+        backgroundImage: 'linear-gradient(#6c7484 1px, transparent 1px), linear-gradient(90deg, #6c7484 1px, transparent 1px)',
+        backgroundSize: '64px 64px',
+        maskImage: 'linear-gradient(to right, transparent 18%, black 100%)'
+      }} />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-[1.12fr_.88fr] lg:gap-20">
+        <div>
+          <div className="mb-7 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#b9bcf6]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#a6acff]" />
+            StarfinPlugins / Minecraft software
+          </div>
+          <h1 className="max-w-3xl text-[clamp(2.8rem,5.5vw,5.5rem)] font-semibold leading-[1.06] tracking-[-0.065em] text-[#f5f6fa]">
+            Seu servidor merece software bem feito.
+          </h1>
+          <p className="mt-7 max-w-xl text-base leading-8 text-[#a8afbd] sm:text-lg">
+            Plugins desenvolvidos com foco em administração, estabilidade e uma experiência que faz sentido para quem mantém um servidor de Minecraft.
+          </p>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <Link to="/plugins" className="inline-flex min-h-12 items-center gap-3 rounded-lg bg-[#b8bafb] px-6 text-sm font-semibold text-[#10121e] transition-colors hover:bg-[#d0d1ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b8bafb]">
+              Explorar plugins <ArrowRight size={17} />
+            </Link>
+            <Link to="/docs" className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-white/20 bg-white/[.035] px-6 text-sm font-medium text-white transition-colors hover:bg-white/[.08]">
+              <BookOpen size={16} /> Documentação
+            </Link>
+          </div>
+          <div className="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 text-sm text-[#aeb5c1] sm:flex-row sm:gap-7">
+            <span className="inline-flex items-center gap-2"><CheckCircle2 size={15} className="text-[#b9bcf6]"/> Documentação por produto</span>
+            <span className="inline-flex items-center gap-2"><CheckCircle2 size={15} className="text-[#b9bcf6]"/> Gestão de licenças na conta</span>
+          </div>
         </div>
 
-        {/* Main Heading */}
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl mb-6 bg-gradient-to-r from-white via-[#C77DFF] to-white bg-clip-text text-transparent animate-gradient">
-          Plugins profissionais para elevar seu servidor Minecraft
-        </h1>
-
-        {/* Subtitle */}
-        <p className="text-lg sm:text-xl text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed">
-          Descubra plugins de alta qualidade, otimizados para desempenho e construídos por desenvolvedores experientes. Transforme seu servidor com ferramentas profissionais.
-        </p>
-
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <motion.button
-            onClick={() => navigate('/plugins')}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.98 }}
-            className="group relative px-8 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl overflow-hidden transition-all duration-300"
-          >
-            {/* Glow Effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#C77DFF] to-[#7B2CBF] opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></div>
-
-            <span className="relative flex items-center gap-2">
-              Ver Plugins
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-            </span>
-          </motion.button>
-
-          <motion.button
-            onClick={() => navigate('/account')}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
-            className="px-8 py-4 bg-transparent border-2 border-[#7B2CBF] text-white rounded-xl hover:bg-[#7B2CBF]/10 hover:border-[#C77DFF] hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all duration-300"
-          >
-            Criar Conta
-          </motion.button>
-        </div>
-
-        {/* Stats */}
-        <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-          {[
-            { number: stats.plugins, label: 'Plugins Premium' },
-            { number: stats.servers, label: 'Servidores Ativos' },
-            { number: stats.rating, label: 'Avaliação Média' },
-            { number: stats.support, label: 'Suporte' }
-          ].map((stat, index) => (
-            <div
-              key={index}
-              className="p-6 bg-[#1A1A22]/40 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl hover:border-[#7B2CBF]/50 transition-all duration-300 hover:scale-105"
-            >
-              <div className="text-3xl font-bold text-[#C77DFF] mb-2">{stat.number}</div>
-              <div className="text-sm text-gray-400">{stat.label}</div>
+        <div className="relative">
+          <div className="overflow-hidden rounded-2xl border border-white/15 bg-[#171b25] shadow-[0_32px_100px_rgba(0,0,0,.32)]">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#9ca4b6]">Starfin / workspace</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight text-white">Projetos em desenvolvimento</h2>
+              </div>
+              <span className="rounded-md border border-white/10 px-2 py-1 font-mono text-[11px] text-[#a7adbb]">2026</span>
             </div>
-          ))}
+            <div className="divide-y divide-white/10">
+              {projects.map((project) => {
+                const Icon = project.icon;
+                return (
+                  <div key={project.name} className="flex gap-4 px-6 py-6">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#8d92cf]/20 bg-[#8d92cf]/10 text-[#c1c4ff]"><Icon size={20}/></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-semibold text-white">{project.name}</p>
+                      <p className="mt-1 text-sm leading-6 text-[#9da6b6]">{project.description}</p>
+                      <span className="mt-3 inline-flex rounded-md border border-[#b3b8d6]/20 bg-white/[.03] px-2.5 py-1 text-[11px] font-medium text-[#c3c7d4]">{project.status}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <Link to="/plugins?search=StarfinBans" className="flex items-center justify-between border-t border-white/10 bg-white/[.025] px-6 py-4 text-sm font-medium text-[#d5d6ff] transition-colors hover:bg-white/[.06]">
+              Conhecer o catálogo <ArrowUpRight size={17}/>
+            </Link>
+          </div>
+          <div aria-hidden="true" className="absolute -bottom-4 -right-4 -z-10 h-full w-full rounded-2xl border border-white/10" />
         </div>
       </div>
-
-      <style>{`
-        @keyframes particle-float {
-          0%, 100% { transform: translateY(0) translateX(0); }
-          25% { transform: translateY(-20px) translateX(10px); }
-          50% { transform: translateY(-10px) translateX(-10px); }
-          75% { transform: translateY(-30px) translateX(5px); }
-        }
-
-        @keyframes gradient {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
-        }
-      `}</style>
     </section>
   );
 }

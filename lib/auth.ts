@@ -59,7 +59,7 @@ export async function requireUser(authorizationHeader: string | null) {
   const payload = verifyJwt(token);
   if (!payload) return null;
   const user = await db.user.findUnique({ where: { id: payload.sub } });
-  if (!user) return null;
+  if (!user || user.banned) return null;
   return { user, role: user.role };
 }
 

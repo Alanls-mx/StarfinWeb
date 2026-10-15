@@ -1,347 +1,157 @@
-import { Download, Filter, Search, SlidersHorizontal, Star, TrendingUp, Crown, ShoppingCart, CheckCircle2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { ArrowRight, ArrowUpRight, Box, PackageSearch, Search, ShoppingBag } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { getCategories, getPlugins, type PluginCategory, type PluginSummary } from '../lib/api';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
 
+type Sort = 'popular' | 'rating' | 'recent' | 'price_asc' | 'price_desc';
+const sorts: Array<{ value: Sort; label: string }> = [
+  { value: 'recent', label: 'Mais recentes' },
+  { value: 'popular', label: 'Destaques' },
+  { value: 'price_asc', label: 'Menor preço' },
+  { value: 'price_desc', label: 'Maior preço' }
+];
+
 export function Store() {
-  const { state } = useAuth();
-  const user = state.status === 'authenticated' ? state.user : null;
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { addItem } = useCart();
-  const [showFilters, setShowFilters] = useState(false);
+  const { state } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Array<PluginCategory | 'Todas'>>(['Todas']);
   const [items, setItems] = useState<PluginSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const searchQuery = searchParams.get('search') ?? '';
-  const selectedCategory = searchParams.get('category') ?? 'Todas';
-  const sort = (searchParams.get('sort') ?? 'popular') as
-    | 'popular'
-    | 'rating'
-    | 'recent'
-    | 'price_asc'
-    | 'price_desc';
+  const query = searchParams.get('search') || '';
+  const category = searchParams.get('category') || 'Todas';
+  const sortValue = searchParams.get('sort') || 'recent';
+  const sort: Sort = sorts.some((s) => s.value === sortValue) ? sortValue as Sort : 'recent';
+  const hasPremium = state.status === 'authenticated' && state.user.plan === 'Premium';
+
+  const changeFilter = (name: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value || (name === 'category' && value === 'Todas')) next.delete(name);
+    else next.set(name, value);
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const res = await getCategories();
-      if (cancelled) return;
-      setCategories(['Todas', ...res.items]);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    getCategories()
+      .then((res) => { if (!cancelled) setCategories(['Todas', ...res.items]); })
+      .catch(() => { if (!cancelled) setCategories(['Todas']); });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    (async () => {
-      try {
-        const res = await getPlugins({
-          search: searchQuery || undefined,
-          category: selectedCategory === 'Todas' ? undefined : selectedCategory,
-          sort,
-          limit: 48
-        });
-        if (cancelled) return;
-        setItems(res.items);
-        setTotal(res.total);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [searchQuery, selectedCategory, sort]);
+    setError(false);
+    getPlugins({
+      search: query || undefined,
+      category: category === 'Todas' ? undefined : category,
+      sort,
+      limit: 48
+    }).then((res) => {
+      if (cancelled) return;
+      setItems(res.items);
+      setTotal(res.total);
+    }).catch(() => { if (!cancelled) { setError(true); setItems([]); setTotal(0); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [query, category, sort]);
 
-  const getTagStyles = (tag: string) => {
-    switch (tag) {
-      case 'Popular':
-        return 'bg-[#7B2CBF]/20 text-[#C77DFF] border-[#7B2CBF]/40';
-      case 'Novo':
-        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
-      case 'Premium':
-        return 'bg-amber-500/20 text-amber-400 border-amber-500/40';
-      default:
-        return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
-    }
-  };
-
-  const getTagIcon = (tag: string) => {
-    switch (tag) {
-      case 'Popular':
-        return <TrendingUp className="w-3 h-3" />;
-      case 'Premium':
-        return <Crown className="w-3 h-3" />;
-      default:
-        return null;
-    }
-  };
-
-  const visibleCountText = useMemo(() => {
-    if (loading) return 'Carregando...';
-    if (total === 0) return '0 plugins encontrados';
-    return `${total} ${total === 1 ? 'plugin encontrado' : 'plugins encontrados'}`;
-  }, [loading, total]);
+  const resultLabel = useMemo(() => {
+    if (loading) return 'Carregando produtos…';
+    if (error) return 'Catálogo indisponível';
+    return `${total} ${total === 1 ? 'produto encontrado' : 'produtos encontrados'}`;
+  }, [loading, error, total]);
 
   return (
-    <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl sm:text-5xl mb-4">Loja de Plugins</h1>
-          <p className="text-gray-400 text-lg">
-            Encontre o plugin perfeito para seu servidor Minecraft
-          </p>
+    <main className="min-h-screen bg-[#10141c] px-5 pb-24 pt-32 text-white sm:px-8 sm:pt-36">
+      <div className="mx-auto max-w-7xl">
+        <div className="border-b border-white/10 pb-10">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[.2em] text-[#b8bafb]">StarfinPlugins / Catálogo</p>
+          <h1 className="text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">Plugins para o seu servidor</h1>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[#aab3c2]">Explore o catálogo, confira versões e requisitos e encontre as ferramentas adequadas à sua rede.</p>
         </div>
 
-        {/* Search and Filters */}
-        <div className="mb-8 space-y-4">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar plugins..."
-              value={searchQuery}
-              onChange={(e) => {
-                const next = new URLSearchParams(searchParams);
-                const value = e.target.value;
-                if (value) next.set('search', value);
-                else next.delete('search');
-                setSearchParams(next, { replace: true });
-              }}
-              className="w-full pl-12 pr-4 py-4 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#7B2CBF] focus:ring-2 focus:ring-[#7B2CBF]/20 transition-all duration-300"
-            />
+        <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_240px]">
+          <label className="relative block">
+            <span className="sr-only">Buscar plugins</span>
+            <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b95a7]" size={19}/>
+            <input value={query} onChange={(event) => changeFilter('search', event.target.value)}
+              className="h-13 w-full rounded-lg border border-white/15 bg-[#1a202a] py-3 pl-12 pr-4 text-sm text-white outline-none transition-colors placeholder:text-[#8791a3] focus:border-[#b8bafb]"
+              type="search" placeholder="Buscar por nome ou funcionalidade" />
+          </label>
+          <label className="flex items-center gap-3 rounded-lg border border-white/15 bg-[#1a202a] px-4">
+            <span className="shrink-0 text-xs text-[#9fa8b8]">Ordenar</span>
+            <select value={sort} onChange={(event) => changeFilter('sort', event.target.value)} className="h-full min-h-12 w-full bg-transparent py-3 text-sm text-white outline-none">
+              {sorts.map((s) => <option key={s.value} value={s.value} className="bg-[#1a202a]">{s.label}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-7 flex flex-wrap gap-2" aria-label="Filtrar por categoria">
+          {categories.map((item) => <button type="button" key={item} onClick={() => changeFilter('category', item)}
+            aria-pressed={category === item}
+            className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${category === item ? 'border-[#b8bafb] bg-[#b8bafb]/15 text-[#d0d2ff]' : 'border-white/10 bg-[#1a202a] text-[#aab3c2] hover:border-white/25 hover:text-white'}`}>
+            {item}
+          </button>)}
+        </div>
+        <div className="mt-10 flex items-center justify-between border-b border-white/10 pb-4">
+          <p className="text-sm text-[#aeb7c6]" role="status">{resultLabel}</p>
+          {(query || category !== 'Todas') && <button type="button" onClick={() => setSearchParams(new URLSearchParams(), { replace: true })} className="text-xs font-semibold text-[#c3c5ff] hover:underline">Limpar filtros</button>}
+        </div>
+
+        {error ? (
+          <div className="mt-8 rounded-xl border border-white/10 bg-[#1a202a] p-10 text-center">
+            <PackageSearch size={28} className="mx-auto text-[#b8bafb]"/>
+            <p className="mt-4 text-lg font-semibold">Não foi possível carregar os produtos</p>
+            <p className="mt-2 text-sm text-[#aab3c2]">Verifique sua conexão e tente novamente.</p>
+            <button type="button" onClick={() => changeFilter('sort', sort === 'recent' ? 'popular' : 'recent')} className="mt-5 rounded-lg border border-white/20 px-4 py-2 text-sm">Tentar novamente</button>
           </div>
-
-          {/* Filter Toggle (Mobile) */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="lg:hidden w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-xl text-white hover:border-[#7B2CBF]/50 transition-all duration-300"
-          >
-            <Filter className="w-5 h-5" />
-            Filtros
-          </button>
-        </div>
-
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters */}
-          <aside className={`lg:block w-full lg:w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden'}`}>
-            <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6 sticky top-24">
-              <div className="flex items-center gap-2 mb-6">
-                <SlidersHorizontal className="w-5 h-5 text-[#C77DFF]" />
-                <h3 className="text-lg">Filtros</h3>
-              </div>
-
-              {/* Categories */}
-              <div className="space-y-2 mb-6">
-                <h4 className="text-sm text-gray-400 mb-3">Categorias</h4>
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      const next = new URLSearchParams(searchParams);
-                      if (category === 'Todas') next.delete('category');
-                      else next.set('category', category);
-                      setSearchParams(next, { replace: true });
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-300 ${
-                      selectedCategory === category
-                        ? 'bg-[#7B2CBF]/20 text-[#C77DFF] border border-[#7B2CBF]/40'
-                        : 'text-gray-400 hover:bg-[#7B2CBF]/10 hover:text-white'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-
-              {/* Price Range */}
-              <div className="mb-6">
-                <h4 className="text-sm text-gray-400 mb-3">Faixa de Preço</h4>
-                <div className="space-y-2">
-                  {['Grátis', 'R$ 0 - R$ 30', 'R$ 30 - R$ 60', 'R$ 60+'].map((range) => (
-                    <label key={range} className="flex items-center gap-2 text-gray-400 hover:text-white cursor-pointer transition-colors duration-300">
-                      <input type="checkbox" className="w-4 h-4 rounded border-[#7B2CBF]/40 bg-transparent checked:bg-[#7B2CBF]" />
-                      <span className="text-sm">{range}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Rating */}
-              <div>
-                <h4 className="text-sm text-gray-400 mb-3">Avaliação</h4>
-                <div className="space-y-2">
-                  {[5, 4, 3].map((rating) => (
-                    <label key={rating} className="flex items-center gap-2 text-gray-400 hover:text-white cursor-pointer transition-colors duration-300">
-                      <input type="checkbox" className="w-4 h-4 rounded border-[#7B2CBF]/40 bg-transparent checked:bg-[#7B2CBF]" />
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        <span className="text-sm">{rating}+ estrelas</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          {/* Plugin Grid */}
-          <div className="flex-1">
-            <div className="mb-6 flex items-center justify-between">
-              <p className="text-gray-400">
-                {visibleCountText}
-              </p>
-              <select
-                value={sort}
-                onChange={(e) => {
-                  const next = new URLSearchParams(searchParams);
-                  next.set('sort', e.target.value);
-                  setSearchParams(next, { replace: true });
-                }}
-                className="px-4 py-2 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg text-white text-sm focus:outline-none focus:border-[#7B2CBF] transition-all duration-300"
-              >
-                <option value="popular">Mais Populares</option>
-                <option value="rating">Maior Avaliação</option>
-                <option value="recent">Mais Recentes</option>
-                <option value="price_asc">Menor Preço</option>
-                <option value="price_desc">Maior Preço</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {(loading ? Array.from({ length: 9 }).map(() => null) : items).map((plugin, index) => {
-                if (!plugin) {
-                  return (
-                    <div
-                      key={index}
-                      className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-5 animate-pulse"
-                    >
-                      <div className="h-4 bg-[#0B0B0F]/30 rounded w-2/3 mb-3"></div>
-                      <div className="h-3 bg-[#0B0B0F]/20 rounded mb-2"></div>
-                      <div className="h-3 bg-[#0B0B0F]/20 rounded w-4/5 mb-4"></div>
-                      <div className="h-10 bg-[#0B0B0F]/20 rounded"></div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <motion.div
-                    key={plugin.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, delay: Math.min(index * 0.015, 0.2) }}
-                    className="group bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-5 hover:border-[#7B2CBF]/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-[#7B2CBF]/10"
-                  >
-                    <div className="relative h-36 rounded-lg overflow-hidden mb-4 bg-gradient-to-br from-[#7B2CBF]/15 to-[#3C096C]/15 border border-[#7B2CBF]/10">
-                      <img
-                        src={plugin.imageUrl}
-                        alt={plugin.name}
-                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A22] via-transparent to-transparent opacity-70"></div>
-                      <div className="absolute top-3 left-3 flex gap-2">
-                        {plugin.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className={`inline-flex items-center gap-1 px-2 py-1 text-xs border rounded-full backdrop-blur-sm ${getTagStyles(tag)}`}
-                          >
-                            {getTagIcon(tag)}
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <h3 className="text-xl mb-2 text-white group-hover:text-[#C77DFF] transition-colors duration-300">
-                      {plugin.name}
-                    </h3>
-                    <p className="text-gray-400 text-sm mb-3 line-clamp-2">{plugin.description}</p>
-
-                    <div className="flex items-center gap-3 mb-3 text-xs text-gray-500">
-                      <span>{plugin.category}</span>
-                      <span>•</span>
-                      <span>{plugin.mcVersion}</span>
-                    </div>
-
-                    <div className="flex items-center gap-4 mb-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        <span className="text-gray-300">{plugin.rating}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-400">
-                        <Download className="w-4 h-4" />
-                        <span>{plugin.downloadsDisplay}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-[#7B2CBF]/20">
-                      <div className="flex flex-col">
-                        <span className="text-xl text-[#C77DFF] font-bold">{plugin.priceDisplay}</span>
-                        {user?.plan === 'Premium' ? (
-                          <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Liberado no Plano
-                          </div>
-                        ) : plugin.tags.includes('Premium') ? (
-                          <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Incluso no Premium</span>
-                        ) : null}
-                      </div>
-                      <div className="flex gap-2">
-                        {(!user || user.plan !== 'Premium') && (
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              addItem({
-                                id: String(plugin.id),
-                                name: plugin.name,
-                                price: plugin.priceCents,
-                                slug: plugin.slug,
-                                imageUrl: plugin.imageUrl
-                              });
-                            }}
-                            className="p-2 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg text-white hover:text-[#C77DFF] hover:border-[#C77DFF] transition-all duration-300"
-                            title="Adicionar ao Carrinho"
-                          >
-                            <ShoppingCart className="w-5 h-5" />
-                          </button>
-                        )}
-                        <Link
-                          to={`/plugins/${plugin.id}`}
-                          className="px-4 py-2 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white text-sm rounded-lg hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
-                        >
-                          {user?.plan === 'Premium' ? 'Baixar Agora' : 'Ver Mais'}
-                        </Link>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {!loading && items.length === 0 && (
-              <div className="text-center py-16">
-                <div className="text-gray-500 mb-4">
-                  <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">Nenhum plugin encontrado</p>
-                  <p className="text-sm">Tente ajustar seus filtros ou busca</p>
-                </div>
-              </div>
-            )}
+        ) : loading ? (
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Carregando catálogo">
+            {[0, 1, 2, 3, 4, 5].map((id) => <div key={id} className="h-72 animate-pulse rounded-xl border border-white/10 bg-[#1a202a]"/>)}
           </div>
-        </div>
+        ) : items.length === 0 ? (
+          <div className="mt-8 flex flex-col items-center rounded-xl border border-white/10 bg-[#1a202a] px-5 py-16 text-center">
+            <PackageSearch size={30} className="text-[#b8bafb]"/>
+            <p className="mt-4 text-lg font-semibold">Nenhum plugin encontrado</p>
+            <p className="mt-2 text-sm text-[#aab3c2]">Experimente outra pesquisa ou categoria.</p>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {items.map((plugin) => (
+              <article key={plugin.id} className="group flex flex-col rounded-xl border border-white/10 bg-[#191e28] p-6 transition-colors hover:border-[#b8bafb]/40 hover:bg-[#1d2330]">
+                <div className="mb-8 flex items-start justify-between">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-[#272d3b] text-[#c3c5ff]"><Box size={24}/></div>
+                  <Link to={`/plugins/${plugin.id}`} aria-label={`Ver detalhes de ${plugin.name}`} className="rounded-lg p-2 text-[#808c9f] hover:text-white"><ArrowUpRight size={19}/></Link>
+                </div>
+                <span className="mb-2 text-xs font-medium uppercase tracking-[.13em] text-[#aab4c4]">{plugin.category}</span>
+                <h2 className="text-xl font-semibold tracking-tight">{plugin.name}</h2>
+                <p className="mt-3 line-clamp-3 min-h-20 flex-1 text-sm leading-7 text-[#acb5c3]">{plugin.description}</p>
+                <p className="mt-5 text-xs text-[#8996a8]">Minecraft {plugin.mcVersion || 'Consulte a compatibilidade'}</p>
+                <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
+                  <span className="text-xl font-semibold">{plugin.priceDisplay}</span>
+                  <div className="flex items-center gap-2">
+                    {!hasPremium && <button type="button" aria-label={`Adicionar ${plugin.name} ao carrinho`} onClick={() => addItem({
+                      id: String(plugin.id),
+                      name: plugin.name,
+                      price: plugin.priceCents,
+                      slug: plugin.slug,
+                      imageUrl: plugin.imageUrl
+                    })} className="rounded-lg border border-white/15 p-2.5 text-[#c2c4ff] hover:border-[#b8bafb] hover:bg-white/[.05]"><ShoppingBag size={17}/></button>}
+                    <Link to={`/plugins/${plugin.id}`} className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2.5 text-xs font-semibold text-white hover:border-[#b8bafb]">Detalhes <ArrowRight size={14}/></Link>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </main>
   );
 }

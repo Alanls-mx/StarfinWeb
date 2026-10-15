@@ -794,7 +794,11 @@ export function loadPlugins() {
   }
 }
 
-loadPlugins();
+// Demonstration content is opt-in and must never be seeded into production.
+// Existing demo records still need to be reviewed manually before publication.
+if (process.env.NODE_ENV !== 'production' && process.env.STARFIN_ENABLE_DEMO_CATALOG === 'true') {
+  loadPlugins();
+}
 
 export const pluginSummaries: PluginSummary[] = [];
 export const pluginDetailsById: Record<number, PluginDetail> = {};

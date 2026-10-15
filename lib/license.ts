@@ -53,7 +53,7 @@ export type LicenseCheckResponse = {
 type LicenseData = {
   id: string;
   licenseKey: string;
-  user: { name: string; email: string };
+  user: { name: string; email: string; banned: boolean };
   hwid: string | null;
   plan: string;
   status: LicenseStatus;
@@ -78,14 +78,14 @@ async function getLicenseByKey(licenseKey: string): Promise<LicenseData | null> 
   const cached = licenseCache.get(licenseKey);
   if (cached) return cached;
   const redis = getRedis();
-  const redisKey = `license:${licenseKey}`;
+  const redisKey = `license:${crypto.createHash('sha256').update(licenseKey).digest('hex')}`;
   if (redis) {
     const value = (await redis.get(redisKey)) as any;
     if (value && typeof value === 'object' && typeof value.id === 'string') {
       const parsed: LicenseData = {
         id: value.id,
         licenseKey: value.licenseKey,
-        user: { name: value.user?.name ?? '', email: value.user?.email ?? '' },
+        user: { name: value.user?.name ?? '', email: value.user?.email ?? '', banned: value.user?.banned === true },
         hwid: value.hwid ?? null,
         plan: value.plan ?? '',
         status: value.status ?? LicenseStatus.active,
@@ -121,7 +121,7 @@ async function getLicenseByKey(licenseKey: string): Promise<LicenseData | null> 
   const data: LicenseData = {
     id: license.id,
     licenseKey: license.licenseKey,
-    user: { name: license.user.name, email: license.user.email },
+    user: { name: license.user.name, email: license.user.email, banned: license.user.banned },
     hwid: license.hwid ?? null,
     plan: license.plan,
     status: license.status,
@@ -173,7 +173,7 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
     return baseResponse('NOT_FOUND');
   }
 
-  if (license.status !== LicenseStatus.active) {
+  if (license.user.banned || license.status !== LicenseStatus.active) {
     await logUsage(license.id, input);
     return {
       ...baseResponse('SUSPENDED'),
@@ -193,6 +193,25 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
     };
   }
 
+  // Resolve product authorization before binding an installation ID.
+  // StarfinCore/StarfinLicense are bootstrap callers, not commercial products.
+  const isBootstrap = ['starfincore', 'starfinlicense', 'starfin-core', 'starfin-license']
+    .includes(input.pluginCore.toLowerCase());
+  const accessiblePlugins = license.plugins.filter((p) => {
+    const ips = license.productIps?.[p.id];
+    return !Array.isArray(ips) || ips.length === 0 || ips.includes(input.serverIp);
+  });
+  const targetPlugin = isBootstrap
+    ? undefined
+    : license.plugins.find((p) => p.name.toLowerCase() === input.pluginCore.toLowerCase());
+
+  if (!isBootstrap && !targetPlugin) {
+    return { ...baseResponse('PLUGIN_NOT_ALLOWED'), licenseOwner: license.user.name, plan: license.plan };
+  }
+  if (targetPlugin && !accessiblePlugins.includes(targetPlugin)) {
+    return { ...baseResponse('IP_MISMATCH'), licenseOwner: license.user.name, plan: license.plan };
+  }
+
   const hwid = input.hwid?.trim() ?? null;
   if (!hwid) {
     await logUsage(license.id, input);
@@ -205,88 +224,74 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
   }
 
   if (!license.hwid) {
-    // First bind: if the license has no HWID yet, bind it to the first server that validates successfully.
-    await db.license.update({
-      where: { id: license.id },
+    // Atomic compare-and-set: two concurrent servers cannot both claim the same license.
+    const claimed = await db.license.updateMany({
+      where: { id: license.id, hwid: null },
       data: { hwid }
     });
+    if (claimed.count === 0) {
+      const current = await db.license.findUnique({ where: { id: license.id }, select: { hwid: true } });
+      if (current?.hwid !== hwid) {
+        return { ...baseResponse('HWID_MISMATCH'), licenseOwner: license.user.name, plan: license.plan };
+      }
+    }
     licenseCache.delete(license.licenseKey);
     const redis = getRedis();
-    if (redis) await redis.del(`license:${license.licenseKey}`);
+    if (redis) await redis.del(`license:${crypto.createHash('sha256').update(license.licenseKey).digest('hex')}`);
   } else if (license.hwid !== hwid) {
     await logUsage(license.id, input);
     // HWID mismatch is the main anti-piracy signal; notify Discord for moderation workflows.
     await sendDiscordWebhook({
-      content: `🚨 HWID mismatch\nlicenseKey=${license.licenseKey}\nuser=${license.user.email}\nexpected=${license.hwid}\nreceived=${hwid}\nip=${input.serverIp}:${input.serverPort}`
+      content: `🚨 HWID divergente\nlicenseId=${license.id}\nserver=${input.serverName}`
     });
     return {
       ...baseResponse('HWID_MISMATCH'),
       licenseOwner: license.user.name,
       plan: license.plan,
       expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
-      allowedPlugins: license.plugins.map((p) => p.name)
+      allowedPlugins: []
     };
   }
 
   await logUsage(license.id, input);
 
-  const allowedPlugins = license.plugins.map((p) => p.name);
-  const targetPlugin = license.plugins.find(
-    (p) => p.name.toLowerCase() === input.pluginCore.toLowerCase()
-  );
+  const allowedPlugins = accessiblePlugins.map((p) => p.name);
 
-  if (!targetPlugin) {
-    await logUsage(license.id, input);
-    return {
-      ...baseResponse('PLUGIN_NOT_ALLOWED'),
-      licenseOwner: license.user.name,
-      plan: license.plan,
-      expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
-      allowedPlugins
-    };
-  }
-
-  // Automatic HWID binding per plugin/user (from your request)
-  if (!targetPlugin.userHwid) {
-    // First bind for THIS specific plugin for THIS user
-    await db.licensePlugin.update({
-      where: { id: targetPlugin.lpId },
-      data: { hwid }
-    });
-    licenseCache.delete(license.licenseKey);
-    const redis = getRedis();
-    if (redis) await redis.del(`license:${license.licenseKey}`);
-  } else if (targetPlugin.userHwid !== hwid) {
-    await logUsage(license.id, input);
-    await sendDiscordWebhook({
-      content: `🚨 HWID mismatch (Per-Plugin)\nlicenseKey=${license.licenseKey}\nplugin=${targetPlugin.name}\nuser=${license.user.email}\nexpected=${targetPlugin.userHwid}\nreceived=${hwid}`
-    });
-    return {
-      ...baseResponse('HWID_MISMATCH'),
-      licenseOwner: license.user.name,
-      plan: license.plan,
-      expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
-      allowedPlugins
-    };
-  }
-
-  // IP-per-product validation (from VersaoAntiga)
-  if (license.productIps && license.productIps[targetPlugin.id]) {
-    const allowedIps = license.productIps[targetPlugin.id];
-    if (!allowedIps.includes(input.serverIp)) {
-      await logUsage(license.id, input);
+  // Only product checks bind individual product installations; bootstrap does not.
+  if (targetPlugin) {
+    if (!targetPlugin.userHwid) {
+      const claimed = await db.licensePlugin.updateMany({
+        where: { id: targetPlugin.lpId, hwid: null },
+        data: { hwid }
+      });
+      if (claimed.count === 0) {
+        const current = await db.licensePlugin.findUnique({
+          where: { id: targetPlugin.lpId },
+          select: { hwid: true }
+        });
+        if (current?.hwid !== hwid) {
+          return { ...baseResponse('HWID_MISMATCH'), licenseOwner: license.user.name, plan: license.plan };
+        }
+      }
+      licenseCache.delete(license.licenseKey);
+      const redis = getRedis();
+      if (redis) await redis.del(`license:${crypto.createHash('sha256').update(license.licenseKey).digest('hex')}`);
+    } else if (targetPlugin.userHwid !== hwid) {
+      await sendDiscordWebhook({
+        content: `🚨 HWID divergente (plugin)\nlicenseId=${license.id}\nplugin=${targetPlugin.name}`
+      });
       return {
-        ...baseResponse('IP_MISMATCH'),
+        ...baseResponse('HWID_MISMATCH'),
         licenseOwner: license.user.name,
         plan: license.plan,
-        expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
-        allowedPlugins
+        expiresAt: license.expiresAt ? license.expiresAt.toISOString() : ''
       };
     }
   }
 
+
   const updates: Record<string, string> = {};
-  for (const p of license.plugins) {
+  for (const p of accessiblePlugins) {
     if (p.jarUrl) {
       updates[p.name] = p.jarUrl;
     }
@@ -300,13 +305,13 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
     expiresAt: license.expiresAt ? license.expiresAt.toISOString() : '',
     allowedPlugins,
     updates,
-    pluginInfo: {
+    pluginInfo: targetPlugin ? {
       name: targetPlugin.name,
       version: targetPlugin.version ?? '1.0.0',
       platform: targetPlugin.platform ?? 'Bukkit',
       jarUrl: targetPlugin.jarUrl ?? '',
       dependencies: targetPlugin.dependencies ?? []
-    }
+    } : undefined
   };
 }
 
@@ -368,7 +373,7 @@ export async function createLicenseForUser(userId: string, pluginId: string) {
   // Clear cache
   licenseCache.delete(license.licenseKey);
   const redis = getRedis();
-  if (redis) await redis.del(`license:${license.licenseKey}`);
+  if (redis) await redis.del(`license:${crypto.createHash('sha256').update(license.licenseKey).digest('hex')}`);
 
   return license;
 }
