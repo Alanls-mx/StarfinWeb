@@ -3687,9 +3687,10 @@ async function maybeSendNewsletterAuto() {
   }
 }
 
-setInterval(() => {
+const newsletterTimer = setInterval(() => {
   maybeSendNewsletterAuto().catch(() => null);
 }, 60 * 60 * 1000);
+newsletterTimer.unref();
 
 const isProdRuntime = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_PROJECT_ID);
 
