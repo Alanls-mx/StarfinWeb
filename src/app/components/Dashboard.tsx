@@ -975,7 +975,7 @@ export function Dashboard() {
                             <div className="text-[10px] text-gray-600 ml-5 mt-2">{new Date(n.createdISO).toLocaleString()}</div>
                           </div>
                         ))}
-                        <button
+                        {modalData.length > 0 && <button
                           onClick={async () => {
                             if (!token) return;
                             try {
@@ -990,7 +990,7 @@ export function Dashboard() {
                           className="w-full py-3 border border-[#7B2CBF]/30 text-white rounded-xl text-sm hover:bg-[#7B2CBF]/10 transition-all"
                         >
                           Marcar todas como lidas
-                        </button>
+                        </button>}
                       </div>
                     )}
 

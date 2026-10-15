@@ -188,6 +188,11 @@ function getAuthContext(req: express.Request): { token: string; userId: string; 
   return null;
 }
 
+function safeUser<T extends { passwordHash?: string; settings?: unknown }>(user: T) {
+  const { passwordHash: _hash, settings: _settings, ...publicFields } = user;
+  return publicFields;
+}
+
 function normalizeIp(ip: string | undefined | null): string {
   if (!ip) return '';
 
@@ -1124,8 +1129,8 @@ app.patch('/api/users/me/password', (req, res) => {
   if (!user) return res.status(401).json({ error: 'não autorizado' });
 
   // Se o usuário tiver uma senha definida (não for login social inicial sem senha), valida a atual
-  if (user.passwordHash && currentPassword) {
-    if (!verifyPassword(currentPassword, user.passwordHash)) {
+  if (user.passwordHash) {
+    if (typeof currentPassword !== 'string' || !verifyPassword(currentPassword, user.passwordHash)) {
       res.status(401).json({ error: 'Senha atual incorreta.' });
       return;
     }
@@ -1142,7 +1147,7 @@ app.patch('/api/users/me/profile', (req, res) => {
   }
   const ctx = getAuthContext(req)!;
   const user = updateUserProfile(ctx.userId, req.body);
-  res.json(user);
+  res.json(user ? safeUser(user) : null);
 });
 
 app.get('/api/users/me/notifications', (req, res) => {
@@ -1150,8 +1155,9 @@ app.get('/api/users/me/notifications', (req, res) => {
     res.status(401).json({ error: 'não autorizado' });
     return;
   }
-  // For demo, return global notifications
-  res.json(notifications);
+  // Global administrative notifications have no recipient and must never be
+  // disclosed as personal inbox items.
+  res.json([]);
 });
 
 app.get('/api/users/me/payments', (req, res) => {
@@ -3008,21 +3014,12 @@ app.patch('/api/users/me/settings', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/users/me/notifications', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  res.json(notifications);
-});
-
 app.post('/api/users/me/notifications/read-all', (req, res) => {
   if (!hasValidAuthHeader(req)) {
     res.status(401).json({ error: 'não autorizado' });
     return;
   }
-  clearNotifications();
-  res.json({ success: true });
+  res.status(501).json({ error: 'Notificações pessoais ainda não estão disponíveis.' });
 });
 
 app.get('/api/status', (_req, res) => {
@@ -3156,7 +3153,7 @@ app.get('/api/admin/users', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  res.json({ items: listAllUsers() });
+  res.json({ items: listAllUsers().map(safeUser) });
 });
 
 app.post('/api/admin/users', (req, res) => {
@@ -3165,7 +3162,7 @@ app.post('/api/admin/users', (req, res) => {
     return;
   }
   const user = createUserAdmin(req.body ?? {});
-  res.status(201).json(user);
+  res.status(201).json(user ? safeUser(user) : null);
 });
 
 app.get('/api/admin/users/:id', (req, res) => {
@@ -3178,7 +3175,7 @@ app.get('/api/admin/users/:id', (req, res) => {
     res.status(404).json({ error: 'usuário não encontrado' });
     return;
   }
-  res.json(user);
+  res.json(safeUser(user));
 });
 
 app.post('/api/admin/users/:id/license/hwid/reset', (req, res) => {
@@ -3352,7 +3349,7 @@ app.put('/api/admin/users/:id', (req, res) => {
     res.status(404).json({ error: 'usuário não encontrado' });
     return;
   }
-  res.json(next);
+  res.json(safeUser(next));
 });
 
 app.delete('/api/admin/users/:id', (req, res) => {

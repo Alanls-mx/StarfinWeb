@@ -38,6 +38,7 @@ Verificações locais: build Vite, typecheck estrito do frontend, typecheck do s
 - Cupons fixos foram removidos. O checkout recusa um cupom que deixou de ser válido após a consulta e mostra que planos ainda não estão homologados.
 - Upload administrativo aceita somente JPEG, PNG, WebP e GIF com assinatura de arquivo válida; SVG foi bloqueado.
 - Sessões de usuários excluídos deixam de autenticar. Cadastro e recuperação exigem senha de pelo menos oito caracteres. A edição administrativa de produtos rejeita métricas de avaliação e download inventadas, valida preço e ID canônico e impede IDs de licença duplicados.
+- A troca de senha da conta exige a senha atual quando já existe uma. Respostas de perfil e usuários não devolvem o hash de senha. Notificações administrativas globais deixaram de aparecer na caixa pessoal; o comando antigo de “marcar todas” retorna indisponível até existir uma caixa por usuário e não apaga dados globais.
 
 Revisão visual local feita em viewport estreito: home, carrinho vazio e recuperação de senha. O backend local não subiu sem PostgreSQL; a revisão visual de páginas com dados, desktop, tablet, admin e conta permanece pendente.
 
@@ -50,6 +51,7 @@ Commits locais na `main`: `bda16cc` (PostgreSQL, licenças e segurança da API),
 3. Conta: dividir o dashboard em módulos de plugins, licenças, servidores, pedidos e segurança.
 4. Administração: completar usuários, licenças, instalações, versões, pedidos, conteúdo e demais módulos com operações reais.
 5. Segurança: trilha de auditoria persistida, permissões por operação, downloads privados e políticas de transferência.
+   A caixa pessoal de notificações precisa de modelo próprio por destinatário antes de ser ativada.
 6. Homologação: executar CI PostgreSQL, testes de navegador, pagamentos em sandbox, contrato StarfinCore, responsividade e acessibilidade.
 
 ## Limites e rollback

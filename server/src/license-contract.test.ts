@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { app } from './index.js';
-import { createPlugin, createPurchase, createSession, createUser, createUserAdmin, findPurchaseById, updatePurchaseStatus } from './data.js';
+import { addNotification, createPlugin, createPurchase, createSession, createUser, createUserAdmin, findPurchaseById, updatePurchaseStatus } from './data.js';
 
 test('StarfinCore v2 contract authorizes only a paid product and binds the installation', async () => {
   const product = createPlugin({
@@ -64,6 +64,27 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
     });
     assert.equal(forgedApproval.status, 400);
     assert.equal(findPurchaseById(pending.id)?.status, 'pending');
+
+    const customerSession = createSession(owner.id, 'user');
+    const missingCurrentPassword = await fetch(`http://127.0.0.1:${address.port}/api/users/me/password`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${customerSession.token}` },
+      body: JSON.stringify({ newPassword: 'another-test-password' })
+    });
+    assert.equal(missingCurrentPassword.status, 401);
+
+    addNotification('Venda administrativa', 'Mensagem restrita ao painel', { type: 'sale' });
+    const inbox = await fetch(`http://127.0.0.1:${address.port}/api/users/me/notifications`, {
+      headers: { authorization: `Bearer ${customerSession.token}` }
+    });
+    assert.deepEqual(await inbox.json(), []);
+    const profile = await fetch(`http://127.0.0.1:${address.port}/api/users/me/profile`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${customerSession.token}` },
+      body: JSON.stringify({ bio: 'Cliente de teste' })
+    });
+    const profileBody = await profile.json() as Record<string, unknown>;
+    assert.equal(profileBody.passwordHash, undefined);
   } finally {
     server.close();
   }
