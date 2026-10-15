@@ -41,14 +41,14 @@ export function verifyMercadoPagoWebhook(
   dataId: string,
   secret: string
 ): boolean {
-  if (!secret || !requestId || requestId.length > 256 || !/^\\d{1,32}$/.test(dataId) || !signature) return false;
+  if (!secret || !requestId || requestId.length > 256 || !/^\d{1,32}$/.test(dataId) || !signature) return false;
   const parts = new Map(signature.split(',').map((p) => {
     const index = p.indexOf('=');
     return [p.slice(0, index).trim(), p.slice(index + 1).trim()] as const;
   }));
   const ts = parts.get('ts') || '';
   const v1 = parts.get('v1') || '';
-  if (!/^\\d{10,16}$/.test(ts) || !/^[a-f0-9]{64}$/i.test(v1)) return false;
+  if (!/^\d{10,16}$/.test(ts) || !/^[a-f0-9]{64}$/i.test(v1)) return false;
   const manifest = `id:${dataId.toLowerCase()};request-id:${requestId};ts:${ts};`;
   const digest = createHmac('sha256', secret).update(manifest).digest();
   const signatureBytes = Buffer.from(v1, 'hex');

@@ -1971,7 +1971,7 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
   // Webhook contents are only a hint. Always retrieve the payment from MP.
   const type = String(req.body?.type || req.query?.type || '').toLowerCase();
   const paymentId = String(req.body?.data?.id ?? req.query?.['data.id'] ?? '');
-  if (type !== 'payment' || !/^\\d{1,32}$/.test(paymentId)) {
+  if (type !== 'payment' || !/^\d{1,32}$/.test(paymentId)) {
     res.sendStatus(200);
     return;
   }
