@@ -10,7 +10,8 @@ export type ApiErrorCode =
   | 'GONE'
   | 'EXPIRED'
   | 'MAX_USES'
-  | 'MIN_PURCHASE';
+  | 'MIN_PURCHASE'
+  | 'CHECKOUT_NOT_CONFIGURED';
 
 export function jsonOk<T>(data: T, init?: number | ResponseInit) {
   const responseInit: ResponseInit | undefined =

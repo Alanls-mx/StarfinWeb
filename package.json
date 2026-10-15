@@ -7,6 +7,7 @@
     "build": "vite build",
     "dev": "vite",
     "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
+    "web:typecheck": "tsc --noEmit --strict --jsx react-jsx --moduleResolution bundler --module esnext --target es2022 --skipLibCheck --esModuleInterop src/app/App.tsx",
     "server:dev": "tsx watch server/src/index.ts",
     "server:build": "tsc -p server/tsconfig.json",
     "server:typecheck": "tsc -p server/tsconfig.json --noEmit",

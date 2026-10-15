@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import Database from './mysql-sync.js';
+import Database from './postgres-sync.js';
 
 const sqlite = new Database();
 
@@ -34,6 +34,12 @@ sqlite.exec(`
     userId VARCHAR(191),
     expiresISO VARCHAR(64),
     createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    tokenHash VARCHAR(64) PRIMARY KEY,
+    userId VARCHAR(191) NOT NULL,
+    expiresISO VARCHAR(64) NOT NULL,
+    createdISO VARCHAR(64) NOT NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS purchases (
     id VARCHAR(191) PRIMARY KEY,
@@ -248,7 +254,7 @@ sqlite.exec(`
     raffleId VARCHAR(191) NOT NULL,
     userId VARCHAR(191) NOT NULL,
     createdISO VARCHAR(64),
-    UNIQUE KEY uniq_raffle_user (raffleId, userId)
+    CONSTRAINT uniq_raffle_user UNIQUE (raffleId, userId)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `);
 
@@ -1515,77 +1521,16 @@ const defaultAdminSettings: AdminSettings = {
   newsletterAutoEnabled: false,
   newsletterFrequencyDays: 7,
   newsletterLastSentISO: null,
-  homeStatsPlugins: '500+',
-  homeStatsServers: '50K+',
-  homeStatsRating: '4.9/5',
-  homeStatsSupport: '24/7',
+  homeStatsPlugins: '',
+  homeStatsServers: '',
+  homeStatsRating: '',
+  homeStatsSupport: '',
   mercadopagoEnabled: false,
   mercadopagoAccessToken: '',
   mercadopagoPublicKey: '',
   mercadopagoWebhookUrl: '',
-  careersJobs: [
-    {
-      id: 'job_java_senior',
-      title: 'Desenvolvedor Java Senior',
-      location: 'Remoto',
-      salary: 'A combinar',
-      type: 'Tempo Integral',
-      description: 'Responsavel pela arquitetura e desenvolvimento de plugins complexos de alta performance.',
-      enabled: true
-    },
-    {
-      id: 'job_ui_ux',
-      title: 'Designer de UI/UX',
-      location: 'Remoto',
-      salary: 'A combinar',
-      type: 'Tempo Integral',
-      description: 'Criar interfaces modernas e intuitivas para nossos plugins e dashboard web.',
-      enabled: true
-    },
-    {
-      id: 'job_support',
-      title: 'Suporte Tecnico',
-      location: 'Remoto',
-      salary: 'A combinar',
-      type: 'Meio Periodo',
-      description: 'Auxiliar clientes com instalacao e configuracao de plugins e licencas.',
-      enabled: true
-    }
-  ],
-  aboutTeam: [
-    {
-      id: 'team_ana',
-      name: 'Ana Ribeiro',
-      role: 'Head de Produto',
-      bio: 'Define o roadmap dos plugins e garante que cada lancamento resolva dores reais dos donos de servidores.',
-      imageUrl: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=80',
-      skills: ['Produto', 'UX', 'Metricas']
-    },
-    {
-      id: 'team_lucas',
-      name: 'Lucas Fernandes',
-      role: 'Tech Lead Backend',
-      bio: 'Lidera a arquitetura dos sistemas criticos com foco em estabilidade, baixa latencia e escalabilidade.',
-      imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80',
-      skills: ['Java', 'APIs', 'Performance']
-    },
-    {
-      id: 'team_marina',
-      name: 'Marina Costa',
-      role: 'Especialista em Sucesso do Cliente',
-      bio: 'Acompanha servidores parceiros de ponta a ponta para acelerar adocao e retencao dos plugins.',
-      imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80',
-      skills: ['Onboarding', 'Suporte', 'Retencao']
-    },
-    {
-      id: 'team_rafael',
-      name: 'Rafael Nogueira',
-      role: 'Designer UI/UX',
-      bio: 'Transforma fluxos complexos em interfaces claras, mantendo consistencia visual em toda a plataforma.',
-      imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=80',
-      skills: ['Design System', 'Pesquisa', 'Prototipacao']
-    }
-  ]
+  careersJobs: [],
+  aboutTeam: []
 };
 
 export function getAdminSettings() {
@@ -1602,7 +1547,7 @@ export function getAdminSettings() {
 export function saveAdminSettings(next: Partial<AdminSettings>) {
   const current = getAdminSettings();
   const merged = { ...current, ...next } as AdminSettings;
-  sqlite.prepare('INSERT OR REPLACE INTO settings (`key`, value) VALUES (?, ?)').run('admin_settings', JSON.stringify(merged));
+  sqlite.prepare('INSERT INTO settings (`key`, value) VALUES (?, ?) ON CONFLICT (`key`) DO UPDATE SET value = EXCLUDED.value').run('admin_settings', JSON.stringify(merged));
   return merged;
 }
 
@@ -1610,8 +1555,8 @@ export function subscribeNewsletter(email: string) {
   const normalized = email.trim().toLowerCase();
   const now = new Date().toISOString();
   sqlite
-    .prepare('INSERT OR REPLACE INTO newsletter_subscribers (email, createdISO, active) VALUES (?, COALESCE((SELECT createdISO FROM newsletter_subscribers WHERE email = ?), ?), 1)')
-    .run(normalized, normalized, now);
+    .prepare('INSERT INTO newsletter_subscribers (email, createdISO, active) VALUES (?, ?, 1) ON CONFLICT (email) DO UPDATE SET active = 1')
+    .run(normalized, now);
   return { ok: true as const };
 }
 
@@ -1649,7 +1594,7 @@ export function createPlugin(input: {
   featured?: boolean;
 }): PluginDetail {
   const id = nextPluginId();
-  const rating = input.rating ?? 4.5;
+  const rating = input.rating ?? 0;
   const downloadsDisplay = input.downloadsDisplay ?? '0';
   const downloads = parseDownloadsToNumber(downloadsDisplay);
   const priceCents = parseBRLToCents(input.priceDisplay);
@@ -1877,11 +1822,11 @@ export const users: AccountUser[] = [];
 
 // Seed admin users if not exists
 const adminEmails = ['admin@starfinplugins.com.br', 'alan.luiz1620@gmail.com'];
-const seededAdminPassword = (process.env.INITIAL_ADMIN_PASSWORD || 'Starfin@2026').trim();
+const seededAdminPassword = (process.env.INITIAL_ADMIN_PASSWORD || '').trim();
 
 for (const email of adminEmails) {
   const existing = findUserByEmail(email);
-  if (!existing) {
+  if (!existing && seededAdminPassword) {
     const userId = email === 'alan.luiz1620@gmail.com' ? 'alan_luiz' : 'admin_main';
     sqlite.prepare('INSERT INTO users (id, name, email, plan, passwordHash, verified, createdISO, settings, role, phone, permissions, licenseKey, allowedIp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       userId,
@@ -1902,7 +1847,7 @@ for (const email of adminEmails) {
 }
 
 if (!process.env.INITIAL_ADMIN_PASSWORD) {
-  console.warn(`[security] INITIAL_ADMIN_PASSWORD nao definido. Usando senha padrao para novos admins: ${seededAdminPassword}`);
+  console.warn('[security] INITIAL_ADMIN_PASSWORD nao definido; contas admin iniciais nao serao criadas.');
 }
 
 export const smtpConfig: SmtpConfig = {
@@ -1913,13 +1858,13 @@ export const smtpConfig: SmtpConfig = {
   user: '',
   pass: '',
   fromName: 'StarfinPlugins',
-  fromEmail: 'no-reply@starfinplugins.com'
+  fromEmail: 'no-reply@starfinplugins.com.br'
 };
 
 export const integrationConfig: IntegrationConfig = {
-  panelBaseUrl: 'http://localhost:5173',
-  pluginAuthEndpoint: 'http://localhost:3001/api/plugin-auth/verify',
-  docsBaseUrl: 'http://localhost:5173/docs'
+  panelBaseUrl: process.env.NODE_ENV === 'production' ? 'https://starfinplugins.com.br' : 'http://localhost:5173',
+  pluginAuthEndpoint: process.env.NODE_ENV === 'production' ? 'https://api.starfinplugins.com.br/api/plugin-auth/verify' : 'http://localhost:3001/api/plugin-auth/verify',
+  docsBaseUrl: process.env.NODE_ENV === 'production' ? 'https://starfinplugins.com.br/docs' : 'http://localhost:5173/docs'
 };
 
 export function loadSettings() {
@@ -1943,12 +1888,12 @@ export function loadSettings() {
 
 export function saveSmtpConfig(config: SmtpConfig) {
   Object.assign(smtpConfig, config);
-  sqlite.prepare('INSERT OR REPLACE INTO settings (`key`, value) VALUES (?, ?)').run('smtp', JSON.stringify(smtpConfig));
+  sqlite.prepare('INSERT INTO settings (`key`, value) VALUES (?, ?) ON CONFLICT (`key`) DO UPDATE SET value = EXCLUDED.value').run('smtp', JSON.stringify(smtpConfig));
 }
 
 export function saveIntegrationConfig(config: IntegrationConfig) {
   Object.assign(integrationConfig, config);
-  sqlite.prepare('INSERT OR REPLACE INTO settings (`key`, value) VALUES (?, ?)').run('integration', JSON.stringify(integrationConfig));
+  sqlite.prepare('INSERT INTO settings (`key`, value) VALUES (?, ?) ON CONFLICT (`key`) DO UPDATE SET value = EXCLUDED.value').run('integration', JSON.stringify(integrationConfig));
 }
 
 loadSettings();
@@ -2013,7 +1958,7 @@ export function updateCategory(oldName: string, newName: string) {
 
 export function updateDocsSection(id: string, title: string, body: string) {
   const now = new Date().toISOString();
-  sqlite.prepare('INSERT OR REPLACE INTO docs (id, title, body, updatedISO) VALUES (?, ?, ?, ?)').run(id, title, body, now);
+  sqlite.prepare('INSERT INTO docs (id, title, body, updatedISO) VALUES (?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body, updatedISO = EXCLUDED.updatedISO').run(id, title, body, now);
   syncDocs();
 }
 
@@ -2395,6 +2340,10 @@ export function updateUserPassword(userId: string, newPassword: string) {
   return true;
 }
 
+export function revokeUserSessions(userId: string) {
+  sqlite.prepare('DELETE FROM sessions WHERE userId = ?').run(userId);
+}
+
 export function updateUserProfile(userId: string, data: Partial<UserProfile>) {
   const current = findUserById(userId);
   if (!current) return null;
@@ -2475,6 +2424,24 @@ export function verifyEmailToken(token: string) {
   };
 }
 
+export function createPasswordResetToken(userId: string) {
+  const token = randomToken('reset');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const now = new Date();
+  const expiresISO = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+  sqlite.prepare('INSERT INTO password_reset_tokens (tokenHash, userId, expiresISO, createdISO) VALUES (?, ?, ?, ?)')
+    .run(tokenHash, userId, expiresISO, now.toISOString());
+  return token;
+}
+
+export function consumePasswordResetToken(token: string) {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const row = sqlite.prepare('DELETE FROM password_reset_tokens WHERE tokenHash = ? RETURNING userId, expiresISO')
+    .get(tokenHash) as { userId: string; expiresISO: string } | undefined;
+  if (!row || new Date(row.expiresISO).getTime() < Date.now()) return null;
+  return findUserById(row.userId);
+}
+
 export function createPurchase(userId: string, pluginId: number) {
   const now = new Date().toISOString();
   const purchase: Purchase = {
@@ -2533,21 +2500,19 @@ export function listAllPurchases() {
   return sqlite.prepare('SELECT * FROM purchases ORDER BY createdISO DESC').all() as (Purchase & { hwid: string | null, allowedIp: string | null })[];
 }
 
-export function updatePurchaseAdmin(id: string, data: Partial<Purchase & { allowedIp: string | null }>) {
+export function updatePurchaseAdmin(id: string, data: { allowedIp?: string | null; resetHwid?: boolean }) {
   const current = findPurchaseById(id);
   if (!current) return null;
 
-  const status = data.status ?? current.status;
-  const licenseKey = data.licenseKey ?? current.licenseKey;
-  const hwid = data.hwid !== undefined ? data.hwid : current.hwid;
+  const hwid = data.resetHwid ? null : current.hwid;
   const allowedIp = data.allowedIp !== undefined ? data.allowedIp : current.allowedIp;
   const updatedISO = new Date().toISOString();
 
   sqlite.prepare(`
     UPDATE purchases SET 
-      status = ?, licenseKey = ?, hwid = ?, allowedIp = ?, updatedISO = ?
+      hwid = ?, allowedIp = ?, updatedISO = ?
     WHERE id = ?
-  `).run(status, licenseKey, hwid, allowedIp, updatedISO, id);
+  `).run(hwid, allowedIp, updatedISO, id);
 
   return findPurchaseById(id);
 }
@@ -2817,9 +2782,9 @@ export function grantOrderPluginOnce(orderId: string, userId: string, pluginId: 
   const id = `pur_order_${orderId}_${pluginId}`;
   const now = new Date().toISOString();
   const key = `LIC-${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
-  sqlite.prepare(`INSERT IGNORE INTO purchases
+  sqlite.prepare(`INSERT INTO purchases
     (id, userId, pluginId, status, licenseKey, createdISO, updatedISO)
-    VALUES (?, ?, ?, 'approved', ?, ?, ?)`).run(id, userId, pluginId, key, now, now);
+    VALUES (?, ?, ?, 'approved', ?, ?, ?) ON CONFLICT (id) DO NOTHING`).run(id, userId, pluginId, key, now, now);
   const row = sqlite.prepare('SELECT * FROM purchases WHERE id = ?').get(id) as Purchase | undefined;
   if (!row || row.userId !== userId || row.pluginId !== pluginId)
     throw new Error('Conflito na conciliacao da compra');
@@ -3012,7 +2977,7 @@ export function addRaffleEntry(raffleId: string, userId: string): boolean {
   sqlite.prepare(`
     INSERT INTO raffle_entries (id, raffleId, userId, createdISO)
     VALUES (?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE createdISO = createdISO
+    ON CONFLICT (raffleId, userId) DO NOTHING
   `).run(id, raffleId, userId, now);
   return true;
 }

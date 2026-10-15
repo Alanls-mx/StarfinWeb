@@ -11,6 +11,8 @@ import {
   categories,
   createApiKeyForUser,
   createEmailVerificationToken,
+  createPasswordResetToken,
+  consumePasswordResetToken,
   createPurchase,
   createSession,
   createUser,
@@ -53,6 +55,7 @@ import {
   listAllUsers,
   updateUserAdmin,
   updateUserPassword,
+  revokeUserSessions,
   updateUserProfile,
   regenerateUserLicense,
   updateUserAllowedIp,
@@ -323,7 +326,10 @@ const storage = multer.diskStorage({
   },
   filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const extensionByMime: Record<string, string> = {
+      'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif'
+    };
+    cb(null, uniqueSuffix + (extensionByMime[file.mimetype] || '.bin'));
   }
 });
 
@@ -331,11 +337,11 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Formato de arquivo não suportado. Use PNG, JPG, WEBP ou SVG.'));
+      cb(new Error('Formato de arquivo não suportado. Use PNG, JPG, WEBP ou GIF.'));
     }
   }
 });
@@ -363,6 +369,18 @@ app.post('/api/admin/upload', (req, res, next) => {
 }, upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'nenhum arquivo enviado' });
+  }
+  const bytes = fs.readFileSync(req.file.path).subarray(0, 12);
+  const valid = req.file.mimetype === 'image/png'
+    ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    : req.file.mimetype === 'image/jpeg'
+      ? bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
+      : req.file.mimetype === 'image/gif'
+        ? bytes.subarray(0, 6).toString('ascii') === 'GIF87a' || bytes.subarray(0, 6).toString('ascii') === 'GIF89a'
+        : bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP';
+  if (!valid) {
+    fs.unlinkSync(req.file.path);
+    return res.status(415).json({ error: 'O conteúdo do arquivo não corresponde a uma imagem válida.' });
   }
   
   const fileUrl = `/uploads/${req.file.filename}`;
@@ -445,15 +463,9 @@ app.post('/v1/license/check', (req, res) => {
       .filter(Boolean)));
   };
   const licenseAuthorizationLease = () => new Date(Date.now() + 45 * 60_000).toISOString();
-  const buildUpdates = (allowedPlugins: string[]) => {
-    const entries: Array<[string, string]> = [];
-    for (const pluginName of allowedPlugins) {
-      const plugin = pluginByLowerName.get(pluginName.toLowerCase());
-      if (!plugin) continue;
-      entries.push([pluginName, `https://starfinplugins.com/download/${plugin.id}/latest.jar`]);
-    }
-    return Object.fromEntries(entries);
-  };
+  // A private, authenticated release endpoint is required before advertising
+  // download URLs to installed plugins.
+  const buildUpdates = (_allowedPlugins: string[]) => ({});
   const isRequestedPluginAllowed = (allowedPlugins: string[]) => {
     // Backward compatibility: old StarfinLicense bootstrap may not send plugin name/id.
     if (requestedPluginNames.length === 0) return true;
@@ -523,6 +535,18 @@ app.post('/v1/license/check', (req, res) => {
     if (!hasGlobalAccess && ownedProductIds.size === 0) {
       return res.status(200).json({ valid: false, ok: false,
         reason: 'Nenhum produto adquirido ou autorizado para esta conta.' });
+    }
+    if (requestedPluginNames.length > 0 && !isBootstrapRequest) {
+      const assigned = matchingServer ? new Set(listPluginsForServer(matchingServer.id)) : null;
+      const requestedIsOwned = pluginSummaries.some(p =>
+        requestedPluginNames.includes(p.name.toLowerCase()) &&
+        (hasGlobalAccess || ownedProductIds.has(p.id)) &&
+        (!assigned || hasGlobalAccess || assigned.has(p.id))
+      );
+      if (!requestedIsOwned) {
+        return res.status(200).json({ valid: false, ok: false,
+          reason: 'Plugin solicitado nao autorizado para esta licenca.' });
+      }
     }
     const storedUserHwid = normalizeHwid(user.licenseHwid || '');
     if (!storedUserHwid) {
@@ -674,6 +698,11 @@ app.post('/v1/license/check', (req, res) => {
     const owner = findUserById(purchase.userId);
     if (owner?.banned) return res.status(200).json({ valid: false, ok: false, reason: 'Sua conta esta banida.' });
     const plugin = getPluginDetail(purchase.pluginId);
+    if (requestedPluginNames.length > 0 && !isBootstrapRequest &&
+        (!plugin?.name || !requestedPluginNames.includes(plugin.name.toLowerCase()))) {
+      return res.status(200).json({ valid: false, ok: false,
+        reason: 'Plugin solicitado nao autorizado para esta licenca.' });
+    }
     const storedPurchaseHwid = normalizeHwid(purchase.hwid || '');
     if (!storedPurchaseHwid) {
       const bound = updatePurchaseTelemetry(purchase.id, {
@@ -717,14 +746,6 @@ app.post('/v1/license/check', (req, res) => {
         performance: normalizedPerformance
       });
     }
-    if (requestedPluginNames.length > 0 && !isBootstrapRequest &&
-        plugin?.name && !requestedPluginNames.includes(plugin.name.toLowerCase())) {
-      return res.status(200).json({
-        valid: false,
-        ok: false,
-        reason: 'Plugin solicitado nao autorizado para esta licenca.'
-      });
-    }
     const allowedPlugins = withBootstrapPlugin(plugin?.name ? [plugin.name] : []);
     console.log(`${auditPrefix} Validated via purchase license. purchase=${purchase.id} hwid=${normalizedHwid} ip=${incomingIp}`);
     return res.status(200).json({
@@ -766,9 +787,9 @@ app.get('/api/categories', (_req, res) => {
 
 app.get('/api/plugins/featured', (_req, res) => {
   const featured = pluginSummaries
-    .filter((p) => p.tags.includes('Popular') || p.tags.includes('Premium'))
+    .filter((p) => p.featured)
     .slice(0, 6);
-  res.json({ items: featured });
+  res.json({ items: featured.map(({ jarUrl, ...publicPlugin }) => publicPlugin) });
 });
 
 app.get('/api/plugins/:id', (req, res) => {
@@ -784,7 +805,8 @@ app.get('/api/plugins/:id', (req, res) => {
     return;
   }
 
-  res.json(detail);
+  const { jarUrl, ...publicDetail } = detail;
+  res.json(publicDetail);
 });
 
 app.get('/api/plugins', (req, res) => {
@@ -841,7 +863,7 @@ app.get('/api/plugins', (req, res) => {
   const paged = items.slice(offset, offset + limit);
 
   res.json({
-    items: paged,
+    items: paged.map(({ jarUrl, ...publicPlugin }) => publicPlugin),
     page,
     limit,
     total
@@ -908,7 +930,7 @@ app.post('/api/auth/register', async (req, res) => {
   res.status(201).json({
     token: session.token,
     user: { id: user.id, name: user.name, email: user.email, plan: user.plan, verified: user.verified, role: user.role },
-    devVerificationUrl: verifyUrl
+    ...(process.env.NODE_ENV === 'development' ? { devVerificationUrl: verifyUrl } : {})
   });
 });
 
@@ -941,8 +963,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   }
   const user = findUserByEmail(email);
   if (user) {
-    const token = randomToken('reset');
-    // Em um sistema real, salvaríamos o token. Aqui apenas simulamos.
+    const token = createPasswordResetToken(user.id);
     const resetUrl = `${integrationConfig.panelBaseUrl}/reset-password?token=${token}`;
     await sendEmail({
       to: user.email,
@@ -956,15 +977,18 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 app.post('/api/auth/reset-password', (req, res) => {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
-  if (!token || !password || password.length < 6) {
-    res.status(400).json({ error: 'token e password (mín 6) são obrigatórios' });
+  if (!token || password.length < 8) {
+    res.status(400).json({ error: 'token e senha de pelo menos 8 caracteres são obrigatórios' });
     return;
   }
   
-  // Como os tokens de reset não são persistidos nesta versão demo, 
-  // simulamos a busca do usuário pelo prefixo do token ou apenas o demoUser.
-  const user = demoUser; 
+  const user = consumePasswordResetToken(token);
+  if (!user) {
+    res.status(400).json({ error: 'token inválido ou expirado' });
+    return;
+  }
   updateUserPassword(user.id, password);
+  revokeUserSessions(user.id);
   
   res.json({ success: true });
 });
@@ -992,7 +1016,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     subject: 'Confirme seu email - StarfinPlugins',
     html: getVerificationEmailHtml(user.name, verifyUrl)
   });
-  res.json({ ok: true, devVerificationUrl: verifyUrl });
+  res.json({ ok: true, ...(process.env.NODE_ENV === 'development' ? { devVerificationUrl: verifyUrl } : {}) });
 });
 
 app.get('/api/users/me', (req, res) => {
@@ -1136,13 +1160,15 @@ app.get('/api/users/me/payments', (req, res) => {
     return;
   }
   const ctx = getAuthContext(req)!;
-  const purchases = listAllPurchases().filter(p => p.userId === ctx.userId);
-  res.json(purchases.map(p => ({
-    id: p.id,
-    date: p.createdISO,
-    amount: 'R$ 0,00', // Mock
-    status: p.status,
-    pluginId: p.pluginId
+  const orders = listAllOrders().filter(o => o.userId === ctx.userId);
+  res.json(orders.map(o => ({
+    id: o.id,
+    dateISO: o.createdISO,
+    amountCents: o.totalCents,
+    status: o.status,
+    method: o.paymentProvider,
+    paymentId: o.paymentId,
+    pluginName: o.pluginIds.map(id => getPluginDetail(id)?.name || `Produto ${id}`).join(', ')
   })));
 });
 
@@ -1157,8 +1183,8 @@ app.get('/api/plugins/:id/config', (req, res) => {
   if (!purchase) return res.status(404).json({ error: 'licença não encontrada' });
   
   res.json({
-    jarUrl: `https://starfinplugins.com/download/${id}/latest.jar`,
-    version: '1.0.0',
+    jarUrl: null,
+    version: getPluginDetail(id)?.version || 'Versão indisponível',
     pluginId: id,
     hwid: purchase.hwid || '',
     allowedIp: purchase.allowedIp || ''
@@ -1292,13 +1318,6 @@ app.post('/api/commerce/coupon/validate', (req, res) => {
   const code = typeof req.body?.code === 'string' ? req.body.code.trim().toUpperCase() : '';
   const totalCents = typeof req.body?.totalCents === 'number' ? req.body.totalCents : 0;
   
-  // Hardcoded legacy support
-  if (code === 'STARFIN10') {
-    const discountCents = Math.round(totalCents * 0.1);
-    res.json({ code, discountCents, finalCents: totalCents - discountCents });
-    return;
-  }
-
   const coupon = findCouponByCode(code);
   if (!coupon || !coupon.active) {
     res.status(404).json({ error: 'cupom inválido ou inativo' });
@@ -1683,10 +1702,14 @@ app.post('/api/commerce/checkout', async (req, res) => {
   // Apply coupon if any
   if (couponCode && items.length > 0 && totalCents > 0) {
     const coupon = findCouponByCode(couponCode);
-    if (coupon && coupon.active &&
-        (!coupon.expiresAt || Date.parse(coupon.expiresAt) > Date.now()) &&
-        (coupon.maxUses == null || coupon.usedCount < coupon.maxUses) &&
-        (coupon.minPurchase == null || totalCents >= coupon.minPurchase)) {
+    if (!coupon || !coupon.active ||
+        (coupon.expiresAt && Date.parse(coupon.expiresAt) <= Date.now()) ||
+        (coupon.maxUses != null && coupon.usedCount >= coupon.maxUses) ||
+        (coupon.minPurchase != null && totalCents < coupon.minPurchase)) {
+      res.status(400).json({ error: 'Cupom inválido ou indisponível. Revise o pedido antes de pagar.' });
+      return;
+    }
+    {
       let totalDiscountCents = 0;
       if (coupon.discountType === 'percentage') {
         totalDiscountCents = Math.floor((totalCents * coupon.discountValue) / 100);
@@ -2549,6 +2572,9 @@ app.post('/api/admin/plugins', (req, res) => {
     mcVersion: String(body.mcVersion),
     imageUrl: String(body.imageUrl),
     priceDisplay: String(body.priceDisplay),
+    featured: body.featured === true,
+    platform: typeof body.platform === 'string' ? body.platform : undefined,
+    dependencies: Array.isArray(body.dependencies) ? body.dependencies.map(String) : undefined,
     rating: typeof body.rating === 'number' ? body.rating : undefined,
     downloadsDisplay: typeof body.downloadsDisplay === 'string' ? body.downloadsDisplay : undefined
   });
@@ -2667,7 +2693,8 @@ app.get('/api/admin/settings', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  res.json(getAdminSettings());
+  const settings = getAdminSettings();
+  res.json({ ...settings, mercadopagoAccessToken: '', mercadopagoTokenConfigured: Boolean(settings.mercadopagoAccessToken || process.env.MP_ACCESS_TOKEN) });
 });
 
 app.post('/api/admin/settings', (req, res) => {
@@ -2675,8 +2702,14 @@ app.post('/api/admin/settings', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  const next = saveAdminSettings(req.body ?? {});
-  res.json({ success: true, settings: next });
+  const body = { ...(req.body ?? {}) };
+  // An empty or masked field leaves the stored credential untouched.
+  if (typeof body.mercadopagoAccessToken !== 'string' ||
+      !body.mercadopagoAccessToken.trim() || body.mercadopagoAccessToken === '********') {
+    delete body.mercadopagoAccessToken;
+  }
+  const next = saveAdminSettings(body);
+  res.json({ success: true, settings: { ...next, mercadopagoAccessToken: '', mercadopagoTokenConfigured: Boolean(next.mercadopagoAccessToken || process.env.MP_ACCESS_TOKEN) } });
 });
 
 app.get('/api/admin/support/tickets', (req, res) => {
@@ -2957,51 +2990,6 @@ app.post('/api/users/me/notifications/read-all', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/users/me/payments', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const userPurchases = listAllPurchases().filter(p => p.userId === ctx.userId);
-  res.json(userPurchases.map(p => ({
-    id: p.id,
-    dateISO: p.createdISO,
-    amountCents: 1990, // Exemplo fixo
-    status: p.status,
-    method: 'PIX',
-    pluginName: getPluginDetail(p.pluginId)?.name || 'Plugin'
-  })));
-});
-
-app.get('/api/plugins/:id/config', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const id = Number(req.params.id);
-  const plugin = getPluginDetail(id);
-  const ctx = getAuthContext(req)!;
-  const user = findUserById(ctx.userId);
-  
-  res.json({
-    pluginId: id,
-    name: plugin?.name || 'Plugin',
-    version: plugin?.version || '1.0.0',
-    jarUrl: `https://starfinplugins.com/download/${id}/latest.jar`,
-    hwid: 'NÃO VINCULADO',
-    allowedIp: user?.allowedIp || ''
-  });
-});
-
-app.patch('/api/plugins/:id/config', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  res.json({ success: true });
-});
-
 app.get('/api/status', (_req, res) => {
   res.json({ items: statusComponents });
 });
@@ -3062,14 +3050,7 @@ app.get('/api/admin/stats', (req, res) => {
     .filter((o) => normalizeStatus(o.status) === 'approved')
     .reduce((acc, order) => acc + Math.max(0, Number(order.totalCents || 0)), 0);
 
-  const fallbackApprovedPurchaseRevenue = allPurchases
-    .filter((p) => normalizeStatus(p.status) === 'approved')
-    .reduce((acc, purchase) => {
-      const plugin = pluginById.get(purchase.pluginId);
-      return acc + Math.max(0, Math.round(Number(plugin?.priceCents || 0)));
-    }, 0);
-
-  const totalRevenueCents = approvedOrderRevenue > 0 ? approvedOrderRevenue : fallbackApprovedPurchaseRevenue;
+  const totalRevenueCents = approvedOrderRevenue;
 
   const salesByPlugin = new Map<number, number>();
   for (const purchase of allPurchases) {
@@ -3087,8 +3068,7 @@ app.get('/api/admin/stats', (req, res) => {
         id: String(pluginId),
         name: plugin?.name || fallbackName,
         slug: (plugin?.name || fallbackName).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-        sales,
-        revenueCents: sales * Math.max(0, Math.round(Number(plugin?.priceCents || 0)))
+        sales
       };
     });
 
@@ -3556,6 +3536,12 @@ app.put('/api/admin/purchases/:id', async (req, res) => {
   }
   const id = req.params.id;
   const body = req.body ?? {};
+  if (Object.keys(body).some(key => !['allowedIp', 'resetHwid'].includes(key)) ||
+      (body.allowedIp !== undefined && body.allowedIp !== null && typeof body.allowedIp !== 'string') ||
+      (body.resetHwid !== undefined && typeof body.resetHwid !== 'boolean')) {
+    res.status(400).json({ error: 'Somente IP autorizado e reset de HWID podem ser alterados aqui.' });
+    return;
+  }
   
   const purchase = updatePurchaseAdmin(id, body);
   if (!purchase) {
@@ -3563,56 +3549,12 @@ app.put('/api/admin/purchases/:id', async (req, res) => {
     return;
   }
 
-  const user = findUserById(purchase.userId);
-  const plugin = getPluginDetail(purchase.pluginId);
-  if (user && body.status) {
-    const pluginName = plugin?.name ?? purchase.pluginId;
-    const statusText =
-      purchase.status === 'approved'
-        ? 'Aprovada'
-        : purchase.status === 'cancelled'
-          ? 'Cancelada'
-          : purchase.status === 'rejected'
-            ? 'Recusada'
-            : 'Pendente';
-
-    addNotification(
-      'Status de venda atualizado',
-      `Compra ${purchase.id} (${pluginName}) agora está ${statusText.toLowerCase()}.`,
-      {
-        type: 'sale',
-        priority: purchase.status === 'approved' ? 'high' : 'normal',
-        source: 'admin_purchase_update',
-        metadata: { purchaseId: purchase.id, status: purchase.status, pluginId: purchase.pluginId, userId: purchase.userId }
-      }
-    );
-    
-    let extraHtml = '';
-    if (purchase.status === 'approved' && purchase.licenseKey) {
-      extraHtml = `
-        <p style="color: #c77dff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Sua Chave de Licença</p>
-        <div style="background-color: #0b0b0f; border: 1px dashed #7b2cbf; border-radius: 8px; padding: 15px; text-align: center;">
-          <code style="color: #ffffff; font-size: 18px; font-family: monospace; letter-spacing: 2px;">${purchase.licenseKey}</code>
-        </div>
-      `;
-    }
-
-    await sendEmail({
-      to: user.email,
-      subject: `Atualização da compra (${purchase.id}) - StarfinPlugins`,
-      html: EMAIL_LAYOUT(`
-        <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 20px;">Pedido Atualizado</h2>
-        <p style="color: #a0a0a8; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-          O status do seu pedido foi atualizado para: <strong>${statusText}</strong>
-        </p>
-        <div style="background-color: #1a1a22; border: 1px solid #7b2cbf44; border-radius: 12px; padding: 25px; margin-bottom: 20px;">
-          <p style="color: #c77dff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Produto</p>
-          <h3 style="color: #ffffff; font-size: 18px; margin: 0 0 15px 0;">${pluginName}</h3>
-          ${extraHtml}
-        </div>
-        <p style="color: #666666; font-size: 12px;">ID do Pedido: ${purchase.id}</p>
-      `)
-    });
+  if (body.allowedIp !== undefined || body.resetHwid) {
+    addNotification('Instalação de licença atualizada',
+      `Vínculo da licença ${purchase.id} atualizado por um administrador.`, {
+        type: 'sale', priority: 'high', source: 'admin_license_installation_update',
+        metadata: { purchaseId: purchase.id, userId: purchase.userId, resetHwid: body.resetHwid === true }
+      });
   }
   res.json({ ok: true, purchase });
 });
@@ -3793,11 +3735,11 @@ const start = async () => {
 
     console.log('Iniciando servidor...');
     await new Promise<void>((resolve, reject) => {
-      const server = app.listen(port, '0.0.0.0', () => resolve());
+      const server = app.listen(port, process.env.HOST || '127.0.0.1', () => resolve());
       server.once('error', reject);
     });
     console.log(`Server rodando na porta ${port}`);
-    process.stdout.write(`StarfinPlugins API rodando em http://0.0.0.0:${port} (${isProdRuntime ? 'prod' : 'dev'})\n`);
+    process.stdout.write(`StarfinPlugins API rodando em http://${process.env.HOST || '127.0.0.1'}:${port} (${isProdRuntime ? 'prod' : 'dev'})\n`);
   } catch (err) {
     console.error('Erro ao iniciar servidor:', err);
     process.exit(1);

@@ -10,7 +10,7 @@ import {
   revokeOrderPlugins
 } from './data.js';
 
-test('synthetic MySQL: duplicate payment delivery grants the product only once', () => {
+test('synthetic PostgreSQL: duplicate payment delivery grants the product only once', () => {
   const orderId = createOrder({
     userId: 'ci-customer',
     pluginIds: [87999],
@@ -38,7 +38,7 @@ test('synthetic MySQL: duplicate payment delivery grants the product only once',
   assert.equal(claimVerifiedOrder(orderId, '100100'), false);
 });
 
-test('synthetic MySQL: reversal competing with fulfillment cannot complete a reversed order', () => {
+test('synthetic PostgreSQL: reversal competing with fulfillment cannot complete a reversed order', () => {
   const orderId = createOrder({
     userId: 'ci-race',
     pluginIds: [88000],

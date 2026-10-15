@@ -18,12 +18,12 @@ interface RowsResult {
 }
 
 function parseDbConfig(): DbConfig {
-  const rawUrl = (process.env.MYSQL_URL || process.env.DATABASE_URL || '').trim();
-  if (rawUrl.startsWith('mysql://')) {
+  const rawUrl = (process.env.DATABASE_URL || '').trim();
+  if (rawUrl.startsWith('postgresql://') || rawUrl.startsWith('postgres://')) {
     const parsed = new URL(rawUrl);
     return {
       host: parsed.hostname || '127.0.0.1',
-      port: parsed.port ? Number(parsed.port) : 3306,
+      port: parsed.port ? Number(parsed.port) : 5432,
       user: decodeURIComponent(parsed.username || 'starfin_app'),
       password: decodeURIComponent(parsed.password || ''),
       database: parsed.pathname.replace(/^\//, '') || 'starfin_site'
@@ -32,7 +32,7 @@ function parseDbConfig(): DbConfig {
 
   return {
     host: (process.env.DB_HOST || '127.0.0.1').trim(),
-    port: Number(process.env.DB_PORT || 3306),
+    port: Number(process.env.DB_PORT || 5432),
     user: (process.env.DB_USER || 'starfin_app').trim(),
     password: process.env.DB_PASSWORD || '',
     database: (process.env.DB_NAME || 'starfin_site').trim()
@@ -49,21 +49,21 @@ function splitSqlStatements(sqlBlock: string) {
 const PYTHON_BRIDGE = `
 import json
 import sys
-import pymysql
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 payload = json.loads(sys.stdin.read())
 cfg = payload["config"]
 
-conn = pymysql.connect(
+conn = psycopg2.connect(
     host=cfg["host"],
     port=int(cfg["port"]),
     user=cfg["user"],
     password=cfg["password"],
     database=cfg["database"],
-    charset="utf8mb4",
-    autocommit=True,
-    cursorclass=pymysql.cursors.DictCursor,
+    cursor_factory=RealDictCursor,
 )
+conn.autocommit = True
 
 try:
     with conn.cursor() as cursor:
@@ -71,14 +71,12 @@ try:
         sql = payload["sql"]
         if params:
             sql = sql.replace("?", "%s")
-            while "?" in sql:
-                sql = sql.replace("?", "%s")
         cursor.execute(sql, params)
         mode = payload["mode"]
         if mode == "run":
             print(json.dumps({
                 "affectedRows": int(cursor.rowcount or 0),
-                "insertId": int(cursor.lastrowid or 0)
+                "insertId": 0
             }))
         else:
             rows = cursor.fetchall()
@@ -87,7 +85,7 @@ finally:
     conn.close()
 `;
 
-class MySqlStatement {
+class PostgresStatement {
   constructor(
     private readonly db: Database,
     private readonly rawSql: string
@@ -136,15 +134,30 @@ export default class Database {
   }
 
   prepare(rawSql: string) {
-    return new MySqlStatement(this, rawSql);
+    return new PostgresStatement(this, rawSql);
   }
 
   rewriteSql(rawSql: string) {
-    return rawSql
-      .replace(/\bINSERT\s+OR\s+IGNORE\b/gi, 'INSERT IGNORE')
-      .replace(/\bINSERT\s+OR\s+REPLACE\s+INTO\b/gi, 'REPLACE INTO')
-      .replace(/\bINSERT\s+OR\s+REPLACE\b/gi, 'REPLACE')
-      .replace(/"([A-Za-z_][A-Za-z0-9_]*)"/g, '`$1`');
+    let sql = rawSql
+      .replace(/\)\s*ENGINE=InnoDB\s+DEFAULT\s+CHARSET=utf8mb4\s+COLLATE=utf8mb4_unicode_ci/gi, ')')
+      .replace(/\bLONGTEXT\b/gi, 'TEXT')
+      .replace(/\bTINYINT\b/gi, 'SMALLINT')
+      .replace(/`([A-Za-z_][A-Za-z0-9_]*)`/g, '"$1"');
+
+    // PostgreSQL folds unquoted names to lowercase. Preserve the names used by
+    // the existing API without changing every query and response mapping.
+    sql = sql.split(/('(?:''|[^'])*')/g).map((part, index) => {
+      if (index % 2) return part;
+      return part.split(/("(?:""|[^"])*")/g).map((quoted, quotedIndex) =>
+        quotedIndex % 2 ? quoted : quoted.replace(/\b([a-z]+[A-Z][A-Za-z0-9_]*)\b/g, '"$1"')
+      ).join('');
+    }).join('');
+
+    sql = sql.replace(/\bINSERT\s+OR\s+IGNORE\s+INTO\b/gi, 'INSERT INTO');
+    if (/^\s*INSERT\s+INTO\b/i.test(sql) && /\bOR\s+IGNORE\b/i.test(rawSql)) {
+      sql += ' ON CONFLICT DO NOTHING';
+    }
+    return sql;
   }
 
   isPragmaTableInfo(rawSql: string) {
@@ -161,15 +174,15 @@ export default class Database {
       'all',
       `
         SELECT
-          COLUMN_NAME AS name,
-          COLUMN_TYPE AS type,
-          CASE WHEN IS_NULLABLE = 'NO' THEN 1 ELSE 0 END AS notnull,
-          COLUMN_DEFAULT AS dflt_value,
-          CASE WHEN COLUMN_KEY = 'PRI' THEN 1 ELSE 0 END AS pk
-        FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = ?
-        ORDER BY ORDINAL_POSITION
+          column_name AS name,
+          data_type AS type,
+          CASE WHEN is_nullable = 'NO' THEN 1 ELSE 0 END AS notnull,
+          column_default AS dflt_value,
+          0 AS pk
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = ?
+        ORDER BY ordinal_position
       `,
       [tableName]
     ) as RowsResult;

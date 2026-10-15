@@ -1,4 +1,6 @@
-# StarfinPlugins - Plataforma de E-commerce para Plugins Minecraft
+# StarfinWeb — StarfinPlugins
+
+> Reformulação em andamento na branch `main`. O código local e a CI não publicam automaticamente na VPS. Consulte [o acompanhamento da reformulação](docs/REFORM_PROGRESS.md) antes de qualquer publicação.
 
 Bem-vindo ao **StarfinPlugins**, uma plataforma completa e moderna desenvolvida para a venda, gerenciamento e licenciamento de plugins para servidores de Minecraft. Este projeto oferece uma experiência premium tanto para o cliente final quanto para o administrador da loja.
 
@@ -18,8 +20,8 @@ O projeto utiliza as tecnologias mais modernas do ecossistema JavaScript para ga
 
 ### Backend
 - **Node.js & Express**: Servidor robusto para a API.
-- **SQLite (better-sqlite3)**: Banco de dados local rápido e confiável.
-- **Prisma ORM**: Gerenciamento de esquemas e migrações de banco de dados.
+- **PostgreSQL**: Persistência do backend Express, por meio do adaptador síncrono em `server/src/postgres-sync.ts` (requer Python 3 e `psycopg2`).
+- **Prisma ORM**: Presente apenas no backend Next.js legado; não governa a API Express publicada.
 - **Mercado Pago SDK v2**: Integração completa para pagamentos via PIX, Cartão e Boleto.
 - **JWT (JSON Web Token)**: Autenticação segura de usuários.
 - **Nodemailer**: Sistema de envio de e-mails (verificação, recuperação de senha, newsletters).
@@ -111,18 +113,14 @@ O site estará disponível em `http://localhost:5173` e a API em `http://localho
 - `/prisma`: Esquema do banco de dados e arquivos de migração.
 - `/public`: Ativos estáticos como imagens e logos.
 
-## 🚂 Deploy no Railway
+## Desenvolvimento local
 
-Este projeto está configurado para deploy automático no **Railway**.
+1. Configure uma instância PostgreSQL descartável e defina `DATABASE_URL=postgresql://usuario:senha@localhost:5432/starfin_dev`.
+2. Instale Python 3 e `psycopg2-binary` no mesmo ambiente que executa a API.
+3. Execute `npm ci`, `npm run server:dev` e `npm run dev` em terminais separados.
+4. Verifique com `npm run build`, `npm run web:typecheck` e `npm run server:typecheck`.
 
-### Configuração
-1. Conecte seu repositório GitHub ao Railway.
-2. Adicione as variáveis de ambiente (`Variables`) necessárias:
-   - `JWT_SECRET`: Uma string aleatória segura.
-   - `MP_ACCESS_TOKEN`: Seu token de produção do Mercado Pago.
-   - `NODE_ENV`: `production`
-   - `DATABASE_URL`: (Opcional) Caminho para o banco SQLite se desejar persistência em volume montado.
-3. O Railway utilizará o comando `railway:build` definido no `package.json` para compilar o frontend e o backend, e o comando `start` para iniciar o servidor único que serve ambos.
+O backend comercial utilizado pelo Vite é o Express em `server/src`. O diretório `app/api` pertence ao fluxo Next.js legado e não deve ser tratado como um segundo checkout de produção. A publicação na VPS requer backup, comparação de esquema PostgreSQL e execução manual controlada; nenhum push equivale a autorização de deploy.
 
 ---
 

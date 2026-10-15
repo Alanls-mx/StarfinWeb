@@ -10,21 +10,21 @@ jobs:
   web-build:
     runs-on: ubuntu-latest
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: postgres:18
         env:
-          MYSQL_ROOT_PASSWORD: testpass
-          MYSQL_DATABASE: starfin_ci
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: starfin_ci
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ptestpass"
+          --health-cmd="pg_isready -U postgres -d starfin_ci"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=12
     env:
       NODE_ENV: test
-      MYSQL_URL: mysql://root:testpass@127.0.0.1:3306/starfin_ci
+      DATABASE_URL: postgresql://postgres:testpass@127.0.0.1:5432/starfin_ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,7 +33,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - run: npm run web:typecheck
       - run: npm run server:typecheck
+      - run: node --import tsx --test server/src/postgres-sync.test.ts
       - run: node --import tsx --test server/src/payment-validation.test.ts
-      - run: python3 -m pip install --break-system-packages pymysql
+      - run: python3 -m pip install --break-system-packages psycopg2-binary
       - run: node --import tsx --test server/src/payment-persistence.test.ts
+      - run: node --import tsx --test server/src/license-contract.test.ts
