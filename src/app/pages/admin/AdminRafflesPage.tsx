@@ -147,13 +147,13 @@ export function AdminRafflesPage() {
         <p className="text-gray-400">Crie sorteios, defina elegibilidade e entregue plugin/plano automaticamente ao vencedor.</p>
       </div>
 
-      <form onSubmit={handleCreate} className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={handleCreate} className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
           <label className="block text-sm text-gray-400 mb-2">Titulo</label>
           <input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+            className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
             required
           />
         </div>
@@ -162,7 +162,7 @@ export function AdminRafflesPage() {
           <input
             value={form.prize}
             onChange={(e) => setForm((f) => ({ ...f, prize: e.target.value }))}
-            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+            className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
           />
         </div>
         <div>
@@ -170,7 +170,7 @@ export function AdminRafflesPage() {
           <select
             value={form.eligibility}
             onChange={(e) => setForm((f) => ({ ...f, eligibility: e.target.value as AdminRaffle['eligibility'] }))}
-            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+            className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
           >
             <option value="approved_buyers">Compradores aprovados</option>
             <option value="premium_users">Usuarios premium</option>
@@ -182,7 +182,7 @@ export function AdminRafflesPage() {
           <select
             value={form.rewardKind}
             onChange={(e) => setForm((f) => ({ ...f, rewardKind: e.target.value as RewardKind }))}
-            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+            className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
           >
             <option value="none">Sem entrega automatica</option>
             <option value="plugin">Entregar plugin</option>
@@ -195,7 +195,7 @@ export function AdminRafflesPage() {
             value={form.rewardPluginId}
             onChange={(e) => setForm((f) => ({ ...f, rewardPluginId: e.target.value }))}
             disabled={form.rewardKind !== 'plugin'}
-            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF] disabled:opacity-60"
+            className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58] disabled:opacity-60"
           >
             <option value="">Selecione um plugin</option>
             {plugins.map((p) => (
@@ -211,7 +211,7 @@ export function AdminRafflesPage() {
             value={form.rewardPlanId}
             onChange={(e) => setForm((f) => ({ ...f, rewardPlanId: e.target.value }))}
             disabled={form.rewardKind !== 'plan'}
-            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF] disabled:opacity-60"
+            className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58] disabled:opacity-60"
           >
             <option value="">Selecione um plano</option>
             {plans.map((p) => (
@@ -229,7 +229,7 @@ export function AdminRafflesPage() {
             value={form.rewardPlanDays}
             onChange={(e) => setForm((f) => ({ ...f, rewardPlanDays: e.target.value }))}
             disabled={form.rewardKind !== 'plan'}
-            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF] disabled:opacity-60"
+            className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58] disabled:opacity-60"
           />
         </div>
         <div className="md:col-span-2">
@@ -237,14 +237,14 @@ export function AdminRafflesPage() {
           <textarea
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF] min-h-24"
+            className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58] min-h-24"
           />
         </div>
         <div className="md:col-span-2">
           <button
             disabled={saving}
             type="submit"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[#177F58] to-[#22A874] hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             Criar Sorteio
@@ -254,12 +254,12 @@ export function AdminRafflesPage() {
 
       {loading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="w-10 h-10 animate-spin text-[#C77DFF]" />
+          <Loader2 className="w-10 h-10 animate-spin text-[#A6F3C8]" />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {items.map((item) => (
-            <div key={item.id} className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6 space-y-4">
+            <div key={item.id} className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6 space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-xl font-bold">{item.title}</h3>
@@ -279,19 +279,19 @@ export function AdminRafflesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-[#0B0B0F]/50 rounded-lg p-3">
+                <div className="bg-[#0B1715]/50 rounded-lg p-3">
                   <p className="text-gray-500 mb-1">Premio</p>
                   <p className="font-medium">{item.prize || '-'}</p>
                 </div>
-                <div className="bg-[#0B0B0F]/50 rounded-lg p-3">
+                <div className="bg-[#0B1715]/50 rounded-lg p-3">
                   <p className="text-gray-500 mb-1">Participantes</p>
                   <p className="font-medium">{item.entrantsCount}</p>
                 </div>
-                <div className="bg-[#0B0B0F]/50 rounded-lg p-3 col-span-2">
+                <div className="bg-[#0B1715]/50 rounded-lg p-3 col-span-2">
                   <p className="text-gray-500 mb-1">Elegibilidade</p>
                   <p className="font-medium">{eligibilityLabel[item.eligibility]}</p>
                 </div>
-                <div className="bg-[#0B0B0F]/50 rounded-lg p-3 col-span-2">
+                <div className="bg-[#0B1715]/50 rounded-lg p-3 col-span-2">
                   <p className="text-gray-500 mb-1">Recompensa automatica</p>
                   <p className="font-medium">
                     {rewardLabel[item.rewardKind]}
@@ -299,7 +299,7 @@ export function AdminRafflesPage() {
                     {item.rewardKind === 'plan' && item.rewardPlanId ? ` (${item.rewardPlanId}, ${item.rewardPlanDays || 30} dias)` : ''}
                   </p>
                 </div>
-                <div className="bg-[#0B0B0F]/50 rounded-lg p-3 col-span-2">
+                <div className="bg-[#0B1715]/50 rounded-lg p-3 col-span-2">
                   <p className="text-gray-500 mb-1">Vencedor</p>
                   <p className="font-medium">{item.winnerName || '-'}</p>
                 </div>
@@ -309,7 +309,7 @@ export function AdminRafflesPage() {
                 <button
                   onClick={() => handleToggleStatus(item)}
                   disabled={item.status === 'drawn'}
-                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-[#7B2CBF]/15 border border-[#7B2CBF]/20 hover:bg-[#7B2CBF]/25 disabled:opacity-50"
+                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-[#177F58]/15 border border-[#177F58]/20 hover:bg-[#177F58]/25 disabled:opacity-50"
                 >
                   {item.status === 'open' ? 'Fechar sorteio' : 'Reabrir sorteio'}
                 </button>
@@ -333,8 +333,8 @@ export function AdminRafflesPage() {
           ))}
 
           {items.length === 0 && (
-            <div className="col-span-full bg-[#1A1A22]/20 border border-dashed border-[#7B2CBF]/15 rounded-2xl p-16 text-center text-gray-500">
-              <Gift className="w-8 h-8 mx-auto mb-3 text-[#C77DFF]" />
+            <div className="col-span-full bg-[#172822]/20 border border-dashed border-[#177F58]/15 rounded-2xl p-16 text-center text-gray-500">
+              <Gift className="w-8 h-8 mx-auto mb-3 text-[#A6F3C8]" />
               Nenhum sorteio criado ate o momento.
             </div>
           )}

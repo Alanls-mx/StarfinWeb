@@ -31,7 +31,7 @@ export function VerifyEmailPage() {
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-2xl p-10 text-center">
+        <div className="bg-[#172822]/60 backdrop-blur-sm border border-[#177F58]/20 rounded-2xl p-10 text-center">
           {status === 'loading' ? (
             <div className="text-gray-400">Verificando...</div>
           ) : status === 'ok' ? (
@@ -56,14 +56,14 @@ export function VerifyEmailPage() {
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Link
                 to="/account"
-                className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
+                className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl hover:shadow-lg hover:shadow-[#177F58]/50 transition-all duration-300"
               >
                 Ir para Minha Conta
               </Link>
             </motion.div>
             <Link
               to="/login"
-              className="inline-flex items-center justify-center px-6 py-3 bg-transparent border-2 border-[#7B2CBF] text-white rounded-xl hover:bg-[#7B2CBF]/10 hover:border-[#C77DFF] transition-all duration-300"
+              className="inline-flex items-center justify-center px-6 py-3 bg-transparent border-2 border-[#177F58] text-white rounded-xl hover:bg-[#177F58]/10 hover:border-[#A6F3C8] transition-all duration-300"
             >
               Entrar
             </Link>

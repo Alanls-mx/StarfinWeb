@@ -68,7 +68,7 @@ export function TicketDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen pt-32 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -83,9 +83,9 @@ export function TicketDetailPage() {
           Voltar para Suporte
         </Link>
 
-        <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-3xl overflow-hidden backdrop-blur-sm shadow-2xl">
+        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-3xl overflow-hidden backdrop-blur-sm shadow-2xl">
           {/* Header */}
-          <div className="p-8 border-b border-[#7B2CBF]/10 bg-[#7B2CBF]/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="p-8 border-b border-[#177F58]/10 bg-[#177F58]/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -111,7 +111,7 @@ export function TicketDetailPage() {
           </div>
 
           {/* Messages */}
-          <div 
+          <div
             ref={scrollRef}
             className="p-8 space-y-8 max-h-[500px] overflow-y-auto custom-scrollbar bg-black/20"
           >
@@ -124,17 +124,17 @@ export function TicketDetailPage() {
                 className={`flex gap-4 ${msg.isAdmin ? 'flex-row-reverse' : 'flex-row'}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center font-bold shadow-lg ${
-                  msg.isAdmin 
-                    ? 'bg-gradient-to-br from-[#7B2CBF] to-[#9D4EDD] text-white' 
-                    : 'bg-[#1A1A22] text-gray-400 border border-[#7B2CBF]/20'
+                  msg.isAdmin
+                    ? 'bg-gradient-to-br from-[#177F58] to-[#22A874] text-white'
+                    : 'bg-[#172822] text-gray-400 border border-[#177F58]/20'
                 }`}>
                   {msg.isAdmin ? 'S' : <User className="w-5 h-5" />}
                 </div>
                 <div className={`flex flex-col max-w-[80%] ${msg.isAdmin ? 'items-end' : 'items-start'}`}>
                   <div className={`px-6 py-4 rounded-2xl text-sm leading-relaxed ${
-                    msg.isAdmin 
-                      ? 'bg-[#7B2CBF]/20 text-white border border-[#7B2CBF]/30 rounded-tr-none' 
-                      : 'bg-[#1A1A22]/60 text-gray-300 border border-[#7B2CBF]/10 rounded-tl-none'
+                    msg.isAdmin
+                      ? 'bg-[#177F58]/20 text-white border border-[#177F58]/30 rounded-tr-none'
+                      : 'bg-[#172822]/60 text-gray-300 border border-[#177F58]/10 rounded-tl-none'
                   }`}>
                     {msg.content}
                   </div>
@@ -148,25 +148,25 @@ export function TicketDetailPage() {
 
           {/* Reply Area */}
           {ticket.status !== 'closed' ? (
-            <div className="p-8 border-t border-[#7B2CBF]/10 bg-black/40">
+            <div className="p-8 border-t border-[#177F58]/10 bg-black/40">
               <form onSubmit={handleReply} className="relative">
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Escreva sua resposta..."
-                  className="w-full pl-6 pr-16 py-4 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-2xl text-white focus:border-[#7B2CBF] outline-none transition-all min-h-24 resize-none"
+                  className="w-full pl-6 pr-16 py-4 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-2xl text-white focus:border-[#177F58] outline-none transition-all min-h-24 resize-none"
                 />
                 <button
                   type="submit"
                   disabled={sending || !message.trim()}
-                  className="absolute right-4 bottom-4 p-3 bg-[#7B2CBF] text-white rounded-xl hover:bg-[#9D4EDD] transition-all disabled:opacity-50 disabled:hover:scale-100 hover:scale-110 active:scale-95 shadow-lg shadow-[#7B2CBF]/20"
+                  className="absolute right-4 bottom-4 p-3 bg-[#177F58] text-white rounded-xl hover:bg-[#22A874] transition-all disabled:opacity-50 disabled:hover:scale-100 hover:scale-110 active:scale-95 shadow-lg shadow-[#177F58]/20"
                 >
                   <Send className="w-5 h-5" />
                 </button>
               </form>
             </div>
           ) : (
-            <div className="p-8 border-t border-[#7B2CBF]/10 bg-red-500/5 text-center">
+            <div className="p-8 border-t border-[#177F58]/10 bg-red-500/5 text-center">
               <p className="text-red-400 text-sm font-medium">Este ticket está encerrado e não aceita mais respostas.</p>
             </div>
           )}

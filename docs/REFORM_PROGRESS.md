@@ -1,5 +1,9 @@
 # Reformulação StarfinWeb — acompanhamento
 
+## Atualização visual de 15/10/2026
+
+A identidade gamer em preto, verde e ciano foi aplicada à home, ao catálogo, à página de produto, ao acesso, à conta, às licenças e aos pedidos. A skin fornecida pelo proprietário entrou como personagem nas ilustrações e a textura original foi guardada em `public/voxel/`. Tokens, componentes e regras de uso estão em `docs/DESIGN_SYSTEM.md`. As demais páginas públicas e administrativas receberam a paleta revisada; seus fluxos profundos continuam sujeitos à revisão descrita nas próximas fases. Esta atualização foi preparada na `main` sem nova implantação na VPS.
+
 Atualizado em 15/10/2026. A implementação descrita abaixo foi publicada na `main` e implantada na VPS no commit `0ffda33`.
 
 ## Mapa auditado

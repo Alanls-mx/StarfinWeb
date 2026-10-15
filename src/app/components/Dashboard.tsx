@@ -157,7 +157,7 @@ export function Dashboard() {
     (async () => {
       try {
         const [licRes, settingsRes, serversRes] = await Promise.all([
-          getMyLicenses(token), 
+          getMyLicenses(token),
           getMySettings(token),
           listMyServers(token)
         ]);
@@ -226,19 +226,21 @@ export function Dashboard() {
 
   if (state.status !== 'authenticated') {
     return (
-      <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-[#0b1715] pt-28 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
-          <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-2xl p-10 text-center">
-            <h1 className="text-4xl sm:text-5xl mb-4">Minha Conta</h1>
-            <p className="text-gray-400 text-lg mb-8">Entre para gerenciar suas licenças, downloads e chaves de API.</p>
+          <div className="overflow-hidden rounded-[2rem] border border-[#b7efbd] bg-[#e9f9e8] text-[#11291b] sm:grid sm:grid-cols-[1fr_230px]">
+            <div className="p-8 sm:p-10"><p className="sf-eyebrow !text-[#147a58]">Seu espaço Starfin</p><h1 className="mt-3 mb-4 text-4xl font-extrabold tracking-tight sm:text-5xl">Minha Conta</h1>
+            <p className="mb-8 text-base leading-7 text-[#4e6955]">Entre para gerenciar suas licenças, plugins e servidores em um só lugar.</p>
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigate('/login')}
-              className="px-8 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-xl hover:shadow-[#7B2CBF]/50 transition-all duration-300"
+              className="sf-button-primary"
             >
               Entrar
             </motion.button>
+            </div>
+            <div className="relative hidden min-h-65 bg-[#bcefd0] sm:block"><img src="/voxel/engineer.webp" alt="Personagem voxel apresentando a área da conta" className="absolute inset-x-0 -bottom-5 h-[115%] w-full object-contain object-bottom" /></div>
           </div>
         </div>
       </div>
@@ -246,15 +248,17 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#0b1715] pt-27 pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-4 mb-2">
-              <h1 className="text-4xl sm:text-5xl">Minha Conta</h1>
+        <div className="relative mb-8 min-h-[470px] overflow-hidden rounded-[2rem] bg-[linear-gradient(115deg,#dcf9ce,#7ce5ce)] p-7 text-[#11291b] sm:min-h-[280px] sm:p-10">
+          <div aria-hidden="true" className="sf-grid absolute inset-0 opacity-70" />
+          <div className="relative z-10 max-w-full sm:max-w-[60%]">
+            <p className="sf-eyebrow !text-[#126c53]">Painel do jogador</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <h1 className="text-4xl font-extrabold tracking-[-.055em] sm:text-5xl">Minha Conta</h1>
               <div className="flex gap-2">
-                <span className="px-3 py-1 bg-[#7B2CBF]/20 text-[#C77DFF] text-xs font-bold rounded-full border border-[#7B2CBF]/30 uppercase tracking-wider">
+                <span className="rounded-full border border-[#5bbd88] bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#13573a]">
                   {user?.plan || 'Free'}
                 </span>
                 {user?.role === 'admin' && (
@@ -264,23 +268,14 @@ export function Dashboard() {
                 )}
               </div>
             </div>
-            <p className="text-gray-400 text-lg">
-              Gerencie seus plugins, licenças, integrações e configurações
-            </p>
+            <p className="mt-4 max-w-lg text-sm leading-7 text-[#385e49] sm:text-base">Bem-vindo de volta, {user?.name?.split(' ')[0]}. Seus plugins, licenças e servidores estão aqui.</p>
+            <div className="mt-6 hidden text-xs font-semibold text-[#32624c] sm:block">{user?.email}</div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <div className="text-white font-medium">{user?.name}</div>
-              <div className="text-xs text-gray-500">{user?.email}</div>
-            </div>
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#7B2CBF] to-[#9D4EDD] flex items-center justify-center text-white font-bold text-xl">
-              {user?.name?.[0]?.toUpperCase()}
-            </div>
-          </div>
+          <img src="/voxel/engineer.webp" alt="Personagem voxel mostrando a gestão da conta" className="absolute -right-4 bottom-0 h-[45%] w-[62%] object-contain object-bottom sm:right-2 sm:-bottom-10 sm:h-[105%] sm:w-[42%]" />
         </div>
 
         {user?.verified === false ? (
-          <div className="mb-8 bg-[#1A1A22]/60 border border-amber-500/30 rounded-2xl p-6">
+          <div className="mb-8 bg-[#172822]/60 border border-amber-500/30 rounded-2xl p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="text-white mb-1">Confirme seu email</div>
@@ -302,7 +297,7 @@ export function Dashboard() {
                     toast.error('Erro ao reenviar e-mail.');
                   }
                 }}
-                className="px-5 py-3 bg-white text-[#0B0B0F] rounded-xl hover:bg-gray-100 transition-all duration-300"
+                className="px-5 py-3 bg-white text-[#0B1715] rounded-xl hover:bg-gray-100 transition-all duration-300"
               >
                 Reenviar verificação
               </motion.button>
@@ -310,54 +305,47 @@ export function Dashboard() {
           </div>
         ) : null}
 
-        <nav aria-label="Seções da conta" className="mb-8 flex flex-wrap gap-2 border-b border-white/10 pb-5 text-sm">
-          <Link to="/account/licenses" className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Licenças</Link>
-          <a href="#servidores" className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Servidores</a>
-          <a href="#plugins" className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Plugins</a>
-          <Link to="/account/orders" className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Pedidos</Link>
-          <button type="button" onClick={openSettings} className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Perfil</button>
+        <nav aria-label="Seções da conta" className="mb-8 flex flex-wrap gap-2 rounded-xl border border-[#315647] bg-[#152a22] p-2 text-sm">
+          <Link to="/account/licenses" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Licenças</Link>
+          <a href="#servidores" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Servidores</a>
+          <a href="#plugins" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Plugins</a>
+          <Link to="/account/orders" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Pedidos</Link>
+          <button type="button" onClick={openSettings} className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Perfil</button>
         </nav>
 
         {loadError && <p role="alert" className="mb-8 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{loadError}</p>}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="mb-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: Package, label: 'Plugins Comprados', value: String(stats.pluginsCount), color: 'from-[#7B2CBF] to-[#9D4EDD]' },
-            { icon: Server, label: 'Servidores cadastrados', value: String(stats.serversCount), color: 'from-[#9D4EDD] to-[#C77DFF]' },
-            { icon: Key, label: 'Licenças Ativas', value: String(stats.licensesActive), color: 'from-[#5A189A] to-[#7B2CBF]' },
-            { 
-              icon: Shield, 
-              label: user?.plan || 'Free', 
-              value: 'Plano', 
-              color: 'from-[#3C096C] to-[#5A189A]',
-              onClick: () => setActiveModal('plans')
-            }
+            { icon: Package, label: 'Plugins na conta', value: String(stats.pluginsCount), tone: 'bg-[#e8f8df]', onClick: () => document.getElementById('plugins')?.scrollIntoView({ behavior: 'smooth' }) },
+            { icon: Server, label: 'Servidores cadastrados', value: String(stats.serversCount), tone: 'bg-[#d9f4ee]', onClick: () => document.getElementById('servidores')?.scrollIntoView({ behavior: 'smooth' }) },
+            { icon: Key, label: 'Licenças ativas', value: String(stats.licensesActive), tone: 'bg-[#f3f8db]', onClick: () => navigate('/account/licenses') },
+            { icon: Shield, label: user?.plan || 'Free', value: 'Plano', tone: 'bg-[#dceee4]', onClick: () => setActiveModal('plans') }
           ].map((stat, index) => (
-            <div
+            <button type="button"
               key={index}
               onClick={stat.onClick}
-              className={`relative bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6 hover:border-[#7B2CBF]/50 transition-all duration-300 overflow-hidden group ${stat.onClick ? 'cursor-pointer' : ''}`}
+              className={`group relative overflow-hidden rounded-2xl border border-[#b8d9c2] p-5 text-left text-[#133326] transition-transform hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#85ed65] ${stat.tone}`}
             >
-              <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${stat.color} opacity-10 blur-2xl group-hover:opacity-20 transition-opacity duration-300 rounded-full`}></div>
               <div className="relative">
-                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mb-4`}>
-                  <stat.icon className="w-6 h-6 text-white" />
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#1b714e] text-white">
+                  <stat.icon className="h-5 w-5" />
                 </div>
-                <div className="text-3xl text-white mb-1">{stat.value}</div>
-                <div className="text-sm text-gray-400">{stat.label}</div>
+                <div className="mb-1 text-3xl font-extrabold">{stat.value}</div>
+                <div className="text-sm font-semibold text-[#4f6d59]">{stat.label}</div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 
-        <div className="mb-10 rounded-xl border border-white/10 bg-card p-6 sm:p-8">
+        <div className="mb-10 rounded-2xl border border-[#37694d] bg-[#174d39] p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-5">
             <div>
               <h2 className="text-xl font-semibold">Licenças e acesso</h2>
               <p className="mt-2 text-sm text-muted-foreground">Consulte sua chave principal, os produtos autorizados e o IP global.</p>
             </div>
-            <Link to="/account/licenses" className="rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">Gerenciar licenças</Link>
+            <Link to="/account/licenses" className="sf-button-primary">Gerenciar licenças</Link>
           </div>
         </div>
 
@@ -365,12 +353,12 @@ export function Dashboard() {
         <div id="servidores" className="mb-12 scroll-mt-28">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <Server className="w-6 h-6 text-[#C77DFF]" />
+              <Server className="w-6 h-6 text-[#A6F3C8]" />
               <h2 className="text-2xl font-semibold text-white">Meus Servidores</h2>
             </div>
             <button
               onClick={() => openServerModal(null)}
-              className="px-4 py-2 bg-[#7B2CBF] hover:bg-[#9D4EDD] text-white rounded-lg flex items-center gap-2 transition-all text-sm font-medium"
+              className="sf-button-primary"
             >
               <Plus className="w-4 h-4" />
               Novo Servidor
@@ -381,7 +369,7 @@ export function Dashboard() {
             {servers.map((server) => (
               <div
                 key={server.id}
-                className="bg-[#1A1A22]/60 border border-[#7B2CBF]/20 rounded-2xl p-6 hover:border-[#7B2CBF]/40 transition-all group"
+                className="bg-[#172822]/60 border border-[#177F58]/20 rounded-2xl p-6 hover:border-[#177F58]/40 transition-all group"
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-white">{server.name}</h3>
@@ -407,7 +395,7 @@ export function Dashboard() {
                     <div className="flex flex-wrap gap-2">
                       {server.ips.length > 0 ? (
                         server.ips.map((ip, i) => (
-                          <span key={i} className="px-2 py-1 bg-[#7B2CBF]/10 border border-[#7B2CBF]/20 rounded text-[10px] text-[#C77DFF] font-mono">
+                          <span key={i} className="px-2 py-1 bg-[#177F58]/10 border border-[#177F58]/20 rounded text-[10px] text-[#A6F3C8] font-mono">
                             {ip}
                           </span>
                         ))
@@ -439,15 +427,10 @@ export function Dashboard() {
             ))}
 
             {servers.length === 0 && (
-              <div className="col-span-full py-12 flex flex-col items-center justify-center border-2 border-dashed border-[#7B2CBF]/10 rounded-2xl">
-                <Server className="w-12 h-12 text-gray-600 mb-4" />
-                <p className="text-gray-400">Você ainda não criou nenhum servidor.</p>
-                <button
-                  onClick={() => openServerModal(null)}
-                  className="mt-4 text-[#C77DFF] hover:text-white transition-colors text-sm font-medium"
-                >
-                  Criar meu primeiro servidor
-                </button>
+              <div className="col-span-full grid overflow-hidden rounded-2xl border border-[#bee3c8] bg-[#e6f6e6] text-[#173526] sm:grid-cols-[1fr_230px]">
+                <div className="p-8 sm:p-10"><Server className="mb-4 h-7 w-7 text-[#137f56]" /><h3 className="text-2xl font-extrabold">Seu primeiro servidor começa aqui.</h3><p className="mt-3 max-w-md text-sm leading-7 text-[#526d59]">Cadastre um servidor para organizar seus IPs autorizados e os plugins que pertencem a ele.</p>
+                <button onClick={() => openServerModal(null)} className="sf-button-primary mt-6">Criar meu primeiro servidor <Plus size={17}/></button></div>
+                <div className="relative hidden min-h-55 bg-[#bcebd3] sm:block"><img src="/voxel/engineer.webp" alt="Personagem voxel segurando um núcleo de servidor" loading="lazy" className="absolute inset-x-0 -bottom-6 h-[115%] w-full object-contain object-bottom" /></div>
               </div>
             )}
           </div>
@@ -457,14 +440,14 @@ export function Dashboard() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Plugins Comprados */}
-            <div id="plugins" className="scroll-mt-28 bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6">
+            <div id="plugins" className="scroll-mt-28 bg-[#172822]/60 backdrop-blur-sm border border-[#177F58]/20 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl">Meus Plugins</h2>
                 <Link
                   to="/plugins"
-                  className="px-4 py-2 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-lg hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300 text-sm"
+                  className="sf-button-primary"
                 >
-                  Comprar Mais
+                  Explorar catálogo
                 </Link>
               </div>
 
@@ -472,11 +455,11 @@ export function Dashboard() {
                 {(loading ? [] : licenses).map((plugin) => (
                   <div
                     key={plugin.id}
-                    className="p-5 bg-[#0B0B0F]/50 rounded-lg border border-[#7B2CBF]/10 hover:border-[#7B2CBF]/30 transition-all duration-300 group"
+                    className="p-5 bg-[#0B1715]/50 rounded-lg border border-[#177F58]/10 hover:border-[#177F58]/30 transition-all duration-300 group"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="text-lg text-white mb-1 group-hover:text-[#C77DFF] transition-colors duration-300">
+                        <h3 className="text-lg text-white mb-1 group-hover:text-[#A6F3C8] transition-colors duration-300">
                           {plugin.name}
                         </h3>
                         <div className="flex flex-wrap gap-3 text-sm text-gray-400">
@@ -491,14 +474,14 @@ export function Dashboard() {
                         </span>
                         <button
                           onClick={() => openConfig(plugin.pluginId)}
-                          className="p-2 bg-[#7B2CBF]/20 text-[#C77DFF] rounded-lg hover:bg-[#7B2CBF]/30 transition-all duration-300"
+                          className="p-2 bg-[#177F58]/20 text-[#A6F3C8] rounded-lg hover:bg-[#177F58]/30 transition-all duration-300"
                           aria-label="Configurar plugin"
                         >
                           <Settings className="w-5 h-5" />
                         </button>
                         <Link
                           to={`/plugins/${plugin.pluginId}`}
-                          className="p-2 bg-[#7B2CBF]/20 text-[#C77DFF] rounded-lg hover:bg-[#7B2CBF]/30 transition-all duration-300"
+                          className="p-2 bg-[#177F58]/20 text-[#A6F3C8] rounded-lg hover:bg-[#177F58]/30 transition-all duration-300"
                           aria-label="Ver detalhes"
                         >
                           <Download className="w-5 h-5" />
@@ -507,7 +490,7 @@ export function Dashboard() {
                     </div>
                   </div>
                 ))}
-                {!loading && licenses.length === 0 && !loadError && <p className="py-8 text-center text-sm text-gray-400">Você ainda não possui plugins. <Link to="/plugins" className="text-[#C77DFF] hover:underline">Explorar catálogo</Link></p>}
+                {!loading && licenses.length === 0 && !loadError && <div className="flex flex-wrap items-center justify-between gap-5 rounded-xl border border-[#bde5ce] bg-[#e7f8ee] p-6 text-[#173526]"><div><h3 className="text-lg font-extrabold">Sua coleção começa aqui</h3><p className="mt-2 max-w-md text-sm leading-6 text-[#526d59]">Quando você adquirir um plugin publicado, ele aparecerá nesta área junto à sua licença.</p><Link to="/plugins" className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#0d7550] hover:underline">Explorar catálogo →</Link></div><img src="/voxel/creator-avatar.webp" alt="Personagem voxel mostrando a coleção de plugins" loading="lazy" className="h-36 w-28 object-contain" /></div>}
               </div>
             </div>
 
@@ -520,9 +503,9 @@ export function Dashboard() {
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
             {/* User Profile */}
-            <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6">
+            <div className="bg-[#172822]/60 backdrop-blur-sm border border-[#177F58]/20 rounded-xl p-6">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#7B2CBF] to-[#C77DFF] flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#177F58] to-[#A6F3C8] flex items-center justify-center">
                   <span className="text-2xl">👤</span>
                 </div>
                 <div>
@@ -534,9 +517,9 @@ export function Dashboard() {
               <div className="space-y-3">
                 <button
                   onClick={openSettings}
-                  className="w-full flex items-center gap-3 p-3 bg-[#0B0B0F]/50 rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-left group"
+                  className="w-full flex items-center gap-3 p-3 bg-[#0B1715]/50 rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-left group"
                 >
-                  <Settings className="w-5 h-5 text-gray-400 group-hover:text-[#C77DFF] transition-colors duration-300" />
+                  <Settings className="w-5 h-5 text-gray-400 group-hover:text-[#A6F3C8] transition-colors duration-300" />
                   <span className="text-sm text-gray-300 group-hover:text-white transition-colors duration-300">
                     Configurações
                   </span>
@@ -544,9 +527,9 @@ export function Dashboard() {
 
                 <Link
                   to="/account/orders"
-                  className="w-full flex items-center gap-3 p-3 bg-[#0B0B0F]/50 rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-left group"
+                  className="w-full flex items-center gap-3 p-3 bg-[#0B1715]/50 rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-left group"
                 >
-                  <CreditCard className="w-5 h-5 text-gray-400 group-hover:text-[#C77DFF] transition-colors duration-300" />
+                  <CreditCard className="w-5 h-5 text-gray-400 group-hover:text-[#A6F3C8] transition-colors duration-300" />
                   <span className="text-sm text-gray-300 group-hover:text-white transition-colors duration-300">
                     Meus pedidos
                   </span>
@@ -554,9 +537,9 @@ export function Dashboard() {
 
                 <button
                   onClick={openNotifications}
-                  className="w-full flex items-center gap-3 p-3 bg-[#0B0B0F]/50 rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-left group"
+                  className="w-full flex items-center gap-3 p-3 bg-[#0B1715]/50 rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-left group"
                 >
-                  <Bell className="w-5 h-5 text-gray-400 group-hover:text-[#C77DFF] transition-colors duration-300" />
+                  <Bell className="w-5 h-5 text-gray-400 group-hover:text-[#A6F3C8] transition-colors duration-300" />
                   <span className="text-sm text-gray-300 group-hover:text-white transition-colors duration-300">
                     Notificações
                   </span>
@@ -567,9 +550,9 @@ export function Dashboard() {
                     setPasswordForm({ current: '', new: '', confirm: '' });
                     setActiveModal('password');
                   }}
-                  className="w-full flex items-center gap-3 p-3 bg-[#0B0B0F]/50 rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-left group"
+                  className="w-full flex items-center gap-3 p-3 bg-[#0B1715]/50 rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-left group"
                 >
-                  <Lock className="w-5 h-5 text-gray-400 group-hover:text-[#C77DFF] transition-colors duration-300" />
+                  <Lock className="w-5 h-5 text-gray-400 group-hover:text-[#A6F3C8] transition-colors duration-300" />
                   <span className="text-sm text-gray-300 group-hover:text-white transition-colors duration-300">
                     Mudar Senha
                   </span>
@@ -578,10 +561,10 @@ export function Dashboard() {
                 {user?.role === 'admin' && (
                   <Link
                     to="/admin"
-                    className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-[#7B2CBF]/20 to-[#9D4EDD]/20 border border-[#7B2CBF]/30 rounded-lg hover:from-[#7B2CBF]/30 hover:to-[#9D4EDD]/30 transition-all duration-300 text-left group"
+                    className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-[#177F58]/20 to-[#22A874]/20 border border-[#177F58]/30 rounded-lg hover:from-[#177F58]/30 hover:to-[#22A874]/30 transition-all duration-300 text-left group"
                   >
-                    <Shield className="w-5 h-5 text-[#C77DFF] group-hover:text-white transition-colors duration-300" />
-                    <span className="text-sm text-[#C77DFF] group-hover:text-white transition-colors duration-300 font-medium">
+                    <Shield className="w-5 h-5 text-[#A6F3C8] group-hover:text-white transition-colors duration-300" />
+                    <span className="text-sm text-[#A6F3C8] group-hover:text-white transition-colors duration-300 font-medium">
                       Painel Admin
                     </span>
                   </Link>
@@ -590,34 +573,34 @@ export function Dashboard() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6">
+            <div className="bg-[#172822]/60 backdrop-blur-sm border border-[#177F58]/20 rounded-xl p-6">
               <h3 className="text-lg mb-4">Ações Rápidas</h3>
               <div className="space-y-3">
                 <Link
                   to="/plugins"
-                  className="w-full px-4 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-lg hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300 text-sm flex justify-center"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-lg hover:shadow-lg hover:shadow-[#177F58]/50 transition-all duration-300 text-sm flex justify-center"
                 >
                   Explorar Plugins
                 </Link>
-                <Link to="/support" className="block w-full px-4 py-3 bg-transparent border border-[#7B2CBF]/40 text-white rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-sm text-center">
+                <Link to="/support" className="block w-full px-4 py-3 bg-transparent border border-[#177F58]/40 text-white rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-sm text-center">
                   Suporte
                 </Link>
-                <Link to="/docs" className="block w-full px-4 py-3 bg-transparent border border-[#7B2CBF]/40 text-white rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-sm text-center">
+                <Link to="/docs" className="block w-full px-4 py-3 bg-transparent border border-[#177F58]/40 text-white rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-sm text-center">
                   Documentação
                 </Link>
               </div>
             </div>
 
             {/* Support Card */}
-            <div className="bg-gradient-to-br from-[#7B2CBF]/20 to-[#3C096C]/20 backdrop-blur-sm border border-[#7B2CBF]/30 rounded-xl p-6">
-              <div className="w-12 h-12 rounded-lg bg-[#7B2CBF] flex items-center justify-center mb-4">
+            <div className="bg-gradient-to-br from-[#177F58]/20 to-[#0A4C43]/20 backdrop-blur-sm border border-[#177F58]/30 rounded-xl p-6">
+              <div className="w-12 h-12 rounded-lg bg-[#177F58] flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg text-white mb-2">Precisa de Ajuda?</h3>
               <p className="text-sm text-gray-400 mb-4">
                 Abra um chamado de suporte e acompanhe a resposta pela plataforma.
               </p>
-              <Link to="/support" className="block w-full px-4 py-2 bg-white text-[#0B0B0F] rounded-lg hover:bg-gray-100 transition-all duration-300 text-sm text-center">
+              <Link to="/support" className="block w-full px-4 py-2 bg-white text-[#0B1715] rounded-lg hover:bg-gray-100 transition-all duration-300 text-sm text-center">
                 Abrir Ticket
               </Link>
             </div>
@@ -640,15 +623,15 @@ export function Dashboard() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-2xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+              <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
                 <h3 className="text-xl text-white font-medium capitalize">
                   {activeModal === 'settings' ? 'Configurações da Conta' :
                    activeModal === 'payments' ? 'Histórico de Pagamentos' :
-                   activeModal === 'notifications' ? 'Notificações' : 
-                   activeModal === 'server' ? 'Gerenciar Servidor' : 
+                   activeModal === 'notifications' ? 'Notificações' :
+                   activeModal === 'server' ? 'Gerenciar Servidor' :
                    activeModal === 'password' ? 'Alterar Senha' : 'Configuração do Plugin'}
                 </h3>
                 <button
@@ -663,29 +646,29 @@ export function Dashboard() {
               <div className="p-6 max-h-[70vh] overflow-y-auto">
                 {modalLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <div className="w-8 h-8 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-8 h-8 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     {activeModal === 'plans' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {availablePlans.map((plan) => (
-                          <div 
+                          <div
                             key={plan.id}
                             className={`relative p-6 rounded-2xl border transition-all ${
-                              user?.plan === plan.name 
-                                ? 'bg-[#7B2CBF]/10 border-[#7B2CBF] ring-1 ring-[#7B2CBF]' 
-                                : 'bg-[#1A1A22]/40 border-[#7B2CBF]/20 hover:border-[#7B2CBF]/50'
+                              user?.plan === plan.name
+                                ? 'bg-[#177F58]/10 border-[#177F58] ring-1 ring-[#177F58]'
+                                : 'bg-[#172822]/40 border-[#177F58]/20 hover:border-[#177F58]/50'
                             }`}
                           >
                             {user?.plan === plan.name && (
-                              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#7B2CBF] text-white text-[10px] font-bold rounded-full uppercase tracking-widest shadow-lg">
+                              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#177F58] text-white text-[10px] font-bold rounded-full uppercase tracking-widest shadow-lg">
                                 Plano Atual
                               </div>
                             )}
                             <div className="mb-4">
                               <h4 className="text-xl font-bold text-white mb-1">{plan.name}</h4>
-                              <div className="text-2xl font-bold text-[#C77DFF]">{plan.price}</div>
+                              <div className="text-2xl font-bold text-[#A6F3C8]">{plan.price}</div>
                             </div>
                             <ul className="space-y-3 mb-8">
                               {plan.features.map((feature: string, i: number) => (
@@ -695,7 +678,7 @@ export function Dashboard() {
                                 </li>
                               ))}
                               {plan.grantsAllPlugins && (
-                                <li className="flex items-start gap-2 text-sm text-[#C77DFF] font-medium">
+                                <li className="flex items-start gap-2 text-sm text-[#A6F3C8] font-medium">
                                   <Check className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                                   <span>Acesso a TODOS os plugins</span>
                                 </li>
@@ -711,13 +694,13 @@ export function Dashboard() {
                       <div className="space-y-6">
                         {/* Seção de Perfil */}
                         <div className="space-y-4">
-                          <h4 className="text-sm font-semibold text-[#C77DFF] uppercase tracking-wider">Perfil Público</h4>
+                          <h4 className="text-sm font-semibold text-[#A6F3C8] uppercase tracking-wider">Perfil Público</h4>
                           <div className="flex gap-4 items-center mb-4">
-                            <div className="w-16 h-16 rounded-full bg-[#7B2CBF]/20 border border-[#7B2CBF]/40 flex items-center justify-center overflow-hidden">
+                            <div className="w-16 h-16 rounded-full bg-[#177F58]/20 border border-[#177F58]/40 flex items-center justify-center overflow-hidden">
                               {profileData.avatarUrl ? (
                                 <img src={profileData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                               ) : (
-                                <Globe className="w-8 h-8 text-[#C77DFF]" />
+                                <Globe className="w-8 h-8 text-[#A6F3C8]" />
                               )}
                             </div>
                             <div className="flex-1">
@@ -726,7 +709,7 @@ export function Dashboard() {
                                 value={profileData.avatarUrl}
                                 onChange={(e) => setProfileData({ ...profileData, avatarUrl: e.target.value })}
                                 placeholder="https://..."
-                                className="w-full px-3 py-2 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-lg text-xs text-white outline-none focus:border-[#7B2CBF]"
+                                className="w-full px-3 py-2 bg-[#0B1715] border border-[#177F58]/20 rounded-lg text-xs text-white outline-none focus:border-[#177F58]"
                               />
                             </div>
                           </div>
@@ -736,7 +719,7 @@ export function Dashboard() {
                               value={profileData.bio}
                               onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                               placeholder="Conte um pouco sobre você..."
-                              className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white text-sm focus:border-[#7B2CBF] outline-none transition-all resize-none h-24"
+                              className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white text-sm focus:border-[#177F58] outline-none transition-all resize-none h-24"
                             />
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -746,7 +729,7 @@ export function Dashboard() {
                                 value={profileData.discordId}
                                 onChange={(e) => setProfileData({ ...profileData, discordId: e.target.value })}
                                 placeholder="usuario#0000"
-                                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white text-sm outline-none focus:border-[#7B2CBF]"
+                                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white text-sm outline-none focus:border-[#177F58]"
                               />
                             </div>
                             <div>
@@ -755,21 +738,21 @@ export function Dashboard() {
                                 value={profileData.githubUrl}
                                 onChange={(e) => setProfileData({ ...profileData, githubUrl: e.target.value })}
                                 placeholder="github.com/usuario"
-                                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white text-sm outline-none focus:border-[#7B2CBF]"
+                                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white text-sm outline-none focus:border-[#177F58]"
                               />
                             </div>
                           </div>
                         </div>
 
                         {/* Seção de Conta */}
-                        <div className="space-y-4 pt-6 border-t border-[#7B2CBF]/10">
-                          <h4 className="text-sm font-semibold text-[#C77DFF] uppercase tracking-wider">Dados da Conta</h4>
+                        <div className="space-y-4 pt-6 border-t border-[#177F58]/10">
+                          <h4 className="text-sm font-semibold text-[#A6F3C8] uppercase tracking-wider">Dados da Conta</h4>
                           <div>
                             <label className="block text-sm text-gray-400 mb-2">Nome de Exibição</label>
                             <input
                               defaultValue={modalData.name}
                               disabled
-                              className="w-full px-4 py-3 bg-[#0B0B0F]/50 border border-[#7B2CBF]/10 rounded-xl text-gray-500 cursor-not-allowed"
+                              className="w-full px-4 py-3 bg-[#0B1715]/50 border border-[#177F58]/10 rounded-xl text-gray-500 cursor-not-allowed"
                             />
                           </div>
                           <div>
@@ -777,10 +760,10 @@ export function Dashboard() {
                             <input
                               defaultValue={modalData.email}
                               disabled
-                              className="w-full px-4 py-3 bg-[#0B0B0F]/50 border border-[#7B2CBF]/10 rounded-xl text-gray-500 cursor-not-allowed"
+                              className="w-full px-4 py-3 bg-[#0B1715]/50 border border-[#177F58]/10 rounded-xl text-gray-500 cursor-not-allowed"
                             />
                           </div>
-                          <div className="flex items-center justify-between p-4 bg-[#0B0B0F] rounded-xl border border-[#7B2CBF]/10">
+                          <div className="flex items-center justify-between p-4 bg-[#0B1715] rounded-xl border border-[#177F58]/10">
                             <div>
                               <div className="text-white">Segurança (2FA)</div>
                               <div className="text-xs text-gray-400">Ative a autenticação em duas etapas</div>
@@ -789,10 +772,10 @@ export function Dashboard() {
                           </div>
                         </div>
 
-                        <button 
+                        <button
                           onClick={handleProfileUpdate}
                           disabled={profileSaving}
-                          className="w-full py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                          className="w-full py-4 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                         >
                           {profileSaving ? 'Salvando...' : 'Salvar Todas as Alterações'}
                         </button>
@@ -802,13 +785,13 @@ export function Dashboard() {
                     {activeModal === 'payments' && modalData && (
                       <div className="space-y-3">
                         {modalData.map((pay: any) => (
-                          <div key={pay.id} className="p-4 bg-[#0B0B0F] rounded-xl border border-[#7B2CBF]/10 flex items-center justify-between">
+                          <div key={pay.id} className="p-4 bg-[#0B1715] rounded-xl border border-[#177F58]/10 flex items-center justify-between">
                             <div>
                               <div className="text-white font-medium">{pay.pluginName}</div>
                               <div className="text-xs text-gray-500">{new Date(pay.dateISO).toLocaleDateString()} • {pay.method}</div>
                             </div>
                             <div className="text-right">
-                              <div className="text-[#C77DFF]">R$ {(pay.amountCents / 100).toFixed(2)}</div>
+                              <div className="text-[#A6F3C8]">R$ {(pay.amountCents / 100).toFixed(2)}</div>
                               <div className="text-[10px] text-emerald-400 uppercase tracking-wider">{pay.status}</div>
                             </div>
                           </div>
@@ -820,9 +803,9 @@ export function Dashboard() {
                     {activeModal === 'notifications' && modalData && (
                       <div className="space-y-3">
                         {modalData.map((n: any) => (
-                          <div key={n.id} className="p-4 bg-[#0B0B0F] rounded-xl border border-[#7B2CBF]/10">
+                          <div key={n.id} className="p-4 bg-[#0B1715] rounded-xl border border-[#177F58]/10">
                             <div className="flex items-center gap-3 mb-1">
-                              <div className="w-2 h-2 rounded-full bg-[#7B2CBF]"></div>
+                              <div className="w-2 h-2 rounded-full bg-[#177F58]"></div>
                               <div className="text-white font-medium">{n.title}</div>
                             </div>
                             <div className="text-sm text-gray-400 ml-5">{n.message}</div>
@@ -842,7 +825,7 @@ export function Dashboard() {
                               value={serverName}
                               onChange={(e) => setServerName(e.target.value)}
                               placeholder="Ex: Servidor de Survival"
-                              className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                              className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                             />
                           </div>
                           <div>
@@ -851,14 +834,14 @@ export function Dashboard() {
                               value={newServerIps}
                               onChange={(e) => setNewServerIps(e.target.value)}
                               placeholder="Ex: 127.0.0.1, 192.168.1.1"
-                              className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                              className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                             />
                             <p className="text-[10px] text-gray-500 mt-1">O plugin só funcionará em requisições vindas destes IPs.</p>
                           </div>
                         </div>
 
                         {modalData.id && (
-                          <div className="pt-6 border-t border-[#7B2CBF]/10">
+                          <div className="pt-6 border-t border-[#177F58]/10">
                             <label className="block text-sm text-gray-400 mb-4">Gerenciar Plugins do Servidor</label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               {licenses.map((license) => {
@@ -868,9 +851,9 @@ export function Dashboard() {
                                     key={license.pluginId}
                                     onClick={() => togglePluginOnServer(modalData.id, license.pluginId, isAssigned)}
                                     className={`p-4 rounded-xl border flex items-center justify-between transition-all group ${
-                                      isAssigned 
-                                        ? 'bg-emerald-500/10 border-emerald-500/40 text-white' 
-                                        : 'bg-[#0B0B0F] border-[#7B2CBF]/10 text-gray-400 hover:border-[#7B2CBF]/30'
+                                      isAssigned
+                                        ? 'bg-emerald-500/10 border-emerald-500/40 text-white'
+                                        : 'bg-[#0B1715] border-[#177F58]/10 text-gray-400 hover:border-[#177F58]/30'
                                     }`}
                                   >
                                     <div className="flex flex-col items-start">
@@ -896,7 +879,7 @@ export function Dashboard() {
                           <button
                             onClick={saveServer}
                             disabled={!serverName.trim()}
-                            className="w-full py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                            className="w-full py-4 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                           >
                             {modalData.id ? 'Salvar Alterações' : 'Criar Servidor'}
                           </button>
@@ -921,7 +904,7 @@ export function Dashboard() {
                               value={passwordForm.current}
                               onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
                               placeholder="••••••••"
-                              className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                              className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                             />
                           </div>
 
@@ -933,7 +916,7 @@ export function Dashboard() {
                                 value={passwordForm.new}
                                 onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
                                 placeholder="••••••••"
-                                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                               />
                             </div>
                             <div>
@@ -943,7 +926,7 @@ export function Dashboard() {
                                 value={passwordForm.confirm}
                                 onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
                                 placeholder="••••••••"
-                                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                               />
                             </div>
                           </div>
@@ -968,7 +951,7 @@ export function Dashboard() {
                                 setPasswordSaving(false);
                               }
                             }}
-                            className="w-full py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                            className="w-full py-4 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                           >
                             {passwordSaving ? 'Alterando...' : 'Confirmar Alteração'}
                           </button>
@@ -988,35 +971,35 @@ export function Dashboard() {
                             <div>
                               <label className="block text-sm text-gray-400 mb-2">HWID Vinculado</label>
                               <div className="flex gap-2">
-                                <code className="flex-1 px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white font-mono text-sm overflow-hidden text-ellipsis">
+                                <code className="flex-1 px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white font-mono text-sm overflow-hidden text-ellipsis">
                                   {modalData.hwid}
                                 </code>
                               </div>
                             </div>
                             <div>
                               <div className="mb-2 text-sm text-gray-400">IP desta compra</div>
-                              <code className="block rounded-xl border border-[#7B2CBF]/20 bg-[#0B0B0F] px-4 py-3 text-sm">{modalData.allowedIp || 'Não definido'}</code>
-                              <Link to="/account/licenses" onClick={() => setActiveModal(null)} className="mt-2 inline-block text-xs text-[#C77DFF] hover:underline">Gerenciar IP global</Link>
+                              <code className="block rounded-xl border border-[#177F58]/20 bg-[#0B1715] px-4 py-3 text-sm">{modalData.allowedIp || 'Não definido'}</code>
+                              <Link to="/account/licenses" onClick={() => setActiveModal(null)} className="mt-2 inline-block text-xs text-[#A6F3C8] hover:underline">Gerenciar IP global</Link>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm text-gray-400 mb-2">Versão Atual</label>
-                              <div className="px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white text-sm">
+                              <div className="px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white text-sm">
                                 {modalData.version}
                               </div>
                             </div>
                             <div>
                               <label className="block text-sm text-gray-400 mb-2">ID do Plugin</label>
-                              <div className="px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white text-sm">
+                              <div className="px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white text-sm">
                                 #{modalData.pluginId}
                               </div>
                             </div>
                           </div>
 
-                          <div className="pt-4 border-t border-[#7B2CBF]/10">
-                            <p className="rounded-lg border border-white/10 p-4 text-sm text-muted-foreground">Download indisponível nesta plataforma. Consulte o <Link to="/support" className="text-[#C77DFF] hover:underline">suporte</Link> se precisar de ajuda.</p>
+                          <div className="pt-4 border-t border-[#177F58]/10">
+                            <p className="rounded-lg border border-white/10 p-4 text-sm text-muted-foreground">Download indisponível nesta plataforma. Consulte o <Link to="/support" className="text-[#A6F3C8] hover:underline">suporte</Link> se precisar de ajuda.</p>
                           </div>
                         </div>
                       </div>

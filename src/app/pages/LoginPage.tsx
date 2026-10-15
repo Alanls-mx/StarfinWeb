@@ -25,11 +25,11 @@ export function LoginPage() {
   }, [state.status, navigate, next]);
 
   return (
-    <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-2xl p-10">
-          <h1 className="text-4xl mb-3">Entrar</h1>
-          <p className="text-gray-400 mb-8">Acesse sua conta para gerenciar licenças e integrações.</p>
+    <div className="min-h-screen bg-[#0b1715] pt-28 pb-16 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+        <div className="rounded-[1.7rem] border border-[#426a51] bg-[#172c22] p-7 sm:p-10">
+          <p className="sf-eyebrow mb-3">Bem-vindo de volta</p><h1 className="text-4xl font-extrabold tracking-tight mb-3">Entrar</h1>
+          <p className="text-[#bed7c6] mb-8">Acesse sua conta para gerenciar licenças, plugins e servidores.</p>
 
           <form 
             onSubmit={async (e) => {
@@ -66,7 +66,7 @@ export function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
-                  className="w-full pl-12 pr-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#7B2CBF] focus:ring-2 focus:ring-[#7B2CBF]/20 transition-all duration-300"
+                  className="w-full pl-12 pr-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#177F58] focus:ring-2 focus:ring-[#177F58]/20 transition-all duration-300"
                 />
               </div>
             </div>
@@ -83,21 +83,21 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#7B2CBF] focus:ring-2 focus:ring-[#7B2CBF]/20 transition-all duration-300"
+                  className="w-full pl-12 pr-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#177F58] focus:ring-2 focus:ring-[#177F58]/20 transition-all duration-300"
                 />
               </div>
             </div>
 
             {error ? <div className="text-sm text-red-400">{error}</div> : null}
 
-            <Link to="/forgot-password" className="block text-right text-sm text-[#c5c7ff] hover:text-white">Esqueceu a senha?</Link>
+            <Link to="/forgot-password" className="block text-right text-sm text-[#a9f58e] hover:text-white">Esqueceu a senha?</Link>
 
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={submitting || !email.trim() || !password}
-              className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-xl hover:shadow-[#7B2CBF]/50 transition-all duration-300 disabled:opacity-60"
+              className="sf-button-primary w-full disabled:opacity-60"
             >
               <User className="w-5 h-5" />
               Entrar
@@ -105,30 +105,11 @@ export function LoginPage() {
           </form>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-gradient-to-br from-[#7B2CBF]/15 to-[#3C096C]/10 backdrop-blur-sm border border-[#7B2CBF]/25 rounded-2xl p-10">
-            <div className="text-2xl text-white mb-2">O que você desbloqueia</div>
-            <ul className="text-sm text-gray-400 space-y-2">
-              <li>Gerenciamento de licenças e downloads</li>
-              <li>Criação e revogação de chaves de API</li>
-              <li>Integração de plugin → servidor (validação via API)</li>
-              <li>Suporte prioritário para planos Premium</li>
-            </ul>
-          </div>
-
-          <Link
-            to="/docs#api"
-            className="block text-center px-6 py-4 bg-transparent border-2 border-[#7B2CBF] text-white rounded-2xl hover:bg-[#7B2CBF]/10 hover:border-[#C77DFF] transition-all duration-300"
-          >
-            Ver documentação da API
-          </Link>
-
-          <Link
-            to="/register"
-            className="block text-center px-6 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-2xl hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
-          >
-            Criar conta
-          </Link>
+        <div className="relative flex min-h-[470px] flex-col justify-between overflow-hidden rounded-[1.7rem] bg-[linear-gradient(145deg,#d3f8b9,#76ddcf)] p-7 text-[#173526] sm:p-10">
+          <div aria-hidden="true" className="sf-grid absolute inset-0 opacity-70" />
+          <div className="relative z-10 max-w-xs"><p className="sf-eyebrow !text-[#126e51]">Seu espaço no ecossistema</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight">Toda a gestão em uma conta.</h2><p className="mt-3 text-sm leading-7 text-[#3a6952]">Licenças, servidores e pedidos ficam organizados para você encontrar tudo com facilidade.</p></div>
+          <img src="/voxel/engineer.webp" alt="Personagem voxel mostrando a gestão do servidor" className="absolute right-0 bottom-0 h-[53%] w-[55%] object-contain object-bottom" />
+          <Link to="/register" className="sf-button-primary relative z-10 mt-auto self-start">Criar conta</Link>
         </div>
       </div>
     </div>

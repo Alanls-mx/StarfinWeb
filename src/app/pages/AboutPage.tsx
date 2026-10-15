@@ -76,10 +76,10 @@ export function AboutPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="p-6 bg-[#13131A] border border-[#7B2CBF]/10 rounded-2xl flex gap-4"
+              className="p-6 bg-[#10221d] border border-[#177F58]/10 rounded-2xl flex gap-4"
             >
-              <div className="w-12 h-12 rounded-xl bg-[#7B2CBF]/20 flex items-center justify-center flex-shrink-0">
-                <value.icon className="w-6 h-6 text-[#C77DFF]" />
+              <div className="w-12 h-12 rounded-xl bg-[#177F58]/20 flex items-center justify-center flex-shrink-0">
+                <value.icon className="w-6 h-6 text-[#A6F3C8]" />
               </div>
               <div>
                 <h3 className="font-bold text-white mb-2">{value.title}</h3>
@@ -96,7 +96,7 @@ export function AboutPage() {
             <h2 className="text-3xl font-bold text-white">Nossa Equipe</h2>
             <p className="text-gray-400 mt-2">Profissionais dedicados a entregar produtos estaveis, uteis e com alto padrao tecnico.</p>
           </div>
-          <span className="text-xs uppercase tracking-wider text-[#C77DFF] bg-[#7B2CBF]/15 border border-[#7B2CBF]/25 px-3 py-1 rounded-full w-fit">
+          <span className="text-xs uppercase tracking-wider text-[#A6F3C8] bg-[#177F58]/15 border border-[#177F58]/25 px-3 py-1 rounded-full w-fit">
             Time multidisciplinar
           </span>
         </div>
@@ -108,7 +108,7 @@ export function AboutPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              className="bg-[#13131A] border border-[#7B2CBF]/10 rounded-2xl overflow-hidden hover:border-[#7B2CBF]/30 transition-all group"
+              className="bg-[#10221d] border border-[#177F58]/10 rounded-2xl overflow-hidden hover:border-[#177F58]/30 transition-all group"
             >
               <div className="relative h-60 overflow-hidden">
                 <ImageWithFallback
@@ -119,11 +119,11 @@ export function AboutPage() {
               </div>
               <div className="p-5">
                 <h3 className="text-lg font-bold text-white">{member.name}</h3>
-                <p className="text-[#C77DFF] text-sm font-semibold mt-1">{member.role}</p>
+                <p className="text-[#A6F3C8] text-sm font-semibold mt-1">{member.role}</p>
                 <p className="text-sm text-gray-400 leading-relaxed mt-3">{member.bio}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {member.skills.map((skill) => (
-                    <span key={skill} className="px-2.5 py-1 text-xs text-gray-300 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-full">
+                    <span key={skill} className="px-2.5 py-1 text-xs text-gray-300 bg-[#0B1715] border border-[#177F58]/20 rounded-full">
                       {skill}
                     </span>
                   ))}

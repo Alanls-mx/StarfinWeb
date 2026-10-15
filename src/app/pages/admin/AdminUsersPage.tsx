@@ -221,12 +221,12 @@ export function AdminUsersPage() {
               placeholder="Buscar por nome ou email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-[#1A1A22]/60 border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+              className="w-full pl-12 pr-4 py-3 bg-[#172822]/60 border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
             />
           </div>
           <button
             onClick={() => setIsCreating(true)}
-            className="px-6 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all"
+            className="px-6 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#177F58]/30 transition-all"
           >
             <Plus className="w-5 h-5" />
             Novo Usuário
@@ -236,13 +236,13 @@ export function AdminUsersPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
-          <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl overflow-hidden backdrop-blur-sm">
+          <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl overflow-hidden backdrop-blur-sm">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#7B2CBF]/10 bg-[#7B2CBF]/5">
+                <tr className="border-b border-[#177F58]/10 bg-[#177F58]/5">
                   <th className="p-4 text-sm font-medium text-gray-400">Usuário</th>
                   <th className="p-4 text-sm font-medium text-gray-400">Cargo</th>
                   <th className="p-4 text-sm font-medium text-gray-400">Plano</th>
@@ -250,12 +250,12 @@ export function AdminUsersPage() {
                   <th className="p-4 text-sm font-medium text-gray-400 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#7B2CBF]/5">
+              <tbody className="divide-y divide-[#177F58]/5">
                 {filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-[#7B2CBF]/5 transition-colors group">
+                  <tr key={user.id} className="hover:bg-[#177F58]/5 transition-colors group">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7B2CBF] to-[#C77DFF] flex items-center justify-center text-white font-bold">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#177F58] to-[#A6F3C8] flex items-center justify-center text-white font-bold">
                           {(user.name?.[0] || '?').toUpperCase()}
                         </div>
                         <div>
@@ -316,7 +316,7 @@ export function AdminUsersPage() {
                               planDurationDays: getRemainingPlanDays(user.planExpiresAt)
                             })
                           }
-                          className="p-2 text-gray-400 hover:text-[#C77DFF] hover:bg-[#7B2CBF]/10 rounded-lg transition-all"
+                          className="p-2 text-gray-400 hover:text-[#A6F3C8] hover:bg-[#177F58]/10 rounded-lg transition-all"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -348,11 +348,11 @@ export function AdminUsersPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
-              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+              <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
                 <h3 className="text-xl text-white font-medium flex items-center gap-2">
-                  {isCreating ? <Plus className="w-5 h-5 text-[#C77DFF]" /> : <User className="w-5 h-5 text-[#C77DFF]" />}
+                  {isCreating ? <Plus className="w-5 h-5 text-[#A6F3C8]" /> : <User className="w-5 h-5 text-[#A6F3C8]" />}
                   {isCreating ? 'Novo Usuário' : 'Editar Usuário'}
                 </h3>
                 <button onClick={() => { setEditingUser(null); setIsCreating(false); }} className="p-2 text-gray-400 hover:text-white transition-colors">
@@ -367,7 +367,7 @@ export function AdminUsersPage() {
                     <input
                       value={isCreating ? newUser.name : editingUser?.name}
                       onChange={(e) => isCreating ? setNewUser({ ...newUser, name: e.target.value }) : setEditingUser({ ...editingUser!, name: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       required
                     />
                   </div>
@@ -376,7 +376,7 @@ export function AdminUsersPage() {
                     <input
                       value={isCreating ? newUser.email : editingUser?.email}
                       onChange={(e) => isCreating ? setNewUser({ ...newUser, email: e.target.value }) : setEditingUser({ ...editingUser!, email: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       required
                     />
                   </div>
@@ -389,7 +389,7 @@ export function AdminUsersPage() {
                       type="password"
                       value={newUser.password}
                       onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       required
                     />
                   </div>
@@ -402,7 +402,7 @@ export function AdminUsersPage() {
                       value={(isCreating ? newUser.phone : editingUser?.phone) || ''}
                       placeholder="(00) 00000-0000"
                       onChange={(e) => isCreating ? setNewUser({ ...newUser, phone: e.target.value }) : setEditingUser({ ...editingUser!, phone: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     />
                   </div>
                   <div>
@@ -410,7 +410,7 @@ export function AdminUsersPage() {
                     <select
                       value={isCreating ? newUser.role : editingUser?.role || 'user'}
                       onChange={(e) => isCreating ? setNewUser({ ...newUser, role: e.target.value as any }) : setEditingUser({ ...editingUser!, role: e.target.value as any })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     >
                       <option value="user">Usuário Comum</option>
                       <option value="premium">Premium</option>
@@ -426,7 +426,7 @@ export function AdminUsersPage() {
                     <select
                       value={isCreating ? newUser.plan : editingUser?.plan}
                       onChange={(e) => isCreating ? setNewUser({ ...newUser, plan: e.target.value as any }) : setEditingUser({ ...editingUser!, plan: e.target.value as any })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     >
                       <option value="Free">Gratuito (Free)</option>
                       {plans.map(p => (
@@ -447,7 +447,7 @@ export function AdminUsersPage() {
                           setEditingUser({ ...editingUser!, planExpiresAt: val as any, planDurationDays: undefined });
                         }
                       }}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     />
                   </div>
                   <div>
@@ -476,7 +476,7 @@ export function AdminUsersPage() {
                           setEditingUser({ ...editingUser!, planDurationDays: days, planExpiresAt: null });
                         }
                       }}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     />
                     <p className="mt-2 text-xs text-gray-500">Ao preencher os dias, a expiracao e calculada automaticamente.</p>
                   </div>
@@ -489,7 +489,7 @@ export function AdminUsersPage() {
                       id="banned"
                       checked={editingUser?.banned || false}
                       onChange={(e) => setEditingUser({ ...editingUser!, banned: e.target.checked })}
-                      className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 bg-[#0B0B0F]"
+                      className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 bg-[#0B1715]"
                     />
                     <label htmlFor="banned" className="text-sm font-medium text-red-400 cursor-pointer">
                       Banir conta (O usuário não poderá fazer login)
@@ -506,7 +506,7 @@ export function AdminUsersPage() {
                       const perms = e.target.value.split(',').map(p => p.trim()).filter(Boolean);
                       isCreating ? setNewUser({ ...newUser, permissions: perms }) : setEditingUser({ ...editingUser!, permissions: perms });
                     }}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                   />
                 </div>
 
@@ -514,14 +514,14 @@ export function AdminUsersPage() {
                   <button
                     type="button"
                     onClick={() => { setEditingUser(null); setIsCreating(false); }}
-                    className="flex-1 py-3 bg-[#1A1A22] text-white rounded-xl font-medium border border-[#7B2CBF]/20 hover:bg-[#7B2CBF]/10 transition-all"
+                    className="flex-1 py-3 bg-[#172822] text-white rounded-xl font-medium border border-[#177F58]/20 hover:bg-[#177F58]/10 transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                    className="flex-1 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                   >
                     {saving ? 'Salvando...' : isCreating ? 'Criar Usuário' : 'Salvar Alterações'}
                   </button>
@@ -545,12 +545,12 @@ export function AdminUsersPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-2xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
-              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+              <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
                 <div>
                   <h3 className="text-xl text-white font-medium flex items-center gap-2">
-                    <PackagePlus className="w-5 h-5 text-[#C77DFF]" />
+                    <PackagePlus className="w-5 h-5 text-[#A6F3C8]" />
                     Plugins do Usuário
                   </h3>
                   <p className="text-xs text-gray-400 mt-1">{managingUser.name} • {managingUser.email}</p>
@@ -565,7 +565,7 @@ export function AdminUsersPage() {
                   <select
                     value={assignPluginId}
                     onChange={(e) => setAssignPluginId(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                   >
                     <option value="">Selecione um plugin para atribuir</option>
                     {plugins.map((plugin) => (
@@ -578,14 +578,14 @@ export function AdminUsersPage() {
                     type="button"
                     onClick={handleAssignPlugin}
                     disabled={assigningPlugin || !assignPluginId}
-                    className="px-5 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                    className="px-5 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                   >
                     {assigningPlugin ? 'Atribuindo...' : 'Atribuir plugin'}
                   </button>
                 </div>
 
-                <div className="bg-[#0B0B0F]/60 border border-[#7B2CBF]/10 rounded-xl overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[#7B2CBF]/10 text-sm text-gray-400">
+                <div className="bg-[#0B1715]/60 border border-[#177F58]/10 rounded-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#177F58]/10 text-sm text-gray-400">
                     Plugins já atribuídos ({userPlugins.length})
                   </div>
                   {pluginsLoading ? (
@@ -593,7 +593,7 @@ export function AdminUsersPage() {
                   ) : userPlugins.length === 0 ? (
                     <div className="p-6 text-sm text-gray-500">Nenhum plugin atribuído manualmente.</div>
                   ) : (
-                    <div className="divide-y divide-[#7B2CBF]/10">
+                    <div className="divide-y divide-[#177F58]/10">
                       {userPlugins.map((item) => (
                         <div key={`${item.pluginId}-${item.purchaseId}`} className="px-4 py-3 flex items-center justify-between gap-4">
                           <div>

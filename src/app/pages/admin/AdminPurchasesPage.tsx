@@ -72,7 +72,7 @@ export function AdminPurchasesPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por ID, Usuário ou Chave..."
-            className="w-full pl-12 pr-4 py-3 bg-[#1A1A22]/60 border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF] transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-[#172822]/60 border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58] transition-all"
           />
         </div>
       </div>
@@ -80,15 +80,15 @@ export function AdminPurchasesPage() {
         {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : !error && filtered.length === 0 ? (
           <div className="rounded-xl border border-white/10 bg-card p-10 text-center text-sm text-muted-foreground">{items.length === 0 ? 'Nenhuma licença registrada.' : 'Nenhuma licença corresponde à busca.'}</div>
         ) : !error && (
-          <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl overflow-x-auto backdrop-blur-sm">
+          <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl overflow-x-auto backdrop-blur-sm">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
-                <tr className="bg-[#7B2CBF]/5 border-b border-[#7B2CBF]/10">
+                <tr className="bg-[#177F58]/5 border-b border-[#177F58]/10">
                   <th className="p-4 text-sm font-medium text-gray-400">ID / Data</th>
                   <th className="p-4 text-sm font-medium text-gray-400">Usuário / Plugin</th>
                   <th className="p-4 text-sm font-medium text-gray-400">Chave de Licença</th>
@@ -97,19 +97,19 @@ export function AdminPurchasesPage() {
                   <th className="p-4 text-sm font-medium text-gray-400 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#7B2CBF]/5">
+              <tbody className="divide-y divide-[#177F58]/5">
                 {filtered.map(item => (
-                  <tr key={item.id} className="hover:bg-[#7B2CBF]/5 transition-colors">
+                  <tr key={item.id} className="hover:bg-[#177F58]/5 transition-colors">
                     <td className="p-4">
                       <div className="text-white text-xs font-mono">{item.id}</div>
                       <div className="text-[10px] text-gray-500">{new Date(item.createdISO).toLocaleString()}</div>
                     </td>
                     <td className="p-4">
                       <div className="text-white text-sm">{item.userId}</div>
-                      <div className="text-xs text-[#C77DFF]">Plugin #{item.pluginId}</div>
+                      <div className="text-xs text-[#A6F3C8]">Plugin #{item.pluginId}</div>
                     </td>
                     <td className="p-4">
-                      <code className="text-xs text-gray-400 bg-[#0B0B0F] px-2 py-1 rounded">{item.licenseKey ? `•••• ${item.licenseKey.slice(-4)}` : '---'}</code>
+                      <code className="text-xs text-gray-400 bg-[#0B1715] px-2 py-1 rounded">{item.licenseKey ? `•••• ${item.licenseKey.slice(-4)}` : '---'}</code>
                     </td>
                     <td className="p-4">
                       <div className="text-xs text-gray-400">{item.allowedIp || 'Não vinculado'}</div>
@@ -132,7 +132,7 @@ export function AdminPurchasesPage() {
                       <button 
                         onClick={() => setEditingItem({ ...item, resetHwid: false })}
                         aria-label={`Editar instalação da licença ${item.id}`}
-                        className="p-2 text-gray-400 hover:text-[#C77DFF] hover:bg-[#7B2CBF]/10 rounded-lg transition-all"
+                        className="p-2 text-gray-400 hover:text-[#A6F3C8] hover:bg-[#177F58]/10 rounded-lg transition-all"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -157,9 +157,9 @@ export function AdminPurchasesPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-lg bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
-              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+              <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
                 <h3 className="text-xl text-white font-medium">Instalação da licença</h3>
                 <button onClick={() => setEditingItem(null)} className="p-2 text-gray-400 hover:text-white transition-colors">
                   <X className="w-6 h-6" />
@@ -172,7 +172,7 @@ export function AdminPurchasesPage() {
                   <input
                     value={editingItem.licenseKey || ''}
                     readOnly
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white font-mono text-sm focus:border-[#7B2CBF] outline-none"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white font-mono text-sm focus:border-[#177F58] outline-none"
                   />
                 </div>
 
@@ -182,7 +182,7 @@ export function AdminPurchasesPage() {
                     value={editingItem.allowedIp || ''}
                     placeholder="Ex: 192.168.1.1"
                     onChange={e => setEditingItem({ ...editingItem, allowedIp: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white font-mono text-sm focus:border-[#7B2CBF] outline-none"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white font-mono text-sm focus:border-[#177F58] outline-none"
                   />
                   <p className="text-[10px] text-gray-500 mt-2">O plugin só iniciará se o IP do servidor coincidir com este valor.</p>
                 </div>
@@ -193,7 +193,7 @@ export function AdminPurchasesPage() {
                     <input
                       value={editingItem.hwid || ''}
                       disabled
-                      className="flex-1 px-4 py-3 bg-[#0B0B0F]/50 border border-[#7B2CBF]/10 rounded-xl text-gray-500 font-mono text-xs"
+                      className="flex-1 px-4 py-3 bg-[#0B1715]/50 border border-[#177F58]/10 rounded-xl text-gray-500 font-mono text-xs"
                     />
                     <button 
                       type="button"
@@ -209,14 +209,14 @@ export function AdminPurchasesPage() {
                   <button
                     type="button"
                     onClick={() => setEditingItem(null)}
-                    className="flex-1 py-3 bg-[#1A1A22] text-white rounded-xl font-medium border border-[#7B2CBF]/20 hover:bg-[#7B2CBF]/10 transition-all"
+                    className="flex-1 py-3 bg-[#172822] text-white rounded-xl font-medium border border-[#177F58]/20 hover:bg-[#177F58]/10 transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                    className="flex-1 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                   >
                     {saving ? 'Salvando...' : 'Salvar Alterações'}
                   </button>

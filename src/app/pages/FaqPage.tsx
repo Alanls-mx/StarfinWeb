@@ -60,7 +60,7 @@ export function FaqPage() {
           placeholder="Pesquisar dúvidas..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-[#13131A] border border-[#7B2CBF]/20 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-[#7B2CBF] transition-all"
+          className="w-full bg-[#10221d] border border-[#177F58]/20 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-[#177F58] transition-all"
         />
       </div>
 
@@ -68,15 +68,15 @@ export function FaqPage() {
         {filteredFaqs.map((faq) => (
           <div 
             key={faq.id}
-            className="bg-[#13131A] border border-[#7B2CBF]/10 rounded-2xl overflow-hidden"
+            className="bg-[#10221d] border border-[#177F58]/10 rounded-2xl overflow-hidden"
           >
             <button
               onClick={() => setActiveId(activeId === faq.id ? null : faq.id)}
-              className="w-full p-6 flex items-center justify-between text-left hover:bg-[#7B2CBF]/5 transition-all"
+              className="w-full p-6 flex items-center justify-between text-left hover:bg-[#177F58]/5 transition-all"
             >
               <span className="font-bold text-white pr-8">{faq.question}</span>
               {activeId === faq.id ? (
-                <Minus className="w-5 h-5 text-[#C77DFF] flex-shrink-0" />
+                <Minus className="w-5 h-5 text-[#A6F3C8] flex-shrink-0" />
               ) : (
                 <Plus className="w-5 h-5 text-gray-600 flex-shrink-0" />
               )}
@@ -90,7 +90,7 @@ export function FaqPage() {
                   exit={{ height: 0, opacity: 0 }}
                   className="px-6 pb-6 text-gray-400 leading-relaxed text-sm"
                 >
-                  <div className="pt-2 border-t border-[#7B2CBF]/10">
+                  <div className="pt-2 border-t border-[#177F58]/10">
                     {faq.answer}
                   </div>
                 </motion.div>
@@ -107,11 +107,11 @@ export function FaqPage() {
       </div>
 
       {/* CTA Section */}
-      <div className="mt-16 p-8 bg-gradient-to-r from-[#7B2CBF]/10 to-[#C77DFF]/5 border border-[#7B2CBF]/20 rounded-3xl text-center">
-        <MessageCircle className="w-10 h-10 text-[#C77DFF] mx-auto mb-4" />
+      <div className="mt-16 p-8 bg-gradient-to-r from-[#177F58]/10 to-[#A6F3C8]/5 border border-[#177F58]/20 rounded-3xl text-center">
+        <MessageCircle className="w-10 h-10 text-[#A6F3C8] mx-auto mb-4" />
         <h3 className="text-xl font-bold mb-2">Ainda tem dúvidas?</h3>
         <p className="text-gray-400 text-sm mb-6">Estamos prontos para te ajudar com qualquer outra questão.</p>
-        <Link to="/support" className="inline-block bg-[#7B2CBF] hover:bg-[#9D4EDD] text-white px-8 py-3 rounded-xl font-bold transition-all">
+        <Link to="/support" className="inline-block bg-[#177F58] hover:bg-[#22A874] text-white px-8 py-3 rounded-xl font-bold transition-all">
           Abrir um Ticket
         </Link>
       </div>

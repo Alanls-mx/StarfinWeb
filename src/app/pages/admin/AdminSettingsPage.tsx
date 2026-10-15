@@ -59,7 +59,7 @@ export function AdminSettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -73,9 +73,9 @@ export function AdminSettingsPage() {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Geral */}
-        <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-6">
-            <Globe className="w-5 h-5 text-[#C77DFF]" />
+            <Globe className="w-5 h-5 text-[#A6F3C8]" />
             <h3 className="text-xl font-bold">Informações do Site</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -84,7 +84,7 @@ export function AdminSettingsPage() {
               <input
                 value={settings.siteName}
                 onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>
             <div>
@@ -94,13 +94,13 @@ export function AdminSettingsPage() {
                   <input
                     value={settings.logoUrl || ''}
                     onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     placeholder="URL da imagem..."
                   />
                 </div>
-                <label className="cursor-pointer px-4 py-3 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-xl text-gray-400 hover:text-white hover:border-[#7B2CBF] transition-all flex items-center gap-2 min-w-fit">
+                <label className="cursor-pointer px-4 py-3 bg-[#172822] border border-[#177F58]/20 rounded-xl text-gray-400 hover:text-white hover:border-[#177F58] transition-all flex items-center gap-2 min-w-fit">
                   {uploading ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-[#C77DFF]" />
+                    <Loader2 className="w-5 h-5 animate-spin text-[#A6F3C8]" />
                   ) : (
                     <Upload className="w-5 h-5" />
                   )}
@@ -123,7 +123,7 @@ export function AdminSettingsPage() {
               <input
                 value={settings.discordUrl}
                 onChange={(e) => setSettings({ ...settings, discordUrl: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>
             <div className="md:col-span-2">
@@ -131,11 +131,11 @@ export function AdminSettingsPage() {
               <textarea
                 value={settings.siteDescription}
                 onChange={(e) => setSettings({ ...settings, siteDescription: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all min-h-20"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all min-h-20"
               />
             </div>
             <div className="md:col-span-2 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#1A1A22] border border-[#7B2CBF]/20 flex items-center justify-center overflow-hidden">
+              <div className="w-12 h-12 rounded-xl bg-[#172822] border border-[#177F58]/20 flex items-center justify-center overflow-hidden">
                 {settings.logoUrl ? (
                   <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-cover" />
                 ) : (
@@ -150,9 +150,9 @@ export function AdminSettingsPage() {
         </div>
 
         {/* Suporte & Contato */}
-        <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-6">
-            <MessageSquare className="w-5 h-5 text-[#C77DFF]" />
+            <MessageSquare className="w-5 h-5 text-[#A6F3C8]" />
             <h3 className="text-xl font-bold">Suporte & Contato</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -161,7 +161,7 @@ export function AdminSettingsPage() {
               <input
                 value={settings.supportEmail}
                 onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>
             <div>
@@ -169,16 +169,16 @@ export function AdminSettingsPage() {
               <input
                 value={settings.footerText}
                 onChange={(e) => setSettings({ ...settings, footerText: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>
           </div>
         </div>
 
         {/* Estatísticas da Home */}
-        <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-6">
-            <BarChart3 className="w-5 h-5 text-[#C77DFF]" />
+            <BarChart3 className="w-5 h-5 text-[#A6F3C8]" />
             <h3 className="text-xl font-bold">Estatísticas da Página Inicial</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -187,7 +187,7 @@ export function AdminSettingsPage() {
               <input
                 value={settings.homeStatsPlugins}
                 onChange={(e) => setSettings({ ...settings, homeStatsPlugins: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>
             <div>
@@ -195,7 +195,7 @@ export function AdminSettingsPage() {
               <input
                 value={settings.homeStatsServers}
                 onChange={(e) => setSettings({ ...settings, homeStatsServers: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>
             <div>
@@ -203,7 +203,7 @@ export function AdminSettingsPage() {
               <input
                 value={settings.homeStatsRating}
                 onChange={(e) => setSettings({ ...settings, homeStatsRating: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>
             <div>
@@ -211,20 +211,20 @@ export function AdminSettingsPage() {
               <input
                 value={settings.homeStatsSupport}
                 onChange={(e) => setSettings({ ...settings, homeStatsSupport: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>
           </div>
         </div>
 
         {/* Mercado Pago */}
-        <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-6">
-            <CreditCard className="w-5 h-5 text-[#C77DFF]" />
+            <CreditCard className="w-5 h-5 text-[#A6F3C8]" />
             <h3 className="text-xl font-bold">Configurações Mercado Pago</h3>
           </div>
           
-          <div className="flex items-center justify-between p-4 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl mb-6">
+          <div className="flex items-center justify-between p-4 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl mb-6">
             <div>
               <div className="text-sm font-medium">Habilitar Mercado Pago</div>
               <div className="text-xs text-gray-500">Permite pagamentos via Mercado Pago no checkout.</div>
@@ -245,7 +245,7 @@ export function AdminSettingsPage() {
                 type="password"
                 value={settings.mercadopagoAccessToken || ''}
                 onChange={(e) => setSettings({ ...settings, mercadopagoAccessToken: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                 placeholder={settings.mercadopagoTokenConfigured ? 'Token configurado — digite para substituir' : 'APP_USR-...'}
               />
             </div>
@@ -254,7 +254,7 @@ export function AdminSettingsPage() {
               <input
                 value={settings.mercadopagoPublicKey || ''}
                 onChange={(e) => setSettings({ ...settings, mercadopagoPublicKey: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                 placeholder="APP_USR-..."
               />
             </div>
@@ -263,7 +263,7 @@ export function AdminSettingsPage() {
               <input
                 value={settings.mercadopagoWebhookUrl || ''}
                 onChange={(e) => setSettings({ ...settings, mercadopagoWebhookUrl: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                 placeholder="https://sua-api.com/api/webhooks/mercadopago"
               />
               <p className="mt-2 text-[10px] text-gray-500">
@@ -274,12 +274,12 @@ export function AdminSettingsPage() {
         </div>
 
         {/* Sistema */}
-        <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-6">
-            <Shield className="w-5 h-5 text-[#C77DFF]" />
+            <Shield className="w-5 h-5 text-[#A6F3C8]" />
             <h3 className="text-xl font-bold">Modo de Manutenção</h3>
           </div>
-          <div className="flex items-center justify-between p-4 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl">
+          <div className="flex items-center justify-between p-4 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
                 <Info className="w-5 h-5 text-red-400" />
@@ -299,14 +299,14 @@ export function AdminSettingsPage() {
           </div>
         </div>
 
-        <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-6">
-            <Settings className="w-5 h-5 text-[#C77DFF]" />
+            <Settings className="w-5 h-5 text-[#A6F3C8]" />
             <h3 className="text-xl font-bold">Newsletter</h3>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl">
               <div>
                 <div className="text-sm font-medium">Envio automático</div>
                 <div className="text-xs text-gray-500">Dispara emails de promoções e novidades para inscritos.</div>
@@ -328,7 +328,7 @@ export function AdminSettingsPage() {
                   min={1}
                   value={settings.newsletterFrequencyDays ?? 7}
                   onChange={(e) => setSettings({ ...settings, newsletterFrequencyDays: Number(e.target.value) })}
-                  className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                  className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                 />
               </div>
               <div>
@@ -336,7 +336,7 @@ export function AdminSettingsPage() {
                 <input
                   value={settings.newsletterLastSentISO ? new Date(settings.newsletterLastSentISO).toLocaleString() : '—'}
                   readOnly
-                  className="w-full px-4 py-3 bg-[#0B0B0F]/40 border border-[#7B2CBF]/10 rounded-xl text-gray-400"
+                  className="w-full px-4 py-3 bg-[#0B1715]/40 border border-[#177F58]/10 rounded-xl text-gray-400"
                 />
               </div>
             </div>
@@ -347,7 +347,7 @@ export function AdminSettingsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="px-10 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#7B2CBF]/40 transition-all disabled:opacity-50 flex items-center gap-2"
+            className="px-10 py-4 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/40 transition-all disabled:opacity-50 flex items-center gap-2"
           >
             <Save className="w-5 h-5" />
             {saving ? 'Salvando...' : 'Salvar Alterações'}

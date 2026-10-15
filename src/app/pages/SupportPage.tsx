@@ -54,14 +54,14 @@ export function SupportPage() {
   if (state.status !== 'authenticated') {
     return (
       <div className="min-h-screen pt-32 pb-16 px-4 flex flex-col items-center justify-center text-center">
-        <div className="w-20 h-20 rounded-2xl bg-[#7B2CBF]/20 flex items-center justify-center mb-6 text-[#C77DFF]">
+        <div className="w-20 h-20 rounded-2xl bg-[#177F58]/20 flex items-center justify-center mb-6 text-[#A6F3C8]">
           <Shield className="w-10 h-10" />
         </div>
         <h1 className="text-3xl font-bold mb-4">Central de Suporte</h1>
         <p className="text-gray-400 mb-8 max-w-md">Você precisa estar logado para visualizar seus tickets ou abrir uma nova solicitação.</p>
         <Link 
           to="/login?redirect=/support"
-          className="px-8 py-3 bg-[#7B2CBF] text-white rounded-xl font-bold hover:bg-[#9D4EDD] transition-all"
+          className="px-8 py-3 bg-[#177F58] text-white rounded-xl font-bold hover:bg-[#22A874] transition-all"
         >
           Fazer Login
         </Link>
@@ -79,7 +79,7 @@ export function SupportPage() {
           </div>
           <button
             onClick={() => setIsCreating(true)}
-            className="px-6 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all"
+            className="px-6 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#177F58]/30 transition-all"
           >
             <Plus className="w-5 h-5" />
             Novo Ticket
@@ -91,7 +91,7 @@ export function SupportPage() {
           <div className="lg:col-span-2 space-y-4">
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : (
               <>
@@ -99,7 +99,7 @@ export function SupportPage() {
                   <Link
                     key={ticket.id}
                     to={`/support/ticket/${ticket.id}`}
-                    className="block p-6 bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl hover:border-[#7B2CBF]/40 transition-all group"
+                    className="block p-6 bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl hover:border-[#177F58]/40 transition-all group"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
@@ -113,7 +113,7 @@ export function SupportPage() {
                            <Shield className="w-6 h-6" />}
                         </div>
                         <div>
-                          <h3 className="font-bold text-white group-hover:text-[#C77DFF] transition-colors line-clamp-1">{ticket.subject}</h3>
+                          <h3 className="font-bold text-white group-hover:text-[#A6F3C8] transition-colors line-clamp-1">{ticket.subject}</h3>
                           <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                             <span className="uppercase font-bold tracking-wider">{ticket.category}</span>
                             <span>•</span>
@@ -135,7 +135,7 @@ export function SupportPage() {
                   </Link>
                 ))}
                 {tickets.length === 0 && (
-                  <div className="py-20 text-center text-gray-500 bg-[#1A1A22]/20 border border-dashed border-[#7B2CBF]/10 rounded-2xl">
+                  <div className="py-20 text-center text-gray-500 bg-[#172822]/20 border border-dashed border-[#177F58]/10 rounded-2xl">
                     Nenhum ticket encontrado.
                   </div>
                 )}
@@ -145,28 +145,28 @@ export function SupportPage() {
 
           {/* Sidebar Info */}
           <div className="space-y-6">
-            <div className="bg-gradient-to-br from-[#7B2CBF]/15 to-[#3C096C]/10 backdrop-blur-sm border border-[#7B2CBF]/25 rounded-2xl p-7">
-              <div className="w-12 h-12 rounded-xl bg-[#7B2CBF]/20 flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-[#C77DFF]" />
+            <div className="bg-gradient-to-br from-[#177F58]/15 to-[#0A4C43]/10 backdrop-blur-sm border border-[#177F58]/25 rounded-2xl p-7">
+              <div className="w-12 h-12 rounded-xl bg-[#177F58]/20 flex items-center justify-center mb-4">
+                <Shield className="w-6 h-6 text-[#A6F3C8]" />
               </div>
               <div className="text-xl text-white mb-2">Dicas rápidas</div>
               <ul className="text-sm text-gray-400 space-y-2">
                 <li className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-[#C77DFF] mt-0.5" />
+                  <AlertCircle className="w-4 h-4 text-[#A6F3C8] mt-0.5" />
                   <span>Inclua a versão do Minecraft e do plugin.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-[#C77DFF] mt-0.5" />
+                  <AlertCircle className="w-4 h-4 text-[#A6F3C8] mt-0.5" />
                   <span>Se possível, envie logs e prints do console.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-[#C77DFF] mt-0.5" />
+                  <AlertCircle className="w-4 h-4 text-[#A6F3C8] mt-0.5" />
                   <span>Para problemas de licença, inclua a chave.</span>
                 </li>
               </ul>
             </div>
 
-            <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-2xl p-7">
+            <div className="bg-[#172822]/60 backdrop-blur-sm border border-[#177F58]/20 rounded-2xl p-7">
               <div className="text-xl text-white mb-2">Status</div>
               <div className="space-y-3 mt-4">
                 <div className="flex items-center justify-between text-sm">
@@ -175,7 +175,7 @@ export function SupportPage() {
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">Plano Atual</span>
-                  <span className={`font-bold ${state.user?.plan === 'Premium' ? 'text-amber-400' : 'text-[#C77DFF]'}`}>
+                  <span className={`font-bold ${state.user?.plan === 'Premium' ? 'text-amber-400' : 'text-[#A6F3C8]'}`}>
                     {state.user?.plan || 'Free'}
                   </span>
                 </div>
@@ -200,9 +200,9 @@ export function SupportPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-2xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
-              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+              <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
                 <h3 className="text-xl text-white font-bold">Abrir Novo Ticket</h3>
                 <button onClick={() => setIsCreating(false)} className="p-2 text-gray-400 hover:text-white transition-colors">
                   <Plus className="w-6 h-6 rotate-45" />
@@ -216,7 +216,7 @@ export function SupportPage() {
                     <select
                       value={newTicket.category}
                       onChange={(e) => setNewTicket({ ...newTicket, category: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     >
                       <option value="Geral">Geral</option>
                       <option value="Financeiro">Financeiro</option>
@@ -230,7 +230,7 @@ export function SupportPage() {
                     <select
                       value={newTicket.priority}
                       onChange={(e) => setNewTicket({ ...newTicket, priority: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     >
                       <option value="low">Baixa</option>
                       <option value="medium">Média</option>
@@ -245,7 +245,7 @@ export function SupportPage() {
                     required
                     value={newTicket.subject}
                     onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     placeholder="Ex: Não recebi minha licença"
                   />
                 </div>
@@ -256,7 +256,7 @@ export function SupportPage() {
                     required
                     value={newTicket.message}
                     onChange={(e) => setNewTicket({ ...newTicket, message: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all min-h-32"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all min-h-32"
                     placeholder="Descreva detalhadamente seu problema..."
                   />
                 </div>
@@ -265,14 +265,14 @@ export function SupportPage() {
                   <button
                     type="button"
                     onClick={() => setIsCreating(false)}
-                    className="flex-1 py-3 bg-[#1A1A22] text-white rounded-xl font-medium border border-[#7B2CBF]/20 hover:bg-[#7B2CBF]/10 transition-all"
+                    className="flex-1 py-3 bg-[#172822] text-white rounded-xl font-medium border border-[#177F58]/20 hover:bg-[#177F58]/10 transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="flex-1 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                    className="flex-1 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                   >
                     {submitting ? 'Enviando...' : 'Criar Ticket'}
                   </button>

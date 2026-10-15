@@ -37,12 +37,12 @@ export function Footer() {
   };
 
   return (
-    <footer className="border-t border-white/10 bg-[#0d1118] text-[#acb6c5]">
+    <footer className="border-t border-[#37694d] bg-[#0c1f19] text-[#b8d4c4]">
       <div className="mx-auto max-w-7xl px-5 pb-10 pt-16 sm:px-8">
         <div className="grid gap-12 border-b border-white/10 pb-14 lg:grid-cols-[1.15fr_1.85fr]">
           <div>
             <Link to="/" className="inline-flex items-center gap-3 text-lg font-semibold tracking-tight text-white">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#aaaefb]/35 bg-[#858bdd]/15 font-mono text-sm text-[#c5c7ff]">SF</span>
+              <span className="flex h-9 w-9 rotate-3 items-center justify-center rounded-lg bg-[#85ed65] font-mono text-sm font-black text-[#112516] shadow-[3px_3px_0_#48c6bc]">SF</span>
               {branding?.siteName || 'StarfinPlugins'}
             </Link>
             <p className="mt-5 max-w-sm text-sm leading-7">Desenvolvimento de plugins e ferramentas para servidores Minecraft. Produtos, atualizações e suporte em um só lugar.</p>
@@ -50,8 +50,8 @@ export function Footer() {
               <label htmlFor="starfin-newsletter" className="mb-3 block text-sm font-semibold text-white">Novidades por e-mail</label>
               <div className="flex gap-2">
                 <input id="starfin-newsletter" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Seu e-mail" className="min-w-0 flex-1 rounded-lg border border-white/15 bg-[#1c222e] px-3 py-2.5 text-sm text-white outline-none placeholder:text-[#8792a3] focus:border-[#b8bafb]"/>
-                <button type="submit" disabled={sending} aria-label="Inscrever-se nas novidades" className="rounded-lg bg-[#b8bafb] px-3.5 text-[#111320] disabled:opacity-60"><Mail size={18}/></button>
+                  placeholder="Seu e-mail" className="min-w-0 flex-1 rounded-lg border border-[#547d66] bg-[#142d22] px-3 py-2.5 text-sm text-white outline-none placeholder:text-[#9abca5] focus:border-[#85ed65]"/>
+                <button type="submit" disabled={sending} aria-label="Inscrever-se nas novidades" className="rounded-lg bg-[#85ed65] px-3.5 text-[#112516] disabled:opacity-60"><Mail size={18}/></button>
               </div>
               {feedback && <p aria-live="polite" className="mt-2 text-xs text-[#c1c4d0]">{feedback}</p>}
             </form>

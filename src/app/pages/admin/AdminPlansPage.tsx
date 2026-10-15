@@ -100,7 +100,7 @@ export function AdminPlansPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -115,7 +115,7 @@ export function AdminPlansPage() {
         
         <button
           onClick={() => setIsCreating(true)}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#7B2CBF]/40 transition-all"
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/40 transition-all"
         >
           <Plus className="w-5 h-5" />
           Novo Plano
@@ -128,16 +128,16 @@ export function AdminPlansPage() {
             key={plan.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6 backdrop-blur-sm flex flex-col"
+            className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6 backdrop-blur-sm flex flex-col"
           >
             <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-[#7B2CBF]/10 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-[#C77DFF]" />
+              <div className="w-12 h-12 rounded-xl bg-[#177F58]/10 flex items-center justify-center">
+                <Shield className="w-6 h-6 text-[#A6F3C8]" />
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditingPlan(plan)}
-                  className="p-2 text-gray-400 hover:text-[#C77DFF] hover:bg-[#7B2CBF]/10 rounded-lg transition-all"
+                  className="p-2 text-gray-400 hover:text-[#A6F3C8] hover:bg-[#177F58]/10 rounded-lg transition-all"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -151,7 +151,7 @@ export function AdminPlansPage() {
             </div>
 
             <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
-            <div className="text-2xl font-bold text-[#C77DFF] mb-4">{plan.price}</div>
+            <div className="text-2xl font-bold text-[#A6F3C8] mb-4">{plan.price}</div>
 
             <div className="space-y-3 mb-8 flex-1">
               {plan.features.map((feature, i) => (
@@ -162,7 +162,7 @@ export function AdminPlansPage() {
               ))}
             </div>
 
-            <div className="pt-4 border-t border-[#7B2CBF]/10 flex items-center justify-between">
+            <div className="pt-4 border-t border-[#177F58]/10 flex items-center justify-between">
               <span className={`text-xs font-bold uppercase tracking-wider ${plan.active ? 'text-emerald-400' : 'text-red-400'}`}>
                 {plan.active ? 'Ativo' : 'Inativo'}
               </span>
@@ -185,11 +185,11 @@ export function AdminPlansPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
-              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+              <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
                 <h3 className="text-xl text-white font-medium flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-[#C77DFF]" />
+                  <CreditCard className="w-5 h-5 text-[#A6F3C8]" />
                   {isCreating ? 'Novo Plano' : 'Editar Plano'}
                 </h3>
                 <button onClick={() => { setEditingPlan(null); setIsCreating(false); }} className="p-2 text-gray-400 hover:text-white transition-colors">
@@ -203,7 +203,7 @@ export function AdminPlansPage() {
                   <input
                     value={isCreating ? newPlan.name : editingPlan?.name}
                     onChange={(e) => isCreating ? setNewPlan({ ...newPlan, name: e.target.value }) : setEditingPlan({ ...editingPlan!, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     required
                   />
                 </div>
@@ -213,7 +213,7 @@ export function AdminPlansPage() {
                   <input
                     value={isCreating ? newPlan.price : editingPlan?.price}
                     onChange={(e) => isCreating ? setNewPlan({ ...newPlan, price: e.target.value }) : setEditingPlan({ ...editingPlan!, price: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     required
                   />
                 </div>
@@ -227,32 +227,32 @@ export function AdminPlansPage() {
                       isCreating ? setNewPlan({ ...newPlan, features }) : setEditingPlan({ ...editingPlan!, features });
                     }}
                     rows={5}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all resize-none"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all resize-none"
                     placeholder="Vantagem 1&#10;Vantagem 2..."
                     required
                   />
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl">
+                <div className="flex items-center gap-3 p-4 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl">
                   <input
                     type="checkbox"
                     id="planActive"
                     checked={isCreating ? newPlan.active : editingPlan?.active}
                     onChange={(e) => isCreating ? setNewPlan({ ...newPlan, active: e.target.checked }) : setEditingPlan({ ...editingPlan!, active: e.target.checked })}
-                    className="w-5 h-5 rounded border-[#7B2CBF]/30 text-[#7B2CBF] focus:ring-[#7B2CBF] bg-[#0B0B0F]"
+                    className="w-5 h-5 rounded border-[#177F58]/30 text-[#177F58] focus:ring-[#177F58] bg-[#0B1715]"
                   />
                   <label htmlFor="planActive" className="text-sm font-medium text-gray-300 cursor-pointer">
                     Plano Ativo (Disponível para seleção)
                   </label>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-[#7B2CBF]/5 border border-[#7B2CBF]/20 rounded-xl">
+                <div className="flex items-center gap-3 p-4 bg-[#177F58]/5 border border-[#177F58]/20 rounded-xl">
                   <input
                     type="checkbox"
                     id="grantsAllPlugins"
                     checked={isCreating ? newPlan.grantsAllPlugins : editingPlan?.grantsAllPlugins}
                     onChange={(e) => isCreating ? setNewPlan({ ...newPlan, grantsAllPlugins: e.target.checked }) : setEditingPlan({ ...editingPlan!, grantsAllPlugins: e.target.checked })}
-                    className="w-5 h-5 rounded border-[#7B2CBF]/30 text-[#7B2CBF] focus:ring-[#7B2CBF] bg-[#0B0B0F]"
+                    className="w-5 h-5 rounded border-[#177F58]/30 text-[#177F58] focus:ring-[#177F58] bg-[#0B1715]"
                   />
                   <label htmlFor="grantsAllPlugins" className="text-sm font-medium text-gray-300 cursor-pointer">
                     Concede acesso a TODOS os plugins automaticamente
@@ -263,14 +263,14 @@ export function AdminPlansPage() {
                   <button
                     type="button"
                     onClick={() => { setEditingPlan(null); setIsCreating(false); }}
-                    className="flex-1 py-3 bg-[#1A1A22] text-white rounded-xl font-medium border border-[#7B2CBF]/20 hover:bg-[#7B2CBF]/10 transition-all"
+                    className="flex-1 py-3 bg-[#172822] text-white rounded-xl font-medium border border-[#177F58]/20 hover:bg-[#177F58]/10 transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                    className="flex-1 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                   >
                     {saving ? 'Salvando...' : isCreating ? 'Criar Plano' : 'Salvar Alterações'}
                   </button>

@@ -12,7 +12,7 @@ const typeLabel: Record<AdminNotification['type'], string> = {
 };
 
 const typeClass: Record<AdminNotification['type'], string> = {
-  manual: 'bg-[#7B2CBF]/15 text-[#C77DFF] border border-[#7B2CBF]/30',
+  manual: 'bg-[#177F58]/15 text-[#A6F3C8] border border-[#177F58]/30',
   sale: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30',
   support: 'bg-blue-500/15 text-blue-300 border border-blue-500/30',
   raffle: 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
@@ -93,7 +93,7 @@ export function AdminNotificationsPage() {
 
         <button
           onClick={() => setIsCreating(true)}
-          className="px-6 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all"
+          className="px-6 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#177F58]/30 transition-all"
         >
           <Plus className="w-5 h-5" />
           Nova Notificação
@@ -106,13 +106,13 @@ export function AdminNotificationsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por título, mensagem ou origem"
-          className="w-full pl-11 pr-4 py-2.5 bg-[#1A1A22]/60 border border-[#7B2CBF]/10 rounded-xl text-sm text-white focus:border-[#7B2CBF]/50 outline-none transition-all"
+          className="w-full pl-11 pr-4 py-2.5 bg-[#172822]/60 border border-[#177F58]/10 rounded-xl text-sm text-white focus:border-[#177F58]/50 outline-none transition-all"
         />
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -122,11 +122,11 @@ export function AdminNotificationsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.04 }}
-              className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6 backdrop-blur-sm group hover:border-[#7B2CBF]/30 transition-all"
+              className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6 backdrop-blur-sm group hover:border-[#177F58]/30 transition-all"
             >
               <div className="flex items-start justify-between mb-4">
-                <div className="w-10 h-10 rounded-xl bg-[#7B2CBF]/20 flex items-center justify-center">
-                  <Bell className="w-5 h-5 text-[#C77DFF]" />
+                <div className="w-10 h-10 rounded-xl bg-[#177F58]/20 flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-[#A6F3C8]" />
                 </div>
                 <button
                   onClick={() => handleDelete(notif.id)}
@@ -148,14 +148,14 @@ export function AdminNotificationsPage() {
               <h3 className="text-lg font-bold text-white mb-2">{notif.title}</h3>
               <p className="text-sm text-gray-400 mb-5 line-clamp-3">{notif.message}</p>
 
-              <div className="pt-4 border-t border-[#7B2CBF]/10 text-xs text-gray-500 flex items-center justify-between gap-3">
+              <div className="pt-4 border-t border-[#177F58]/10 text-xs text-gray-500 flex items-center justify-between gap-3">
                 <span className="truncate">{notif.source || 'sem origem'}</span>
                 <span>{new Date(notif.createdISO).toLocaleString()}</span>
               </div>
             </motion.div>
           ))}
           {filtered.length === 0 && (
-            <div className="col-span-full py-20 text-center text-gray-500 bg-[#1A1A22]/20 border border-dashed border-[#7B2CBF]/10 rounded-2xl">
+            <div className="col-span-full py-20 text-center text-gray-500 bg-[#172822]/20 border border-dashed border-[#177F58]/10 rounded-2xl">
               Nenhuma notificação encontrada.
             </div>
           )}
@@ -176,11 +176,11 @@ export function AdminNotificationsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
-              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+              <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
                 <h3 className="text-xl text-white font-medium flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-[#C77DFF]" />
+                  <Bell className="w-5 h-5 text-[#A6F3C8]" />
                   Nova Notificação Manual
                 </h3>
                 <button onClick={() => setIsCreating(false)} className="p-2 text-gray-400 hover:text-white transition-colors">
@@ -194,7 +194,7 @@ export function AdminNotificationsPage() {
                   <input
                     value={newNotification.title}
                     onChange={(e) => setNewNotification({ ...newNotification, title: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     required
                   />
                 </div>
@@ -204,7 +204,7 @@ export function AdminNotificationsPage() {
                   <textarea
                     value={newNotification.message}
                     onChange={(e) => setNewNotification({ ...newNotification, message: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all min-h-32"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all min-h-32"
                     required
                   />
                 </div>
@@ -213,14 +213,14 @@ export function AdminNotificationsPage() {
                   <button
                     type="button"
                     onClick={() => setIsCreating(false)}
-                    className="flex-1 py-3 bg-[#1A1A22] text-white rounded-xl font-medium border border-[#7B2CBF]/20 hover:bg-[#7B2CBF]/10 transition-all"
+                    className="flex-1 py-3 bg-[#172822] text-white rounded-xl font-medium border border-[#177F58]/20 hover:bg-[#177F58]/10 transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                    className="flex-1 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                   >
                     {saving ? 'Enviando...' : 'Enviar Agora'}
                   </button>

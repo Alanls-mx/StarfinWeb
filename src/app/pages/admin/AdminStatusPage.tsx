@@ -42,7 +42,7 @@ export function AdminStatusPage() {
       <div className="max-w-5xl">
         <div className="space-y-4">
           {items.map((s) => (
-            <div key={s.id} className="bg-[#1A1A22]/60 border border-[#7B2CBF]/20 rounded-2xl p-6">
+            <div key={s.id} className="bg-[#172822]/60 border border-[#177F58]/20 rounded-2xl p-6">
               <div className="text-white text-lg mb-4">{s.name}</div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <label className="text-sm text-gray-400">
@@ -53,7 +53,7 @@ export function AdminStatusPage() {
                       const next = items.map((x) => (x.id === s.id ? { ...x, status: e.target.value as any } : x));
                       setItems(next);
                     }}
-                    className="mt-2 w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+                    className="mt-2 w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
                   >
                     <option value="unknown">Não verificado</option>
                     <option value="operational">Operacional</option>
@@ -69,7 +69,7 @@ export function AdminStatusPage() {
                       const next = items.map((x) => (x.id === s.id ? { ...x, message: e.target.value } : x));
                       setItems(next);
                     }}
-                    className="mt-2 w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+                    className="mt-2 w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
                   />
                 </label>
               </div>
@@ -90,7 +90,7 @@ export function AdminStatusPage() {
                     }
                   }}
                   disabled={savingId === s.id}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl hover:shadow-lg hover:shadow-[#177F58]/50 transition-all duration-300"
                 >
                   <Save className="w-4 h-4" />
                   {savingId === s.id ? 'Salvando...' : 'Salvar'}

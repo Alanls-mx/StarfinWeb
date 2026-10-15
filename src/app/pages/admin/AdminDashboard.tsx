@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { getAdminStats, type AdminStats } from '../../lib/api';
 
 function statusBadgeClass(value: number, type: 'ok' | 'warn' | 'error' | 'neutral') {
-  if (value <= 0) return 'bg-[#7B2CBF]/10 text-gray-400 border border-[#7B2CBF]/20';
+  if (value <= 0) return 'bg-[#177F58]/10 text-gray-400 border border-[#177F58]/20';
   if (type === 'ok') return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
   if (type === 'warn') return 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
   if (type === 'error') return 'bg-red-500/20 text-red-300 border border-red-500/30';
@@ -42,8 +42,8 @@ export function AdminDashboard() {
       title: 'Licenças',
       value: stats?.stats?.totalSales ?? 0,
       icon: Package,
-      color: 'text-[#C77DFF]',
-      bg: 'bg-[#C77DFF]/10'
+      color: 'text-[#A6F3C8]',
+      bg: 'bg-[#A6F3C8]/10'
     },
     {
       title: 'Usuários',
@@ -68,7 +68,7 @@ export function AdminDashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
-            className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6 backdrop-blur-sm"
+            className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6 backdrop-blur-sm"
           >
             <div className="flex items-center justify-between mb-4">
               <div className={stat.bg + ' p-3 rounded-xl'}>
@@ -82,7 +82,7 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <section className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6">
+        <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6">
           <h3 className="text-lg font-bold mb-4">Pagamentos</h3>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className={`px-3 py-2 rounded-lg ${statusBadgeClass(stats?.paymentStatus.approved ?? 0, 'ok')}`}>Aprovados: {stats?.paymentStatus.approved ?? 0}</div>
@@ -92,7 +92,7 @@ export function AdminDashboard() {
           </div>
         </section>
 
-        <section className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6">
+        <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6">
           <h3 className="text-lg font-bold mb-4">Plugins/Licenças</h3>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className={`px-3 py-2 rounded-lg ${statusBadgeClass(stats?.pluginStatus.approved ?? 0, 'ok')}`}>Aprovados: {stats?.pluginStatus.approved ?? 0}</div>
@@ -102,7 +102,7 @@ export function AdminDashboard() {
           </div>
         </section>
 
-        <section className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6">
+        <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6">
           <h3 className="text-lg font-bold mb-4">Atendimento</h3>
           <div className="grid grid-cols-1 gap-3 text-sm">
             <div className={`px-3 py-2 rounded-lg ${statusBadgeClass(stats?.tickets.open ?? 0, 'warn')}`}>Tickets abertos: {stats?.tickets.open ?? 0}</div>
@@ -113,14 +113,14 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <section className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+        <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold">Plugins com mais vendas</h3>
-            <Link to="/admin/plugins" className="text-sm text-[#C77DFF] hover:underline">Ver plugins</Link>
+            <Link to="/admin/plugins" className="text-sm text-[#A6F3C8] hover:underline">Ver plugins</Link>
           </div>
           <div className="space-y-4">
             {stats?.topPlugins?.map((plugin) => (
-              <div key={plugin.id} className="flex items-center justify-between p-4 bg-[#0B0B0F]/40 rounded-xl border border-[#7B2CBF]/5">
+              <div key={plugin.id} className="flex items-center justify-between p-4 bg-[#0B1715]/40 rounded-xl border border-[#177F58]/5">
                 <div>
                   <div className="text-sm font-medium">{plugin.name}</div>
                   <div className="text-xs text-gray-500">/{plugin.slug}</div>
@@ -134,14 +134,14 @@ export function AdminDashboard() {
           </div>
         </section>
 
-        <section className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+        <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold">Clientes com mais plugins</h3>
-            <Link to="/admin/users" className="text-sm text-[#C77DFF] hover:underline">Ver usuários</Link>
+            <Link to="/admin/users" className="text-sm text-[#A6F3C8] hover:underline">Ver usuários</Link>
           </div>
           <div className="space-y-4">
             {stats?.topCustomers?.map((customer) => (
-              <div key={customer.id} className="flex items-center justify-between p-4 bg-[#0B0B0F]/40 rounded-xl border border-[#7B2CBF]/5">
+              <div key={customer.id} className="flex items-center justify-between p-4 bg-[#0B1715]/40 rounded-xl border border-[#177F58]/5">
                 <div>
                   <div className="text-sm font-medium">{customer.name}</div>
                   <div className="text-xs text-gray-500">{customer.email}</div>
@@ -154,9 +154,9 @@ export function AdminDashboard() {
         </section>
       </div>
 
-      <section className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6">
+      <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-3">
-          <Ticket className="w-5 h-5 text-[#C77DFF]" />
+          <Ticket className="w-5 h-5 text-[#A6F3C8]" />
           <h3 className="text-lg font-bold">Cobertura de Catálogo</h3>
         </div>
         <p className="text-sm text-gray-400">

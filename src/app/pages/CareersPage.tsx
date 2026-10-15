@@ -126,25 +126,25 @@ export function CareersPage() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="p-8 bg-[#13131A] border border-[#7B2CBF]/10 rounded-3xl flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-12 hover:border-[#7B2CBF]/30 transition-all group"
+            className="p-8 bg-[#10221d] border border-[#177F58]/10 rounded-3xl flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-12 hover:border-[#177F58]/30 transition-all group"
           >
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-4">
-                <span className="px-3 py-1 bg-[#7B2CBF]/10 border border-[#7B2CBF]/20 rounded-full text-[#C77DFF] text-xs font-bold uppercase tracking-wider">
+                <span className="px-3 py-1 bg-[#177F58]/10 border border-[#177F58]/20 rounded-full text-[#A6F3C8] text-xs font-bold uppercase tracking-wider">
                   {job.type}
                 </span>
                 <span className="text-gray-500 text-sm flex items-center gap-1">
                   <MapPin className="w-3 h-3" /> {job.location}
                 </span>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-[#C77DFF] transition-colors">{job.title}</h3>
+              <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-[#A6F3C8] transition-colors">{job.title}</h3>
               <p className="text-gray-400 text-sm leading-relaxed max-w-2xl">{job.description}</p>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 flex-shrink-0">
               <div className="text-right hidden sm:block">
                 <div className="text-white font-bold mb-1 flex items-center gap-1 justify-end">
-                  <DollarSign className="w-4 h-4 text-[#7B2CBF]" /> {job.salary}
+                  <DollarSign className="w-4 h-4 text-[#177F58]" /> {job.salary}
                 </div>
                 <div className="text-gray-500 text-xs uppercase tracking-wider">Remuneração informada</div>
               </div>
@@ -159,13 +159,13 @@ export function CareersPage() {
           </motion.div>
         ))}
         {hasLoadedRemoteJobs && jobs.length === 0 && (
-          <div className="rounded-3xl border border-dashed border-[#7B2CBF]/30 bg-[#13131A]/70 p-8 text-center text-gray-400">
+          <div className="rounded-3xl border border-dashed border-[#177F58]/30 bg-[#10221d]/70 p-8 text-center text-gray-400">
             No momento nao temos vagas publicadas.
           </div>
         )}
       </div>
 
-      <div className="mt-24 p-12 bg-gradient-to-b from-[#13131A] to-transparent border border-[#7B2CBF]/10 rounded-3xl text-center">
+      <div className="mt-24 p-12 bg-gradient-to-b from-[#10221d] to-transparent border border-[#177F58]/10 rounded-3xl text-center">
         <h3 className="text-2xl font-bold mb-4 text-white">Nao encontrou sua vaga?</h3>
         <p className="text-gray-400 mb-8 max-w-xl mx-auto text-sm leading-relaxed">
           Sempre queremos conhecer pessoas talentosas. Mande seu curriculo para nosso banco de talentos e entraremos em contato assim que surgir uma oportunidade.
@@ -173,7 +173,7 @@ export function CareersPage() {
         <button
           type="button"
           onClick={() => openApplyModal(talentPoolRole)}
-          className="text-[#C77DFF] font-bold hover:text-white transition-colors underline underline-offset-8"
+          className="text-[#A6F3C8] font-bold hover:text-white transition-colors underline underline-offset-8"
         >
           Enviar Curriculo para Banco de Talentos
         </button>
@@ -195,9 +195,9 @@ export function CareersPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-3xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="relative w-full max-w-3xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-[#7B2CBF]/20 bg-[#13131A]/95 backdrop-blur">
+              <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-[#177F58]/20 bg-[#10221d]/95 backdrop-blur">
                 <h3 className="text-xl text-white font-bold">Candidatar-se</h3>
                 <button
                   type="button"
@@ -217,7 +217,7 @@ export function CareersPage() {
                       required
                       value={form.name}
                       onChange={(event) => handleFieldChange('name', event.target.value)}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="Seu nome"
                     />
                   </div>
@@ -228,7 +228,7 @@ export function CareersPage() {
                       type="email"
                       value={form.email}
                       onChange={(event) => handleFieldChange('email', event.target.value)}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="voce@email.com"
                     />
                   </div>
@@ -240,7 +240,7 @@ export function CareersPage() {
                     <input
                       value={form.phone}
                       onChange={(event) => handleFieldChange('phone', event.target.value)}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="(11) 99999-9999"
                     />
                   </div>
@@ -250,7 +250,7 @@ export function CareersPage() {
                       required
                       value={form.role}
                       onChange={(event) => handleFieldChange('role', event.target.value)}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     >
                       {availableRoles.map((role) => (
                         <option key={role} value={role}>
@@ -268,7 +268,7 @@ export function CareersPage() {
                       type="url"
                       value={form.linkedinUrl}
                       onChange={(event) => handleFieldChange('linkedinUrl', event.target.value)}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="https://linkedin.com/in/seu-perfil"
                     />
                   </div>
@@ -278,7 +278,7 @@ export function CareersPage() {
                       type="url"
                       value={form.githubUrl}
                       onChange={(event) => handleFieldChange('githubUrl', event.target.value)}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="https://github.com/seu-usuario"
                     />
                   </div>
@@ -291,7 +291,7 @@ export function CareersPage() {
                       type="url"
                       value={form.portfolioUrl}
                       onChange={(event) => handleFieldChange('portfolioUrl', event.target.value)}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="https://seuportfolio.com"
                     />
                   </div>
@@ -301,7 +301,7 @@ export function CareersPage() {
                       type="url"
                       value={form.resumeUrl}
                       onChange={(event) => handleFieldChange('resumeUrl', event.target.value)}
-                      className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="https://drive.google.com/..."
                     />
                   </div>
@@ -313,7 +313,7 @@ export function CareersPage() {
                     required
                     value={form.message}
                     onChange={(event) => handleFieldChange('message', event.target.value)}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all min-h-32"
+                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all min-h-32"
                     placeholder="Conte sua experiencia, principais resultados e por que quer fazer parte do time."
                   />
                 </div>
@@ -323,14 +323,14 @@ export function CareersPage() {
                     type="button"
                     onClick={closeApplyModal}
                     disabled={submitting}
-                    className="sm:flex-1 py-3 bg-[#1A1A22] text-white rounded-xl font-medium border border-[#7B2CBF]/20 hover:bg-[#7B2CBF]/10 transition-all disabled:opacity-50"
+                    className="sm:flex-1 py-3 bg-[#172822] text-white rounded-xl font-medium border border-[#177F58]/20 hover:bg-[#177F58]/10 transition-all disabled:opacity-50"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="sm:flex-1 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="sm:flex-1 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <Send className="w-4 h-4" />
                     {submitting ? 'Enviando candidatura...' : 'Enviar candidatura'}

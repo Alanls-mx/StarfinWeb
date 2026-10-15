@@ -66,14 +66,14 @@ export function AdminReviewsPage() {
             placeholder="Buscar por usuário, plugin ou comentário..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-[#172822]/40 border border-[#177F58]/10 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
           />
         </div>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -85,16 +85,16 @@ export function AdminReviewsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6 backdrop-blur-sm hover:border-[#7B2CBF]/30 transition-all group"
+                className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6 backdrop-blur-sm hover:border-[#177F58]/30 transition-all group"
               >
                 <div className="flex flex-col md:flex-row justify-between gap-6">
                   <div className="flex-1 space-y-4">
                     <div className="flex flex-wrap items-center gap-4">
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#7B2CBF]/10 rounded-lg border border-[#7B2CBF]/20">
-                        <User className="w-4 h-4 text-[#C77DFF]" />
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#177F58]/10 rounded-lg border border-[#177F58]/20">
+                        <User className="w-4 h-4 text-[#A6F3C8]" />
                         <span className="text-sm font-medium text-white">{review.userName}</span>
                       </div>
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#9D4EDD]/10 rounded-lg border border-[#9D4EDD]/20">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#22A874]/10 rounded-lg border border-[#22A874]/20">
                         <Package className="w-4 h-4 text-[#E0AAFF]" />
                         <span className="text-sm font-medium text-white">{review.pluginName}</span>
                       </div>
@@ -140,7 +140,7 @@ export function AdminReviewsPage() {
           </AnimatePresence>
 
           {filteredReviews.length === 0 && (
-            <div className="text-center py-20 bg-[#1A1A22]/20 border border-dashed border-[#7B2CBF]/10 rounded-2xl">
+            <div className="text-center py-20 bg-[#172822]/20 border border-dashed border-[#177F58]/10 rounded-2xl">
               <Star className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400">Nenhuma avaliação encontrada.</p>
             </div>

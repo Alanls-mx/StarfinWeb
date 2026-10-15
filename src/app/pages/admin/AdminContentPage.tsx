@@ -110,7 +110,7 @@ export function AdminContentPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export function AdminContentPage() {
         <p className="text-gray-400">Edite vagas de carreiras e informacoes da equipe exibidas nas paginas publicas.</p>
       </div>
 
-      <section className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+      <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold text-white">Vagas de Carreira</h2>
@@ -131,7 +131,7 @@ export function AdminContentPage() {
           <button
             type="button"
             onClick={addJob}
-            className="px-4 py-2 bg-[#7B2CBF]/20 border border-[#7B2CBF]/30 rounded-xl text-[#C77DFF] hover:bg-[#7B2CBF]/30 transition-all flex items-center gap-2"
+            className="px-4 py-2 bg-[#177F58]/20 border border-[#177F58]/30 rounded-xl text-[#A6F3C8] hover:bg-[#177F58]/30 transition-all flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Nova vaga
@@ -140,7 +140,7 @@ export function AdminContentPage() {
 
         <div className="space-y-4">
           {jobs.map((job, index) => (
-            <div key={job.id} className="p-5 rounded-xl border border-[#7B2CBF]/15 bg-[#0B0B0F]/70 space-y-4">
+            <div key={job.id} className="p-5 rounded-xl border border-[#177F58]/15 bg-[#0B1715]/70 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-400 font-medium">Vaga #{index + 1}</div>
                 <div className="flex items-center gap-3">
@@ -170,7 +170,7 @@ export function AdminContentPage() {
                   onChange={(event) =>
                     setJobs((prev) => prev.map((item, i) => (i === index ? { ...item, title: event.target.value } : item)))
                   }
-                  className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                  className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                   placeholder="Titulo da vaga"
                 />
                 <input
@@ -178,7 +178,7 @@ export function AdminContentPage() {
                   onChange={(event) =>
                     setJobs((prev) => prev.map((item, i) => (i === index ? { ...item, type: event.target.value } : item)))
                   }
-                  className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                  className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                   placeholder="Tipo (Tempo Integral, Meio Periodo...)"
                 />
                 <input
@@ -186,7 +186,7 @@ export function AdminContentPage() {
                   onChange={(event) =>
                     setJobs((prev) => prev.map((item, i) => (i === index ? { ...item, location: event.target.value } : item)))
                   }
-                  className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                  className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                   placeholder="Localizacao"
                 />
                 <input
@@ -194,7 +194,7 @@ export function AdminContentPage() {
                   onChange={(event) =>
                     setJobs((prev) => prev.map((item, i) => (i === index ? { ...item, salary: event.target.value } : item)))
                   }
-                  className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                  className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                   placeholder="Faixa salarial"
                 />
               </div>
@@ -203,20 +203,20 @@ export function AdminContentPage() {
                 onChange={(event) =>
                   setJobs((prev) => prev.map((item, i) => (i === index ? { ...item, description: event.target.value } : item)))
                 }
-                className="w-full px-4 py-3 min-h-24 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                className="w-full px-4 py-3 min-h-24 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                 placeholder="Descricao da vaga"
               />
             </div>
           ))}
           {jobs.length === 0 && (
-            <div className="text-gray-500 text-sm p-6 border border-dashed border-[#7B2CBF]/20 rounded-xl text-center">
+            <div className="text-gray-500 text-sm p-6 border border-dashed border-[#177F58]/20 rounded-xl text-center">
               Nenhuma vaga cadastrada.
             </div>
           )}
         </div>
       </section>
 
-      <section className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm">
+      <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold text-white">Equipe (Pagina Sobre)</h2>
@@ -225,7 +225,7 @@ export function AdminContentPage() {
           <button
             type="button"
             onClick={addMember}
-            className="px-4 py-2 bg-[#7B2CBF]/20 border border-[#7B2CBF]/30 rounded-xl text-[#C77DFF] hover:bg-[#7B2CBF]/30 transition-all flex items-center gap-2"
+            className="px-4 py-2 bg-[#177F58]/20 border border-[#177F58]/30 rounded-xl text-[#A6F3C8] hover:bg-[#177F58]/30 transition-all flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Novo membro
@@ -234,7 +234,7 @@ export function AdminContentPage() {
 
         <div className="space-y-4">
           {team.map((member, index) => (
-            <div key={member.id} className="p-5 rounded-xl border border-[#7B2CBF]/15 bg-[#0B0B0F]/70 space-y-4">
+            <div key={member.id} className="p-5 rounded-xl border border-[#177F58]/15 bg-[#0B1715]/70 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-400 font-medium">Membro #{index + 1}</div>
                 <button
@@ -252,7 +252,7 @@ export function AdminContentPage() {
                   onChange={(event) =>
                     setTeam((prev) => prev.map((item, i) => (i === index ? { ...item, name: event.target.value } : item)))
                   }
-                  className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                  className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                   placeholder="Nome"
                 />
                 <input
@@ -260,7 +260,7 @@ export function AdminContentPage() {
                   onChange={(event) =>
                     setTeam((prev) => prev.map((item, i) => (i === index ? { ...item, role: event.target.value } : item)))
                   }
-                  className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                  className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                   placeholder="Cargo"
                 />
               </div>
@@ -270,7 +270,7 @@ export function AdminContentPage() {
                 onChange={(event) =>
                   setTeam((prev) => prev.map((item, i) => (i === index ? { ...item, imageUrl: event.target.value } : item)))
                 }
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                 placeholder="URL da foto"
               />
 
@@ -279,7 +279,7 @@ export function AdminContentPage() {
                 onChange={(event) =>
                   setTeam((prev) => prev.map((item, i) => (i === index ? { ...item, bio: event.target.value } : item)))
                 }
-                className="w-full px-4 py-3 min-h-24 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                className="w-full px-4 py-3 min-h-24 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                 placeholder="Descricao"
               />
 
@@ -300,13 +300,13 @@ export function AdminContentPage() {
                     )
                   )
                 }
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white outline-none focus:border-[#7B2CBF]"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
                 placeholder="Skills separadas por virgula"
               />
             </div>
           ))}
           {team.length === 0 && (
-            <div className="text-gray-500 text-sm p-6 border border-dashed border-[#7B2CBF]/20 rounded-xl text-center">
+            <div className="text-gray-500 text-sm p-6 border border-dashed border-[#177F58]/20 rounded-xl text-center">
               Nenhum membro cadastrado.
             </div>
           )}
@@ -318,7 +318,7 @@ export function AdminContentPage() {
           type="button"
           disabled={saving}
           onClick={handleSave}
-          className="px-10 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#7B2CBF]/40 transition-all disabled:opacity-50 flex items-center gap-2"
+          className="px-10 py-4 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/40 transition-all disabled:opacity-50 flex items-center gap-2"
         >
           <Save className="w-5 h-5" />
           {saving ? 'Salvando...' : 'Salvar Conteudo'}

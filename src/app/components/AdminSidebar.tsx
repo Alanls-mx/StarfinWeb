@@ -36,7 +36,7 @@ const groups = [
 
 export function AdminSidebar() {
   const { logout } = useAuth();
-  return <Sidebar className="border-r border-white/10 bg-[#151a23] text-white">
+  return <Sidebar className="border-r border-[#335844] bg-[#10231d] text-white">
     <SidebarHeader className="border-b border-white/10 px-5 py-6">
       <NavLink to="/admin" className="flex items-center gap-3" aria-label="Painel StarfinPlugins">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">S</span>
@@ -45,8 +45,8 @@ export function AdminSidebar() {
     </SidebarHeader>
     <SidebarContent className="space-y-6 overflow-y-auto px-3 py-5">
       {groups.map(group => <nav key={group.label} aria-label={group.label}>
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.18em] text-[#8994a8]">{group.label}</p>
-        <ul className="space-y-0.5">{group.links.map(item => <li key={item.to}><NavLink to={item.to} end={item.to === '/admin'} className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${isActive ? 'bg-primary/15 font-semibold text-[#d3d4ff]' : 'text-[#abb5c4] hover:bg-white/[.05] hover:text-white'}`}><item.icon size={17} strokeWidth={1.8}/>{item.label}</NavLink></li>)}</ul>
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.18em] text-[#8db5a0]">{group.label}</p>
+        <ul className="space-y-0.5">{group.links.map(item => <li key={item.to}><NavLink to={item.to} end={item.to === '/admin'} className={({ isActive }) => `flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${isActive ? 'bg-primary/15 font-semibold text-[#a9f58e]' : 'text-[#b9d0c2] hover:bg-white/[.07] hover:text-white'}`}><item.icon size={17} strokeWidth={1.8}/>{item.label}</NavLink></li>)}</ul>
       </nav>)}
     </SidebarContent>
     <SidebarFooter className="border-t border-white/10 p-4">

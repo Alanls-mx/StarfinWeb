@@ -57,9 +57,9 @@ export function AdminNewsletterPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form Column */}
         <div className="lg:col-span-2 space-y-6">
-          <form onSubmit={handleSend} className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-8 backdrop-blur-sm space-y-6">
+          <form onSubmit={handleSend} className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm space-y-6">
             <div className="flex items-center gap-2 mb-2">
-              <Mail className="w-5 h-5 text-[#C77DFF]" />
+              <Mail className="w-5 h-5 text-[#A6F3C8]" />
               <h3 className="text-xl font-bold">Compor Email</h3>
             </div>
 
@@ -69,7 +69,7 @@ export function AdminNewsletterPage() {
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Ex: 🚀 Promoção de Páscoa: 30% OFF em todos os plugins!"
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                 required
               />
             </div>
@@ -80,7 +80,7 @@ export function AdminNewsletterPage() {
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Olá, temos novidades incríveis para você..."
-                className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all min-h-[300px] font-mono text-sm"
+                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all min-h-[300px] font-mono text-sm"
                 required
               />
               <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
@@ -92,7 +92,7 @@ export function AdminNewsletterPage() {
             <button
               type="submit"
               disabled={sending || !token || subscribers.length === 0}
-              className="w-full py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#7B2CBF]/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {sending ? (
                 <>
@@ -111,15 +111,15 @@ export function AdminNewsletterPage() {
 
         {/* Sidebar Column */}
         <div className="space-y-6">
-          <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl p-6 backdrop-blur-sm">
+          <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-6 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-[#C77DFF]" />
+              <Users className="w-5 h-5 text-[#A6F3C8]" />
               <h3 className="font-bold text-lg">Inscritos</h3>
             </div>
             
             {loading ? (
               <div className="flex justify-center py-4">
-                <div className="w-6 h-6 border-2 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-2 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -131,7 +131,7 @@ export function AdminNewsletterPage() {
                 </p>
                 <div className="max-h-60 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                   {subscribers.map((email, idx) => (
-                    <div key={idx} className="text-xs text-gray-500 bg-[#0B0B0F] p-2 rounded border border-[#7B2CBF]/5 truncate">
+                    <div key={idx} className="text-xs text-gray-500 bg-[#0B1715] p-2 rounded border border-[#177F58]/5 truncate">
                       {email}
                     </div>
                   ))}

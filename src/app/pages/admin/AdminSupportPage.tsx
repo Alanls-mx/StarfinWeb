@@ -93,15 +93,15 @@ export function AdminSupportPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-250px)]">
         {/* List Column */}
-        <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
-          <div className="p-4 border-b border-[#7B2CBF]/10">
+        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
+          <div className="p-4 border-b border-[#177F58]/10">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar tickets..."
-                className="w-full pl-10 pr-4 py-2 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-sm text-white focus:border-[#7B2CBF] outline-none"
+                className="w-full pl-10 pr-4 py-2 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-sm text-white focus:border-[#177F58] outline-none"
               />
             </div>
           </div>
@@ -109,15 +109,15 @@ export function AdminSupportPage() {
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {loading ? (
               <div className="flex items-center justify-center py-10">
-                <div className="w-8 h-8 border-3 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-3 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : (
-              <div className="divide-y divide-[#7B2CBF]/5">
+              <div className="divide-y divide-[#177F58]/5">
                 {filteredTickets.map(t => (
                   <button
                     key={t.id}
                     onClick={() => fetchTicketDetail(t.id)}
-                    className={`w-full p-4 text-left hover:bg-[#7B2CBF]/5 transition-all group ${selectedTicket?.id === t.id ? 'bg-[#7B2CBF]/10' : ''}`}
+                    className={`w-full p-4 text-left hover:bg-[#177F58]/5 transition-all group ${selectedTicket?.id === t.id ? 'bg-[#177F58]/10' : ''}`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
@@ -129,7 +129,7 @@ export function AdminSupportPage() {
                       </span>
                       <span className="text-[10px] text-gray-600 font-mono">#{t.id.slice(-6)}</span>
                     </div>
-                    <h4 className="text-sm font-bold text-white group-hover:text-[#C77DFF] line-clamp-1 mb-1 transition-colors">{t.subject}</h4>
+                    <h4 className="text-sm font-bold text-white group-hover:text-[#A6F3C8] line-clamp-1 mb-1 transition-colors">{t.subject}</h4>
                     <div className="flex items-center justify-between text-[10px] text-gray-500">
                       <span className="line-clamp-1">{t.user?.name}</span>
                       <span>{new Date(t.createdISO).toLocaleDateString()}</span>
@@ -142,16 +142,16 @@ export function AdminSupportPage() {
         </div>
 
         {/* Detail Column */}
-        <div className="lg:col-span-2 bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
+        <div className="lg:col-span-2 bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
           {loadingDetail ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : selectedTicket ? (
             <>
-              <div className="p-6 border-b border-[#7B2CBF]/10 bg-[#7B2CBF]/5 flex items-center justify-between">
+              <div className="p-6 border-b border-[#177F58]/10 bg-[#177F58]/5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7B2CBF] to-[#9D4EDD] flex items-center justify-center text-white font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#177F58] to-[#22A874] flex items-center justify-center text-white font-bold">
                     {selectedTicket.user?.name[0].toUpperCase()}
                   </div>
                   <div>
@@ -167,7 +167,7 @@ export function AdminSupportPage() {
                   <select
                     value={selectedTicket.status}
                     onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value)}
-                    className="bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-[#7B2CBF]"
+                    className="bg-[#0B1715] border border-[#177F58]/20 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-[#177F58]"
                   >
                     <option value="open">Aberto</option>
                     <option value="answered">Respondido</option>
@@ -183,13 +183,13 @@ export function AdminSupportPage() {
                 {selectedTicket.messages?.map((msg) => (
                   <div key={msg.id} className={`flex gap-3 ${msg.isAdmin ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold ${
-                      msg.isAdmin ? 'bg-[#7B2CBF] text-white' : 'bg-[#1A1A22] text-gray-500 border border-[#7B2CBF]/20'
+                      msg.isAdmin ? 'bg-[#177F58] text-white' : 'bg-[#172822] text-gray-500 border border-[#177F58]/20'
                     }`}>
                       {msg.isAdmin ? 'S' : <User className="w-4 h-4" />}
                     </div>
                     <div className={`flex flex-col max-w-[80%] ${msg.isAdmin ? 'items-end' : 'items-start'}`}>
                       <div className={`px-4 py-2.5 rounded-2xl text-sm ${
-                        msg.isAdmin ? 'bg-[#7B2CBF]/20 text-white border border-[#7B2CBF]/30 rounded-tr-none' : 'bg-[#1A1A22]/60 text-gray-300 border border-[#7B2CBF]/10 rounded-tl-none'
+                        msg.isAdmin ? 'bg-[#177F58]/20 text-white border border-[#177F58]/30 rounded-tr-none' : 'bg-[#172822]/60 text-gray-300 border border-[#177F58]/10 rounded-tl-none'
                       }`}>
                         {msg.content}
                       </div>
@@ -201,18 +201,18 @@ export function AdminSupportPage() {
                 ))}
               </div>
 
-              <div className="p-6 border-t border-[#7B2CBF]/10 bg-[#0B0B0F]/40">
+              <div className="p-6 border-t border-[#177F58]/10 bg-[#0B1715]/40">
                 <form onSubmit={handleReply} className="relative">
                   <textarea
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
                     placeholder="Escreva sua resposta..."
-                    className="w-full pl-4 pr-14 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-sm text-white focus:border-[#7B2CBF] outline-none min-h-[80px] resize-none"
+                    className="w-full pl-4 pr-14 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-sm text-white focus:border-[#177F58] outline-none min-h-[80px] resize-none"
                   />
                   <button
                     type="submit"
                     disabled={sending || !reply.trim()}
-                    className="absolute right-3 bottom-3 p-2.5 bg-[#7B2CBF] text-white rounded-lg hover:bg-[#9D4EDD] transition-all disabled:opacity-50 shadow-lg"
+                    className="absolute right-3 bottom-3 p-2.5 bg-[#177F58] text-white rounded-lg hover:bg-[#22A874] transition-all disabled:opacity-50 shadow-lg"
                   >
                     <Send className="w-4 h-4" />
                   </button>
@@ -221,7 +221,7 @@ export function AdminSupportPage() {
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
-              <div className="w-16 h-16 rounded-2xl bg-[#7B2CBF]/10 flex items-center justify-center mb-4 text-[#7B2CBF]">
+              <div className="w-16 h-16 rounded-2xl bg-[#177F58]/10 flex items-center justify-center mb-4 text-[#177F58]">
                 <MessageSquare className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Selecione um ticket</h3>

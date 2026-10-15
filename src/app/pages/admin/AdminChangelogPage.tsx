@@ -44,19 +44,19 @@ export function AdminChangelogPage() {
 
       <div className="max-w-5xl">
 
-        <div className="bg-[#1A1A22]/60 border border-[#7B2CBF]/20 rounded-2xl p-6 mb-6">
+        <div className="bg-[#172822]/60 border border-[#177F58]/20 rounded-2xl p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
               value={version}
               onChange={(e) => setVersion(e.target.value)}
               placeholder="Versão"
-              className="px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+              className="px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
             />
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Título"
-              className="px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+              className="px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
             />
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -66,7 +66,7 @@ export function AdminChangelogPage() {
                 const res = await getChangelog();
                 setItems(res.items);
               }}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-lg hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-lg hover:shadow-lg hover:shadow-[#177F58]/50 transition-all duration-300"
             >
               <Plus className="w-4 h-4" />
               Criar
@@ -76,13 +76,13 @@ export function AdminChangelogPage() {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Conteúdo"
-            className="mt-4 w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white min-h-28"
+            className="mt-4 w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white min-h-28"
           />
         </div>
 
         <div className="space-y-4">
           {items.map((c) => (
-            <div key={c.id} className="bg-[#1A1A22]/60 border border-[#7B2CBF]/20 rounded-2xl p-6">
+            <div key={c.id} className="bg-[#172822]/60 border border-[#177F58]/20 rounded-2xl p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <input
                   defaultValue={c.version}
@@ -92,7 +92,7 @@ export function AdminChangelogPage() {
                       await adminUpdateChangelog(token, c.id, { version: v });
                     }
                   }}
-                  className="px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+                  className="px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
                 />
                 <input
                   defaultValue={c.title}
@@ -102,7 +102,7 @@ export function AdminChangelogPage() {
                       await adminUpdateChangelog(token, c.id, { title: v });
                     }
                   }}
-                  className="px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+                  className="px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
                 />
                 <div className="flex gap-2">
                   <motion.button
@@ -113,7 +113,7 @@ export function AdminChangelogPage() {
                       const res = await getChangelog();
                       setItems(res.items);
                     }}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white text-[#0B0B0F] rounded-lg hover:bg-gray-100 transition-all duration-300"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-white text-[#0B1715] rounded-lg hover:bg-gray-100 transition-all duration-300"
                   >
                     <Save className="w-4 h-4" />
                     Sync
@@ -142,7 +142,7 @@ export function AdminChangelogPage() {
                     setItems(res.items);
                   }
                 }}
-                className="w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white min-h-24"
+                className="w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white min-h-24"
               />
             </div>
           ))}

@@ -70,22 +70,22 @@ export function AdminDocsPage() {
         </div>
         <button
           onClick={() => setEditingArticle({ title: '', slug: '', category: 'Geral', content: '', order: 0 })}
-          className="px-6 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all"
+          className="px-6 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#177F58]/30 transition-all"
         >
           <Plus className="w-5 h-5" />
           Novo Artigo
         </button>
       </div>
 
-      <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl overflow-hidden backdrop-blur-sm">
-        <div className="p-4 border-b border-[#7B2CBF]/10 bg-[#7B2CBF]/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl overflow-hidden backdrop-blur-sm">
+        <div className="p-4 border-b border-[#177F58]/10 bg-[#177F58]/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por título ou categoria..."
-              className="w-full pl-10 pr-4 py-2 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-sm text-white focus:border-[#7B2CBF] outline-none"
+              className="w-full pl-10 pr-4 py-2 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-sm text-white focus:border-[#177F58] outline-none"
             />
           </div>
           <div className="flex gap-2">
@@ -93,7 +93,7 @@ export function AdminDocsPage() {
               <button 
                 key={c}
                 onClick={() => setSearch(c)}
-                className="px-3 py-1 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white hover:border-[#7B2CBF]/50 transition-all uppercase tracking-wider"
+                className="px-3 py-1 bg-[#172822] border border-[#177F58]/20 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white hover:border-[#177F58]/50 transition-all uppercase tracking-wider"
               >
                 {c}
               </button>
@@ -101,20 +101,20 @@ export function AdminDocsPage() {
           </div>
         </div>
 
-        <div className="divide-y divide-[#7B2CBF]/5">
+        <div className="divide-y divide-[#177F58]/5">
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-10 h-10 border-4 border-[#177F58] border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : (
             filteredArticles.map(article => (
-              <div key={article.id} className="p-4 flex items-center justify-between hover:bg-[#7B2CBF]/5 transition-all group">
+              <div key={article.id} className="p-4 flex items-center justify-between hover:bg-[#177F58]/5 transition-all group">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#7B2CBF]/10 flex items-center justify-center text-[#C77DFF]">
+                  <div className="w-10 h-10 rounded-xl bg-[#177F58]/10 flex items-center justify-center text-[#A6F3C8]">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white group-hover:text-[#C77DFF] transition-colors">{article.title}</h4>
+                    <h4 className="text-sm font-bold text-white group-hover:text-[#A6F3C8] transition-colors">{article.title}</h4>
                     <div className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5 uppercase tracking-wider">
                       <span>{article.category}</span>
                       <span>•</span>
@@ -133,7 +133,7 @@ export function AdminDocsPage() {
                   </a>
                   <button 
                     onClick={() => setEditingArticle(article)}
-                    className="p-2 text-gray-400 hover:text-[#C77DFF] hover:bg-[#7B2CBF]/10 rounded-lg transition-all"
+                    className="p-2 text-gray-400 hover:text-[#A6F3C8] hover:bg-[#177F58]/10 rounded-lg transition-all"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
@@ -168,11 +168,11 @@ export function AdminDocsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+              className="relative w-full max-w-4xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
             >
-              <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
+              <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
                 <h3 className="text-xl text-white font-bold flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-[#C77DFF]" />
+                  <BookOpen className="w-5 h-5 text-[#A6F3C8]" />
                   {editingArticle.id ? 'Editar Artigo' : 'Novo Artigo'}
                 </h3>
                 <button onClick={() => setEditingArticle(null)} className="p-2 text-gray-400 hover:text-white transition-colors">
@@ -188,7 +188,7 @@ export function AdminDocsPage() {
                       required
                       value={editingArticle.title}
                       onChange={(e) => setEditingArticle({ ...editingArticle, title: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="Ex: Como instalar o plugin"
                     />
                   </div>
@@ -198,7 +198,7 @@ export function AdminDocsPage() {
                       required
                       value={editingArticle.slug}
                       onChange={(e) => setEditingArticle({ ...editingArticle, slug: e.target.value.toLowerCase().replace(/ /g, '-') })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all font-mono"
+                      className="w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all font-mono"
                       placeholder="ex-como-instalar"
                     />
                   </div>
@@ -211,7 +211,7 @@ export function AdminDocsPage() {
                       required
                       value={editingArticle.category}
                       onChange={(e) => setEditingArticle({ ...editingArticle, category: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                       placeholder="Ex: Instalação"
                     />
                   </div>
@@ -221,7 +221,7 @@ export function AdminDocsPage() {
                       type="number"
                       value={editingArticle.order}
                       onChange={(e) => setEditingArticle({ ...editingArticle, order: Number(e.target.value) })}
-                      className="w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                      className="w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -229,13 +229,13 @@ export function AdminDocsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs text-gray-500 uppercase font-bold tracking-widest ml-1">Conteúdo (HTML)</label>
-                    <span className="text-[10px] text-[#7B2CBF] font-bold">DICA: Use tags HTML para formatação</span>
+                    <span className="text-[10px] text-[#177F58] font-bold">DICA: Use tags HTML para formatação</span>
                   </div>
                   <textarea
                     required
                     value={editingArticle.content}
                     onChange={(e) => setEditingArticle({ ...editingArticle, content: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all min-h-[300px] font-mono text-sm"
+                    className="w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all min-h-[300px] font-mono text-sm"
                     placeholder="<p>Escreva seu conteúdo aqui...</p>"
                   />
                 </div>
@@ -244,14 +244,14 @@ export function AdminDocsPage() {
                   <button
                     type="button"
                     onClick={() => setEditingArticle(null)}
-                    className="flex-1 py-4 bg-[#1A1A22] text-white rounded-xl font-medium border border-[#7B2CBF]/20 hover:bg-[#7B2CBF]/10 transition-all"
+                    className="flex-1 py-4 bg-[#172822] text-white rounded-xl font-medium border border-[#177F58]/20 hover:bg-[#177F58]/10 transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all disabled:opacity-50"
+                    className="flex-1 py-4 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                   >
                     {saving ? 'Salvando...' : 'Salvar Artigo'}
                   </button>

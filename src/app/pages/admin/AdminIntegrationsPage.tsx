@@ -44,9 +44,9 @@ export function AdminIntegrationsPage() {
 
       <div className="max-w-4xl">
 
-        <div className="bg-[#1A1A22]/60 border border-[#7B2CBF]/20 rounded-2xl p-7">
+        <div className="bg-[#172822]/60 border border-[#177F58]/20 rounded-2xl p-7">
           <div className="flex items-center gap-2 mb-6">
-            <Link2 className="w-5 h-5 text-[#C77DFF]" />
+            <Link2 className="w-5 h-5 text-[#A6F3C8]" />
             <div className="text-white text-lg">Configuração</div>
           </div>
 
@@ -56,7 +56,7 @@ export function AdminIntegrationsPage() {
               <input
                 value={cfg.panelBaseUrl}
                 onChange={(e) => setCfg({ ...cfg, panelBaseUrl: e.target.value })}
-                className="mt-2 w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+                className="mt-2 w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
               />
             </label>
             <label className="text-sm text-gray-400">
@@ -64,7 +64,7 @@ export function AdminIntegrationsPage() {
               <input
                 value={cfg.pluginAuthEndpoint}
                 onChange={(e) => setCfg({ ...cfg, pluginAuthEndpoint: e.target.value })}
-                className="mt-2 w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+                className="mt-2 w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
               />
             </label>
             <label className="text-sm text-gray-400">
@@ -72,7 +72,7 @@ export function AdminIntegrationsPage() {
               <input
                 value={cfg.docsBaseUrl}
                 onChange={(e) => setCfg({ ...cfg, docsBaseUrl: e.target.value })}
-                className="mt-2 w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
+                className="mt-2 w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
               />
             </label>
           </div>
@@ -94,7 +94,7 @@ export function AdminIntegrationsPage() {
                   setSaving(false);
                 }
               }}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl hover:shadow-lg hover:shadow-[#177F58]/50 transition-all duration-300"
             >
               <Save className="w-4 h-4" />
               Salvar

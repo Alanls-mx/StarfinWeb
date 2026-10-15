@@ -33,10 +33,10 @@ export function ChangelogPage() {
           {(loading ? Array.from({ length: 2 }).map(() => null) : items).map((item, idx) => {
             if (!item) {
               return (
-                <div key={idx} className="bg-[#1A1A22]/60 border border-[#7B2CBF]/20 rounded-2xl p-6 animate-pulse">
-                  <div className="h-4 bg-[#0B0B0F]/30 rounded w-1/4 mb-3"></div>
-                  <div className="h-3 bg-[#0B0B0F]/20 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-[#0B0B0F]/20 rounded w-2/3"></div>
+                <div key={idx} className="bg-[#172822]/60 border border-[#177F58]/20 rounded-2xl p-6 animate-pulse">
+                  <div className="h-4 bg-[#0B1715]/30 rounded w-1/4 mb-3"></div>
+                  <div className="h-3 bg-[#0B1715]/20 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-[#0B1715]/20 rounded w-2/3"></div>
                 </div>
               );
             }
@@ -47,7 +47,7 @@ export function ChangelogPage() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, delay: Math.min(idx * 0.03, 0.12) }}
-                className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-2xl p-6 hover:border-[#7B2CBF]/50 transition-all duration-300"
+                className="bg-[#172822]/60 backdrop-blur-sm border border-[#177F58]/20 rounded-2xl p-6 hover:border-[#177F58]/50 transition-all duration-300"
               >
                 <div className="flex items-center justify-between gap-4 mb-2">
                   <div className="text-white text-lg">

@@ -84,7 +84,7 @@ export default function App() {
 
   return (
     <CartProvider>
-      <div className="min-h-screen bg-[#10141c] text-white">
+      <div className="min-h-screen bg-background text-foreground">
         {!isAdminRoute && <Navbar />}
         <AnimatePresence mode="wait">
           <motion.div

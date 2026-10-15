@@ -15,7 +15,7 @@ export function PrivacyPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-2xl p-8 space-y-8"
+          className="bg-[#172822]/60 backdrop-blur-sm border border-[#177F58]/20 rounded-2xl p-8 space-y-8"
         >
           <section className="space-y-3">
             <h2 className="text-2xl font-bold text-white">1. Dados que coletamos</h2>
