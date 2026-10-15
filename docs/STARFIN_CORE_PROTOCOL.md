@@ -32,3 +32,6 @@ Notificações repetidas são tratadas com IDs determinísticos de compra e reco
 Executar, em sandbox + banco descartável: pagamento aprovado, pendente, recusado, estornado, chargeback, notificação repetida, assinatura inválida, total divergente, dois pagamentos com mesmo pedido, crash e retomada do webhook.
 
 **Não considerar homologação financeira real concluída sem essas evidências.** Nada foi executado em credenciais reais ou na base de produção.
+
+## Catálogo e compras de demonstração
+A startup não deve inserir compras aprovadas, notificações fictícias ou reviews imaginadas em produção e CI. O conteúdo demonstrativo só será criado quando `NODE_ENV=development` e `STARFIN_ENABLE_DEMO_CATALOG=true`. Essa proteção não exclui conteúdo já persistido em bancos existentes, que precisa ser auditado separadamente.

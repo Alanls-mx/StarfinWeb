@@ -796,7 +796,8 @@ export function loadPlugins() {
 
 // Demonstration content is opt-in and must never be seeded into production.
 // Existing demo records still need to be reviewed manually before publication.
-if (process.env.NODE_ENV !== 'production' && process.env.STARFIN_ENABLE_DEMO_CATALOG === 'true') {
+const demoCatalogEnabled = process.env.NODE_ENV === 'development' && process.env.STARFIN_ENABLE_DEMO_CATALOG === 'true';
+if (demoCatalogEnabled) {
   loadPlugins();
 }
 
@@ -861,7 +862,7 @@ function toPluginDetails(id: number, input: Partial<PluginDetail> & Pick<PluginD
     version: input.version,
     author: input.author,
     lastUpdateISO: input.lastUpdateISO ?? '2026-03-01',
-    reviewsCount: input.reviewsCount ?? Math.floor(40 + Math.random() * 240),
+    reviewsCount: input.reviewsCount ?? 0,
     screenshots: input.screenshots ?? [summary.imageUrl.replace('w=400&h=300', 'w=800&h=500')],
     features: input.features ?? [
       { title: 'Instalação simples', description: 'Configuração rápida e objetiva.' },
@@ -891,7 +892,8 @@ function toPluginDetails(id: number, input: Partial<PluginDetail> & Pick<PluginD
   };
 }
 
-Object.assign(pluginDetailsById, {
+if (demoCatalogEnabled) {
+  Object.assign(pluginDetailsById, {
   2: toPluginDetails(2, {
     tagline: 'Ranks, permissões e GUI com experiência premium',
     version: '1.9.3',
@@ -943,12 +945,13 @@ Object.assign(pluginDetailsById, {
     author: 'Starfin'
   })
 });
+}
 
 export function getPluginDetail(id: number): PluginDetail | null {
   const detail = pluginDetailsById[id];
   const reviews = listReviewsForPlugin(id);
   const reviewsCount = reviews.length;
-  const rating = reviewsCount > 0 ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviewsCount : 4.5;
+  const rating = reviewsCount > 0 ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviewsCount : 0;
 
   if (detail) return { ...detail, reviews, reviewsCount, rating };
   const summary = pluginSummaries.find((p) => p.id === id);
@@ -986,7 +989,7 @@ export function createReview(data: { pluginId: number, userId: string, userName:
 function updatePluginRating(pluginId: number) {
   const allReviews = listReviewsForPlugin(pluginId);
   const reviewsCount = allReviews.length;
-  const avgRating = reviewsCount > 0 ? allReviews.reduce((acc, r) => acc + r.rating, 0) / reviewsCount : 4.5;
+  const avgRating = reviewsCount > 0 ? allReviews.reduce((acc, r) => acc + r.rating, 0) / reviewsCount : 0;
   sqlite.prepare('UPDATE plugins SET rating = ?, reviewsCount = ? WHERE id = ?').run(avgRating, reviewsCount, pluginId);
 }
 
@@ -1010,7 +1013,7 @@ if (hasCategories.count === 0) {
 }
 
 const hasDocs = sqlite.prepare('SELECT COUNT(*) as count FROM docs').get() as { count: number };
-if (hasDocs.count === 0) {
+if (demoCatalogEnabled && hasDocs.count === 0) {
   const defaults = [
     { id: 'getting-started', title: 'Começando', body: 'Instale o plugin, gere sua chave de API no painel e valide a licença via endpoint.', updatedISO: new Date().toISOString() },
     { id: 'api', title: 'API', body: 'Use /api/plugin-auth/verify para validar apiKey + licenseKey do usuário.', updatedISO: new Date().toISOString() }
@@ -1021,14 +1024,14 @@ if (hasDocs.count === 0) {
 }
 
 const hasChangelog = sqlite.prepare('SELECT COUNT(*) as count FROM changelog').get() as { count: number };
-if (hasChangelog.count === 0) {
+if (demoCatalogEnabled && hasChangelog.count === 0) {
   sqlite.prepare('INSERT INTO changelog (id, version, title, body, createdISO) VALUES (?, ?, ?, ?, ?)').run(
     'cl_1', '0.1.0', 'Lançamento inicial', 'Marketplace, conta do usuário, integrações e painel admin.', new Date('2026-03-30').toISOString()
   );
 }
 
 const hasNotifications = sqlite.prepare('SELECT COUNT(*) as count FROM notifications').get() as { count: number };
-if (hasNotifications.count === 0) {
+if (demoCatalogEnabled && hasNotifications.count === 0) {
   const defaults = [
     { id: 'n1', title: 'Bem-vindo!', message: 'Obrigado por se juntar à StarfinPlugins.', type: 'manual', priority: 'normal', source: 'system', metadata: '{}', createdISO: new Date().toISOString() },
     { id: 'n2', title: 'Nova atualização', message: 'EconomyPlus Pro v2.5.1 já disponível.', type: 'manual', priority: 'normal', source: 'system', metadata: '{}', createdISO: new Date().toISOString() }
@@ -1048,7 +1051,7 @@ if (hasNotifications.count === 0) {
 }
 
 const hasPurchases = sqlite.prepare('SELECT COUNT(*) as count FROM purchases').get() as { count: number };
-if (hasPurchases.count === 0) {
+if (demoCatalogEnabled && hasPurchases.count === 0) {
   const now = new Date().toISOString();
   const defaults = [
     { id: 'pur_1', userId: 'user_demo_1', pluginId: 1, status: 'approved', licenseKey: 'XXXX-XXXX-XXXX-1234', createdISO: now, updatedISO: now },
