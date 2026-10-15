@@ -11,7 +11,7 @@ Atualizado em 15/10/2026. A implementação descrita abaixo foi publicada na `ma
 | Administração | `AdminLayout`, `AdminSidebar`, 19 páginas em `src/app/pages/admin` | Existe navegação e CRUD parcial; faltam telas próprias para licenças, instalações, auditoria e lançamentos. |
 | API publicada | `server/src/index.ts` (Express) e `server/src/data.ts` | O frontend Vite usa rotas relativas `/api`; este é o backend comercial efetivo. |
 | Backend alternativo | `app/api`, Prisma e Next.js | Contém um fluxo separado; o checkout Next permanece desabilitado. Não tratar como segundo checkout de produção. |
-| Banco | PostgreSQL na VPS publicada; `main` ainda continha adaptador MySQL | Esta fase alinha o adaptador de desenvolvimento e a CI com PostgreSQL. Nenhuma migração foi executada na produção. |
+| Banco | PostgreSQL na VPS publicada e no backend Express da `main` | O adaptador e a CI usam PostgreSQL. A inicialização da versão publicada criou a tabela aditiva `status_components`. |
 | Licenciamento | `POST /v1/license/check` no Express | Deve preservar `protocolVersion: 2`, `allowedProductIds` canônicos e prazo de autorização curto. StarfinBans exige `starfin_bans`. |
 | Pagamento | Checkout Express + webhook Mercado Pago | Concessão só após confirmação no provedor. Assinaturas permanecem bloqueadas até homologação. |
 
@@ -47,7 +47,7 @@ Verificações: build Vite, typecheck estrito do frontend e do servidor, testes 
 - A página de novidades usa publicações reais do changelog; artigos e autores demonstrativos e newsletter sem ação foram removidos. O status não começa mais como "operacional" com horário inventado: componentes iniciam como não verificados e as alterações administrativas são persistidas na nova tabela `status_components`.
 - A API não aceita mais marcar 2FA como ativo por uma simples preferência, pois ainda não há fluxo de autenticação em duas etapas. A interface indica a indisponibilidade.
 
-Revisão visual local feita em viewport estreito: home, carrinho vazio e recuperação de senha. O backend local não subiu sem PostgreSQL; a revisão visual de páginas com dados, desktop, tablet, admin e conta permanece pendente.
+Revisão visual feita na homepage publicada em desktop e celular, além de carrinho vazio e recuperação de senha em ambiente local. A revisão visual completa de páginas com dados, tablet, admin e conta permanece pendente.
 
 As fases implementadas estão registradas na `main` (`git log --oneline`). O ensaio foi feito em uma cópia isolada do banco de produção antes da implantação.
 
