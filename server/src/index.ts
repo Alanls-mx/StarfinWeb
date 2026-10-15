@@ -439,7 +439,7 @@ app.post('/v1/license/check', (req, res) => {
       .map(p => {
         // Product identifiers are stable and independent from display names.
         if (p.name.toLowerCase() === 'starfinbans') return 'starfin_bans';
-        const declared = String(p.licenseName || p.slug || '').toLowerCase().trim();
+        const declared = String(p.licenseName || `starfin_product_${p.id}`).toLowerCase().trim();
         return /^[a-z0-9_]{2,64}$/.test(declared) ? declared : '';
       })
       .filter(Boolean)));
@@ -1682,7 +1682,7 @@ app.post('/api/commerce/checkout', async (req, res) => {
     return;
   }
   const ctx = getAuthContext(req)!;
-  const pluginIds = Array.isArray(req.body?.pluginIds) ? req.body.pluginIds.map(Number) : [];
+  const pluginIds: number[] = Array.isArray(req.body?.pluginIds) ? req.body.pluginIds.map(Number) : [];
   const planId = typeof req.body?.planId === 'string' ? req.body.planId : null;
   const couponCode = typeof req.body?.couponCode === 'string' ? req.body.couponCode : null;
   // Subscriptions need a durable fulfillment ledger before they can be sold.
