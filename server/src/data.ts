@@ -2299,9 +2299,14 @@ export function getUserSettings(userId: string) {
   }
 }
 
-export function updateUserSettings(userId: string, settings: any) {
+export function updateUserSettings(userId: string, settings: Record<string, unknown> | null) {
   const current = getUserSettings(userId);
-  const next = { ...current, ...settings };
+  const next = {
+    ...current,
+    twoFactorEnabled: false,
+    ...(typeof settings?.marketingEmails === 'boolean' ? { marketingEmails: settings.marketingEmails } : {}),
+    ...(typeof settings?.securityAlerts === 'boolean' ? { securityAlerts: settings.securityAlerts } : {})
+  };
   sqlite.prepare('UPDATE users SET settings = ? WHERE id = ?').run(JSON.stringify(next), userId);
   return next;
 }

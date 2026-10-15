@@ -21,6 +21,8 @@ import { TermsPage } from './pages/TermsPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { CheckoutPage } from './pages/CheckoutPage';
+import { AccountOrdersPage } from './pages/AccountOrdersPage';
+import { AccountLicensesPage } from './pages/AccountLicensesPage';
 import { AboutPage } from './pages/AboutPage';
 import { FaqPage } from './pages/FaqPage';
 import { CareersPage } from './pages/CareersPage';
@@ -108,6 +110,8 @@ export default function App() {
               <Route path="/cart" element={<CheckoutPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/account" element={<Dashboard />} />
+              <Route path="/account/orders" element={<AccountOrdersPage />} />
+              <Route path="/account/licenses" element={<AccountLicensesPage />} />
               <Route path="/status" element={<StatusPage />} />
               <Route path="/changelog" element={<ChangelogPage />} />
               <Route path="/terms" element={<TermsPage />} />

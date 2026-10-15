@@ -3,19 +3,18 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { getMyLicenses, resendVerification, getMySettings, updateMySettings, updateMyProfile, updateMyPassword, getMyNotifications, readAllNotifications, getMyPayments, getPluginConfig, updatePluginConfig, updateMyAllowedIp, regenerateMyLicense, listMyServers, createServer, updateServer, deleteServer, assignPluginToServer, unassignPluginFromServer, getPlans, type PurchasedPlugin, type ServerRecord } from '../lib/api';
+import { getMyLicenses, resendVerification, getMySettings, updateMyProfile, updateMyPassword, getMyNotifications, getPluginConfig, listMyServers, createServer, updateServer, deleteServer, assignPluginToServer, unassignPluginFromServer, getPlans, type PurchasedPlugin, type ServerRecord } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { useCart } from '../lib/cart';
 
 export function Dashboard() {
   const navigate = useNavigate();
   const { state } = useAuth();
-  const { addItem } = useCart();
   const token = state.status === 'authenticated' ? state.token : null;
   const user = state.status === 'authenticated' ? state.user : null;
 
   const [licenses, setLicenses] = useState<PurchasedPlugin[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
 
   // Servidores
@@ -29,10 +28,6 @@ export function Dashboard() {
   const [modalData, setModalData] = useState<any>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
-  const [subscribing, setSubscribing] = useState(false);
-  const [tempIp, setTempIp] = useState('');
-  const [ipSaving, setIpSaving] = useState(false);
-  const [globalLicenseKey, setGlobalLicenseKey] = useState('');
 
   // Password Change State
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
@@ -44,21 +39,6 @@ export function Dashboard() {
       .catch(console.error);
   }, []);
 
-  const handleSubscribe = async (plan: any) => {
-    if (!token) return;
-    
-    addItem({
-      id: plan.id,
-      name: plan.name,
-      price: plan.priceCents || 4990, // Use priceCents from plan or fallback
-      slug: plan.id,
-      type: 'plan'
-    });
-    
-    toast.success(`Plano ${plan.name} adicionado ao carrinho!`);
-    navigate('/checkout');
-  };
-  
   // Profile Settings
   const [profileData, setProfileData] = useState({
     avatarUrl: '',
@@ -74,15 +54,10 @@ export function Dashboard() {
     const status = searchParams.get('status');
     const orderId = searchParams.get('order');
 
-    if (status === 'success') {
-      toast.success('Pagamento realizado com sucesso! Suas licenças já estão disponíveis.');
-      // Limpar parâmetros da URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (status === 'pending') {
-      toast.info('Seu pagamento está em processamento.');
-      window.history.replaceState({}, document.title, window.location.pathname);
+    if (status || orderId) {
+      navigate(`/account/orders${orderId ? `?order=${encodeURIComponent(orderId)}` : ''}`, { replace: true });
     }
-  }, []);
+  }, [navigate]);
 
   const openServerModal = (server: ServerRecord | null) => {
     setActiveModal('server');
@@ -178,6 +153,7 @@ export function Dashboard() {
     if (!token) return;
     let cancelled = false;
     setLoading(true);
+    setLoadError('');
     (async () => {
       try {
         const [licRes, settingsRes, serversRes] = await Promise.all([
@@ -188,8 +164,6 @@ export function Dashboard() {
         if (cancelled) return;
         setLicenses(licRes.items);
         setServers(serversRes.items);
-        setTempIp(settingsRes.allowedIp || '');
-        setGlobalLicenseKey(settingsRes.licenseKey || '');
         setProfileData({
           avatarUrl: settingsRes.avatarUrl || '',
           bio: settingsRes.bio || '',
@@ -197,6 +171,8 @@ export function Dashboard() {
           githubUrl: settingsRes.githubUrl || '',
           twitterUrl: settingsRes.twitterUrl || ''
         });
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Não foi possível carregar sua conta.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -213,20 +189,6 @@ export function Dashboard() {
     try {
       const settings = await getMySettings(token);
       setModalData(settings);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const openPayments = async () => {
-    if (!token) return;
-    setActiveModal('payments');
-    setModalLoading(true);
-    try {
-      const payments = await getMyPayments(token);
-      setModalData(payments);
     } catch (e) {
       console.error(e);
     } finally {
@@ -255,7 +217,6 @@ export function Dashboard() {
     try {
       const config = await getPluginConfig(token, pluginId);
       setModalData(config);
-      setTempIp(config.allowedIp || '');
     } catch (e) {
       console.error(e);
     } finally {
@@ -349,11 +310,21 @@ export function Dashboard() {
           </div>
         ) : null}
 
+        <nav aria-label="Seções da conta" className="mb-8 flex flex-wrap gap-2 border-b border-white/10 pb-5 text-sm">
+          <Link to="/account/licenses" className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Licenças</Link>
+          <a href="#servidores" className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Servidores</a>
+          <a href="#plugins" className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Plugins</a>
+          <Link to="/account/orders" className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Pedidos</Link>
+          <button type="button" onClick={openSettings} className="rounded-lg px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white">Perfil</button>
+        </nav>
+
+        {loadError && <p role="alert" className="mb-8 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{loadError}</p>}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {[
             { icon: Package, label: 'Plugins Comprados', value: String(stats.pluginsCount), color: 'from-[#7B2CBF] to-[#9D4EDD]' },
-            { icon: Server, label: 'Servidores Ativos', value: String(stats.serversCount), color: 'from-[#9D4EDD] to-[#C77DFF]' },
+            { icon: Server, label: 'Servidores cadastrados', value: String(stats.serversCount), color: 'from-[#9D4EDD] to-[#C77DFF]' },
             { icon: Key, label: 'Licenças Ativas', value: String(stats.licensesActive), color: 'from-[#5A189A] to-[#7B2CBF]' },
             { 
               icon: Shield, 
@@ -380,93 +351,18 @@ export function Dashboard() {
           ))}
         </div>
 
-        {/* Global License Section */}
-        <div className="mb-12 bg-gradient-to-r from-[#7B2CBF]/10 to-[#9D4EDD]/10 border border-[#7B2CBF]/30 rounded-2xl p-8 backdrop-blur-md">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <Key className="w-6 h-6 text-[#C77DFF]" />
-                <h2 className="text-2xl font-semibold text-white">Chave de Licença Principal</h2>
-              </div>
-              <p className="text-gray-400 mb-6 max-w-2xl">
-                Esta é a sua chave global. Use-a em seus plugins para validação automática. 
-                Você pode configurar IPs específicos para cada servidor abaixo.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="w-full sm:w-auto flex-1 max-w-md">
-                  <div className="relative group">
-                    <code className="block w-full px-6 py-4 bg-[#0B0B0F]/80 border border-[#7B2CBF]/30 rounded-xl text-[#C77DFF] font-mono text-lg shadow-inner group-hover:border-[#7B2CBF]/60 transition-all">
-                      {globalLicenseKey || 'Gerando...'}
-                    </code>
-                    <button 
-                      onClick={() => {
-                        if (globalLicenseKey) {
-                          navigator.clipboard.writeText(globalLicenseKey);
-                        }
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-white transition-colors"
-                      title="Copiar"
-                    >
-                      <Download className="w-5 h-5 rotate-180" />
-                    </button>
-                  </div>
-                </div>
-                <button 
-                  onClick={async () => {
-                    if (!token || !confirm('Tem certeza? Suas chaves antigas pararão de funcionar imediatamente.')) return;
-                    try {
-                      const res = await regenerateMyLicense(token);
-                      setGlobalLicenseKey(res.licenseKey);
-                      setLicenses(prev => prev.map(l => ({ ...l, licenseKey: res.licenseKey })));
-                      toast.success('Chave de licença regenerada com sucesso!');
-                    } catch (e) {
-                      console.error(e);
-                      toast.error('Erro ao regenerar chave.');
-                    }
-                  }}
-                  className="px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-all text-sm font-medium"
-                >
-                  Regenerar Chave
-                </button>
-              </div>
+        <div className="mb-10 rounded-xl border border-white/10 bg-card p-6 sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div>
+              <h2 className="text-xl font-semibold">Licenças e acesso</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Consulte sua chave principal, os produtos autorizados e o IP global.</p>
             </div>
-
-            <div className="lg:w-72 p-6 bg-[#0B0B0F]/40 rounded-xl border border-[#7B2CBF]/20">
-              <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-3">IP Global (Opcional)</label>
-              <div className="space-y-3">
-                <input 
-                  value={tempIp}
-                  onChange={(e) => setTempIp(e.target.value)}
-                  placeholder="0.0.0.0"
-                  className="w-full px-4 py-3 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg text-white font-mono text-sm focus:border-[#7B2CBF] outline-none transition-all"
-                />
-                <button 
-                  disabled={ipSaving}
-                  onClick={async () => {
-                    if (!token) return;
-                    setIpSaving(true);
-                    try {
-                      await updateMyAllowedIp(token, tempIp || null);
-                      toast.success('IP global atualizado!');
-                    } catch (e) {
-                      console.error(e);
-                      toast.error('Erro ao salvar IP.');
-                    } finally {
-                      setIpSaving(false);
-                    }
-                  }}
-                  className="w-full py-3 bg-[#7B2CBF] hover:bg-[#9D4EDD] text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50"
-                >
-                  {ipSaving ? 'Salvando...' : 'Salvar IP'}
-                </button>
-              </div>
-            </div>
+            <Link to="/account/licenses" className="rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">Gerenciar licenças</Link>
           </div>
         </div>
 
         {/* Servers Management Section */}
-        <div className="mb-12">
+        <div id="servidores" className="mb-12 scroll-mt-28">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Server className="w-6 h-6 text-[#C77DFF]" />
@@ -561,7 +457,7 @@ export function Dashboard() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Plugins Comprados */}
-            <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6">
+            <div id="plugins" className="scroll-mt-28 bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl">Meus Plugins</h2>
                 <Link
@@ -611,46 +507,13 @@ export function Dashboard() {
                     </div>
                   </div>
                 ))}
+                {!loading && licenses.length === 0 && !loadError && <p className="py-8 text-center text-sm text-gray-400">Você ainda não possui plugins. <Link to="/plugins" className="text-[#C77DFF] hover:underline">Explorar catálogo</Link></p>}
               </div>
             </div>
 
-            {/* Downloads Recentes */}
-            <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6">
-              <h2 className="text-2xl mb-6">Downloads Recentes</h2>
-
-              <div className="space-y-3">
-                {licenses.length > 0 ? (
-                  licenses.slice(0, 5).map((plugin) => (
-                    <div
-                      key={plugin.id}
-                      className="flex items-center justify-between p-4 bg-[#0B0B0F]/30 rounded-lg border border-[#7B2CBF]/10 hover:border-[#7B2CBF]/30 transition-all group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#7B2CBF] to-[#9D4EDD] flex items-center justify-center">
-                          <Package className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-white font-medium">{plugin.name}</div>
-                          <div className="text-[10px] text-gray-500">Versão {plugin.version} • {new Date(plugin.purchaseDateISO).toLocaleDateString()}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-gray-500">2.4 MB</span>
-                        <Link
-                          to={`/download/${plugin.pluginId}`}
-                          className="p-2 bg-[#7B2CBF]/10 text-[#C77DFF] rounded-lg hover:bg-[#7B2CBF]/20 transition-all"
-                        >
-                          <Download className="w-4 h-4" />
-                        </Link>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-500 italic text-sm">
-                    Nenhum download disponível. Adquira plugins para vê-los aqui.
-                  </div>
-                )}
-              </div>
+            <div className="rounded-xl border border-white/10 bg-card p-6">
+              <h2 className="text-xl font-semibold">Arquivos dos plugins</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Os arquivos ainda não estão disponíveis para download nesta plataforma. As licenças compradas aparecem acima.</p>
             </div>
           </div>
 
@@ -679,15 +542,15 @@ export function Dashboard() {
                   </span>
                 </button>
 
-                <button
-                  onClick={openPayments}
+                <Link
+                  to="/account/orders"
                   className="w-full flex items-center gap-3 p-3 bg-[#0B0B0F]/50 rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-left group"
                 >
                   <CreditCard className="w-5 h-5 text-gray-400 group-hover:text-[#C77DFF] transition-colors duration-300" />
                   <span className="text-sm text-gray-300 group-hover:text-white transition-colors duration-300">
-                    Pagamento
+                    Meus pedidos
                   </span>
-                </button>
+                </Link>
 
                 <button
                   onClick={openNotifications}
@@ -736,12 +599,12 @@ export function Dashboard() {
                 >
                   Explorar Plugins
                 </Link>
-                <button className="w-full px-4 py-3 bg-transparent border border-[#7B2CBF]/40 text-white rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-sm">
+                <Link to="/support" className="block w-full px-4 py-3 bg-transparent border border-[#7B2CBF]/40 text-white rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-sm text-center">
                   Suporte
-                </button>
-                <button className="w-full px-4 py-3 bg-transparent border border-[#7B2CBF]/40 text-white rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-sm">
+                </Link>
+                <Link to="/docs" className="block w-full px-4 py-3 bg-transparent border border-[#7B2CBF]/40 text-white rounded-lg hover:bg-[#7B2CBF]/10 transition-all duration-300 text-sm text-center">
                   Documentação
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -752,11 +615,11 @@ export function Dashboard() {
               </div>
               <h3 className="text-lg text-white mb-2">Precisa de Ajuda?</h3>
               <p className="text-sm text-gray-400 mb-4">
-                Nossa equipe está disponível 24/7 para ajudar você
+                Abra um chamado de suporte e acompanhe a resposta pela plataforma.
               </p>
-              <button className="w-full px-4 py-2 bg-white text-[#0B0B0F] rounded-lg hover:bg-gray-100 transition-all duration-300 text-sm">
+              <Link to="/support" className="block w-full px-4 py-2 bg-white text-[#0B0B0F] rounded-lg hover:bg-gray-100 transition-all duration-300 text-sm text-center">
                 Abrir Ticket
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -838,17 +701,7 @@ export function Dashboard() {
                                 </li>
                               )}
                             </ul>
-                            <button
-                              disabled={user?.plan === plan.name || subscribing}
-                              onClick={() => handleSubscribe(plan.id)}
-                              className={`w-full py-3 rounded-xl font-bold transition-all ${
-                                user?.plan === plan.name
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-default'
-                                  : 'bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white hover:shadow-lg hover:shadow-[#7B2CBF]/30'
-                              } disabled:opacity-50`}
-                            >
-                              {user?.plan === plan.name ? 'Ativo' : subscribing ? 'Processando...' : 'Assinar Agora'}
-                            </button>
+                            <p className="rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-200">{user?.plan === plan.name ? 'Plano atual' : 'Assinaturas indisponíveis até a homologação financeira.'}</p>
                           </div>
                         ))}
                       </div>
@@ -915,7 +768,8 @@ export function Dashboard() {
                             <label className="block text-sm text-gray-400 mb-2">Nome de Exibição</label>
                             <input
                               defaultValue={modalData.name}
-                              className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
+                              disabled
+                              className="w-full px-4 py-3 bg-[#0B0B0F]/50 border border-[#7B2CBF]/10 rounded-xl text-gray-500 cursor-not-allowed"
                             />
                           </div>
                           <div>
@@ -931,7 +785,7 @@ export function Dashboard() {
                               <div className="text-white">Segurança (2FA)</div>
                               <div className="text-xs text-gray-400">Ative a autenticação em duas etapas</div>
                             </div>
-                            <button className="px-4 py-2 bg-[#7B2CBF]/20 text-[#C77DFF] rounded-lg text-sm">Ativar</button>
+                            <span className="text-xs text-gray-500">Indisponível</span>
                           </div>
                         </div>
 
@@ -975,22 +829,7 @@ export function Dashboard() {
                             <div className="text-[10px] text-gray-600 ml-5 mt-2">{new Date(n.createdISO).toLocaleString()}</div>
                           </div>
                         ))}
-                        {modalData.length > 0 && <button
-                          onClick={async () => {
-                            if (!token) return;
-                            try {
-                              await readAllNotifications(token);
-                              toast.success('Todas as notificações foram lidas.');
-                            } catch (e) {
-                              console.error(e);
-                            } finally {
-                              setActiveModal(null);
-                            }
-                          }}
-                          className="w-full py-3 border border-[#7B2CBF]/30 text-white rounded-xl text-sm hover:bg-[#7B2CBF]/10 transition-all"
-                        >
-                          Marcar todas como lidas
-                        </button>}
+                        {modalData.length === 0 && <p className="py-6 text-center text-sm text-gray-400">Nenhuma notificação pessoal disponível.</p>}
                       </div>
                     )}
 
@@ -1139,9 +978,9 @@ export function Dashboard() {
 
                     {activeModal === 'config' && modalData && (
                       <div className="space-y-6">
-                        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                          <div className="text-emerald-400 text-sm font-medium mb-1">Download Seguro</div>
-                          <div className="text-xs text-gray-400">Sua licença está ativa e vinculada ao seu HWID e IP.</div>
+                        <div className="rounded-xl border border-white/10 p-4">
+                          <div className="text-sm font-medium">Configuração do produto</div>
+                          <div className="mt-1 text-xs text-gray-400">O vínculo e o IP dependem da instalação e das regras de licenciamento.</div>
                         </div>
 
                         <div className="space-y-4">
@@ -1155,36 +994,9 @@ export function Dashboard() {
                               </div>
                             </div>
                             <div>
-                              <label className="block text-sm text-gray-400 mb-2">IP Autorizado</label>
-                              <div className="flex gap-2">
-                                <input
-                                  value={tempIp}
-                                  onChange={(e) => setTempIp(e.target.value)}
-                                  placeholder="0.0.0.0"
-                                  className="flex-1 px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white font-mono text-sm outline-none focus:border-[#7B2CBF] transition-all"
-                                />
-                                <button
-                                  disabled={ipSaving || tempIp === modalData.allowedIp}
-                                  onClick={async () => {
-                                    if (!token) return;
-                                    setIpSaving(true);
-                                    try {
-                                      await updateMyAllowedIp(token, tempIp || null);
-                                      setModalData({ ...modalData, allowedIp: tempIp });
-                                      toast.success('IP do plugin atualizado!');
-                                    } catch (e) {
-                                      console.error(e);
-                                      toast.error('Erro ao salvar IP.');
-                                    } finally {
-                                      setIpSaving(false);
-                                    }
-                                  }}
-                                  className="px-4 py-2 bg-[#7B2CBF]/20 text-[#C77DFF] rounded-xl text-sm hover:bg-[#7B2CBF]/30 transition-all disabled:opacity-50"
-                                >
-                                  {ipSaving ? '...' : 'Salvar'}
-                                </button>
-                              </div>
-                              <p className="text-[10px] text-gray-500 mt-1">O plugin só funcionará requisições vindas deste IP.</p>
+                              <div className="mb-2 text-sm text-gray-400">IP desta compra</div>
+                              <code className="block rounded-xl border border-[#7B2CBF]/20 bg-[#0B0B0F] px-4 py-3 text-sm">{modalData.allowedIp || 'Não definido'}</code>
+                              <Link to="/account/licenses" onClick={() => setActiveModal(null)} className="mt-2 inline-block text-xs text-[#C77DFF] hover:underline">Gerenciar IP global</Link>
                             </div>
                           </div>
 
@@ -1204,13 +1016,7 @@ export function Dashboard() {
                           </div>
 
                           <div className="pt-4 border-t border-[#7B2CBF]/10">
-                            {modalData.jarUrl ? (
-                              <a href={modalData.jarUrl} className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-medium flex items-center justify-center gap-2">
-                                <Download className="w-5 h-5" /> Baixar .JAR (v{modalData.version})
-                              </a>
-                            ) : (
-                              <p className="rounded-lg border border-white/10 p-4 text-sm text-muted-foreground">Download indisponível. Entre em contato com o suporte para obter esta versão.</p>
-                            )}
+                            <p className="rounded-lg border border-white/10 p-4 text-sm text-muted-foreground">Download indisponível nesta plataforma. Consulte o <Link to="/support" className="text-[#C77DFF] hover:underline">suporte</Link> se precisar de ajuda.</p>
                           </div>
                         </div>
                       </div>

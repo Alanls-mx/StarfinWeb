@@ -1080,8 +1080,18 @@ export function readAllNotifications(token: string) {
   });
 }
 
+export interface CustomerOrder {
+  id: string;
+  dateISO: string;
+  amountCents: number;
+  status: string;
+  method: string | null;
+  paymentId: string | null;
+  pluginName: string;
+}
+
 export function getMyPayments(token: string) {
-  return apiFetch<any[]>('/api/users/me/payments', { token });
+  return apiFetch<CustomerOrder[]>('/api/users/me/payments', { token });
 }
 
 export function getPluginConfig(token: string, id: number) {

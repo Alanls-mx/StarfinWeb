@@ -1089,7 +1089,7 @@ app.get('/api/users/me/settings', (req, res) => {
   res.json({
     email: user.email,
     name: user.name,
-    twoFactorEnabled: settings.twoFactorEnabled || false,
+    twoFactorEnabled: false,
     marketingEmails: settings.marketingEmails || false,
     securityAlerts: settings.securityAlerts || false,
     licenseKey: user.licenseKey,
@@ -1218,7 +1218,15 @@ app.patch('/api/users/me/allowed-ip', (req, res) => {
     return;
   }
   const ctx = getAuthContext(req)!;
-  updateUserAllowedIp(ctx.userId, req.body.allowedIp);
+  const rawIp = req.body?.allowedIp;
+  if (rawIp !== null && rawIp !== undefined && typeof rawIp !== 'string') {
+    return res.status(400).json({ error: 'Informe um IP válido ou deixe o campo vazio.' });
+  }
+  const ip = typeof rawIp === 'string' ? rawIp.trim() : '';
+  if (ip && !net.isIP(ip)) {
+    return res.status(400).json({ error: 'Informe um endereço IPv4 ou IPv6 válido.' });
+  }
+  updateUserAllowedIp(ctx.userId, ip || null);
   res.json({ success: true });
 });
 
@@ -2879,67 +2887,6 @@ app.delete('/api/admin/reviews', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/users/me/settings', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const user = findUserById(ctx.userId);
-  if (!user) {
-    res.status(404).json({ error: 'usuário não encontrado' });
-    return;
-  }
-  const settings = getUserSettings(ctx.userId);
-  res.json({
-    email: user.email,
-    name: user.name,
-    licenseKey: user.licenseKey,
-    allowedIp: user.allowedIp,
-    avatarUrl: user.avatarUrl,
-    bio: user.bio,
-    discordId: user.discordId,
-    githubUrl: user.githubUrl,
-    twitterUrl: user.twitterUrl,
-    ...settings
-  });
-});
-
-app.patch('/api/users/me/profile', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const updated = updateUserProfile(ctx.userId, req.body || {});
-  if (!updated) {
-    res.status(404).json({ error: 'usuário não encontrado' });
-    return;
-  }
-  res.json(updated);
-});
-
-app.post('/api/users/me/license/regenerate', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const newKey = regenerateUserLicense(ctx.userId);
-  res.json({ licenseKey: newKey });
-});
-
-app.patch('/api/users/me/allowed-ip', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const ip = typeof req.body?.allowedIp === 'string' ? req.body.allowedIp.trim() : null;
-  updateUserAllowedIp(ctx.userId, ip);
-  res.json({ success: true });
-});
-
 // Server Management
 app.get('/api/users/me/servers', (req, res) => {
   if (!hasValidAuthHeader(req)) return res.status(401).json({ error: 'não autorizado' });
@@ -3002,16 +2949,6 @@ app.delete('/api/users/me/servers/:id/plugins/:pluginId', (req, res) => {
   if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
   unassignPluginFromServer(server.id, Number(req.params.pluginId));
   res.json({ ok: true });
-});
-
-app.patch('/api/users/me/settings', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  updateUserSettings(ctx.userId, req.body ?? {});
-  res.json({ success: true });
 });
 
 app.post('/api/users/me/notifications/read-all', (req, res) => {

@@ -39,10 +39,14 @@ Verificações locais: build Vite, typecheck estrito do frontend, typecheck do s
 - Upload administrativo aceita somente JPEG, PNG, WebP e GIF com assinatura de arquivo válida; SVG foi bloqueado.
 - Sessões de usuários excluídos deixam de autenticar. Cadastro e recuperação exigem senha de pelo menos oito caracteres. A edição administrativa de produtos rejeita métricas de avaliação e download inventadas, valida preço e ID canônico e impede IDs de licença duplicados.
 - A troca de senha da conta exige a senha atual quando já existe uma. Respostas de perfil e usuários não devolvem o hash de senha. Notificações administrativas globais deixaram de aparecer na caixa pessoal; o comando antigo de “marcar todas” retorna indisponível até existir uma caixa por usuário e não apaga dados globais.
+- A conta ganhou uma página própria de pedidos. O retorno do Mercado Pago consulta o status do pedido na API antes de mostrar qualquer confirmação; o parâmetro da URL sozinho não anuncia pagamento aprovado. Estados pendente, pago, recusado, cancelado, reembolsado e estornado têm rótulos distintos.
+- A conta ganhou também uma página própria de licenças, com chave principal mascarada por padrão, cópia, regeneração e edição do IP global. O dashboard agora navega para licença, servidores, plugins, pedidos e perfil e trata erro e ausência de plugins. Foram removidos o suposto histórico de downloads com tamanho inventado, links sem destino, promessa de atendimento 24/7 e o botão de assinatura que não podia concluir checkout.
+- O modal do plugin deixou de chamar a edição do IP global como se alterasse o IP daquela compra. A API valida IPv4/IPv6 na edição do IP global e rotas duplicadas de configurações, perfil e regeneração foram removidas.
+- A API não aceita mais marcar 2FA como ativo por uma simples preferência, pois ainda não há fluxo de autenticação em duas etapas. A interface indica a indisponibilidade.
 
 Revisão visual local feita em viewport estreito: home, carrinho vazio e recuperação de senha. O backend local não subiu sem PostgreSQL; a revisão visual de páginas com dados, desktop, tablet, admin e conta permanece pendente.
 
-Commits locais na `main`: `bda16cc` (PostgreSQL, licenças e segurança da API), `3404049` (loja, conta inicial e navegação administrativa). O reforço de validação de produto está em um commit posterior. Todos ainda sem push para evitar publicação automática não verificada.
+Commits locais na `main`: `bda16cc` (PostgreSQL, licenças e segurança da API), `3404049` (loja, conta inicial e navegação administrativa), `a5fd68d` (validação de catálogo), `fa71c8b` (segurança da conta). Todos ainda sem push para evitar publicação automática não verificada.
 
 ## Próximas fases
 
