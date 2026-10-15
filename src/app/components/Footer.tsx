@@ -1,173 +1,77 @@
-import { Github, Twitter, Youtube, Mail, Instagram, MessageCircle } from 'lucide-react';
+import { ArrowUpRight, Mail } from 'lucide-react';
 import { Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { getPublicSettings, subscribeNewsletter } from '../lib/api';
 
+const groups = [
+  { title: 'Produtos', links: [{ title: 'Catálogo', href: '/plugins' }, { title: 'Planos', href: '/premium' }, { title: 'Atualizações', href: '/changelog' }] },
+  { title: 'Ajuda', links: [{ title: 'Documentação', href: '/docs' }, { title: 'Central de suporte', href: '/support' }, { title: 'Perguntas frequentes', href: '/faq' }] },
+  { title: 'StarfinPlugins', links: [{ title: 'Sobre', href: '/about' }, { title: 'Contato', href: '/contact' }, { title: 'Status', href: '/status' }] },
+  { title: 'Legal', links: [{ title: 'Termos de uso', href: '/terms' }, { title: 'Privacidade', href: '/privacy' }] }
+];
+
 export function Footer() {
   const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [publicSettings, setPublicSettings] = useState<{ siteName: string; logoUrl: string | null; footerText: string } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [branding, setBranding] = useState<{ siteName: string; footerText: string } | null>(null);
 
   useEffect(() => {
-    getPublicSettings()
-      .then(setPublicSettings)
-      .catch(() => null);
+    getPublicSettings().then((s) => setBranding({ siteName: s.siteName, footerText: s.footerText })).catch(() => {});
   }, []);
 
-  const footerLinks = {
-    produto: [
-      { name: 'Plugins', to: '/plugins' },
-      { name: 'Categorias', to: '/categories' },
-      { name: 'Preços', to: '/plugins' },
-      { name: 'Novidades', to: '/plugins' }
-    ],
-    empresa: [
-      { name: 'Sobre Nós', to: '/about' },
-      { name: 'Blog', to: '/blog' },
-      { name: 'Carreiras', to: '/careers' },
-      { name: 'Contato', to: '/contact' }
-    ],
-    suporte: [
-      { name: 'Documentação', to: '/docs' },
-      { name: 'FAQ', to: '/faq' },
-      { name: 'Suporte', to: '/support' },
-      { name: 'API', to: '/docs#api' }
-    ],
-    legal: [
-      { name: 'Termos de Uso', to: '/terms' },
-      { name: 'Privacidade', to: '/privacy' },
-      { name: 'Licenças', to: '/docs' },
-      { name: 'Cookies', to: '/docs' }
-    ]
+  const subscribe = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!email.trim() || sending) return;
+    setSending(true);
+    setFeedback('');
+    try {
+      await subscribeNewsletter(email.trim());
+      setEmail('');
+      setFeedback('Inscrição realizada.');
+    } catch {
+      setFeedback('Não foi possível concluir a inscrição. Tente novamente.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <footer className="relative bg-gradient-to-b from-[#0B0B0F] to-[#1A1A22] border-t border-[#7B2CBF]/20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 mb-12">
-          {/* Brand Section */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="relative">
-                {publicSettings?.logoUrl ? (
-                  <img src={publicSettings.logoUrl} alt={publicSettings.siteName} className="w-10 h-10 rounded-lg object-cover border border-[#7B2CBF]/30 shadow-lg shadow-[#7B2CBF]/20" />
-                ) : (
-                  <div className="w-10 h-10 bg-gradient-to-br from-[#7B2CBF] to-[#C77DFF] rounded-lg flex items-center justify-center shadow-lg shadow-[#7B2CBF]/50">
-                    <div className="w-6 h-6 border-2 border-white/90 rounded-sm" style={{
-                      backgroundImage: 'linear-gradient(45deg, transparent 25%, rgba(255,255,255,0.3) 25%, rgba(255,255,255,0.3) 75%, transparent 75%), linear-gradient(45deg, transparent 25%, rgba(255,255,255,0.3) 25%, rgba(255,255,255,0.3) 75%, transparent 75%)',
-                      backgroundSize: '4px 4px',
-                      backgroundPosition: '0 0, 2px 2px'
-                    }}></div>
-                  </div>
-                )}
+    <footer className="border-t border-white/10 bg-[#0d1118] text-[#acb6c5]">
+      <div className="mx-auto max-w-7xl px-5 pb-10 pt-16 sm:px-8">
+        <div className="grid gap-12 border-b border-white/10 pb-14 lg:grid-cols-[1.15fr_1.85fr]">
+          <div>
+            <Link to="/" className="inline-flex items-center gap-3 text-lg font-semibold tracking-tight text-white">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#aaaefb]/35 bg-[#858bdd]/15 font-mono text-sm text-[#c5c7ff]">SF</span>
+              {branding?.siteName || 'StarfinPlugins'}
+            </Link>
+            <p className="mt-5 max-w-sm text-sm leading-7">Desenvolvimento de plugins e ferramentas para servidores Minecraft. Produtos, atualizações e suporte em um só lugar.</p>
+            <form onSubmit={subscribe} className="mt-7 max-w-sm">
+              <label htmlFor="starfin-newsletter" className="mb-3 block text-sm font-semibold text-white">Novidades por e-mail</label>
+              <div className="flex gap-2">
+                <input id="starfin-newsletter" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Seu e-mail" className="min-w-0 flex-1 rounded-lg border border-white/15 bg-[#1c222e] px-3 py-2.5 text-sm text-white outline-none placeholder:text-[#8792a3] focus:border-[#b8bafb]"/>
+                <button type="submit" disabled={sending} aria-label="Inscrever-se nas novidades" className="rounded-lg bg-[#b8bafb] px-3.5 text-[#111320] disabled:opacity-60"><Mail size={18}/></button>
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-[#C77DFF] to-white bg-clip-text text-transparent">
-                {publicSettings?.siteName || 'StarfinPlugins'}
-              </span>
-            </div>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6">
-              A plataforma líder em plugins premium para Minecraft. Eleve seu servidor com ferramentas profissionais.
-            </p>
-            <div className="flex items-center gap-3">
-              {[
-                { icon: Github, label: 'GitHub', to: 'https://github.com/starfin' },
-                { icon: Twitter, label: 'Twitter', to: 'https://twitter.com/starfinplugins' },
-                { icon: Instagram, label: 'Instagram', to: 'https://instagram.com/starfinplugins' },
-                { icon: MessageCircle, label: 'Discord', to: 'https://discord.gg/starfin' }
-              ].map((social, index) => (
-                <a
-                  key={index}
-                  href={social.to}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg flex items-center justify-center text-gray-400 hover:text-[#C77DFF] hover:border-[#7B2CBF]/50 hover:bg-[#7B2CBF]/10 transition-all duration-300"
-                  aria-label={social.label}
-                >
-                  <social.icon className="w-5 h-5" />
-                </a>
-              ))}
-            </div>
+              {feedback && <p aria-live="polite" className="mt-2 text-xs text-[#c1c4d0]">{feedback}</p>}
+            </form>
           </div>
-
-          {/* Links Sections */}
-          {Object.entries(footerLinks).map(([category, links]) => (
-            <div key={category}>
-              <h4 className="text-white mb-4 capitalize">{category}</h4>
-              <ul className="space-y-3">
-                {links.map((link, index) => (
-                  <li key={index}>
-                    <Link
-                      to={link.to}
-                      className="text-gray-400 text-sm hover:text-[#C77DFF] transition-colors duration-300"
-                    >
-                      {link.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        {/* Newsletter */}
-        <div className="bg-gradient-to-r from-[#7B2CBF]/10 to-[#3C096C]/10 border border-[#7B2CBF]/20 rounded-xl p-8 mb-12">
-          <div className="max-w-2xl mx-auto text-center">
-            <h3 className="text-2xl mb-2">Fique por dentro das novidades</h3>
-            <p className="text-gray-400 mb-6">
-              Receba atualizações sobre novos plugins, promoções e dicas exclusivas
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setSubmitted(false); }}
-                className="flex-1 px-4 py-3 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#7B2CBF] focus:ring-2 focus:ring-[#7B2CBF]/20 transition-all duration-300"
-              />
-                <button
-                  disabled={submitting || !email.trim()}
-                  onClick={async () => {
-                    const value = email.trim();
-                    if (!value) return;
-                    setSubmitting(true);
-                    try {
-                      await subscribeNewsletter(value);
-                      setSubmitted(true);
-                      setEmail('');
-                    } finally {
-                      setSubmitting(false);
-                    }
-                  }}
-                  className="px-6 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-lg hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300 whitespace-nowrap disabled:opacity-60"
-                >
-                  {submitted ? 'Inscrito!' : submitting ? 'Enviando...' : 'Inscrever-se'}
-                </button>
-            </div>
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+            {groups.map((group) => (
+              <div key={group.title}>
+                <h2 className="mb-5 text-xs font-semibold uppercase tracking-[.12em] text-white">{group.title}</h2>
+                <ul className="space-y-3.5">
+                  {group.links.map((link) => <li key={link.href}><Link to={link.href} className="text-sm leading-6 transition-colors hover:text-white">{link.title}</Link></li>)}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-[#7B2CBF]/20">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-gray-500 text-sm text-center md:text-left">
-              {publicSettings?.footerText || '© 2026 StarfinPlugins. Todos os direitos reservados.'}
-            </p>
-            <div className="flex items-center gap-6">
-              <Link to="/status" className="text-gray-500 text-sm hover:text-[#C77DFF] transition-colors duration-300">
-                Status do Sistema
-              </Link>
-              <Link to="/changelog" className="text-gray-500 text-sm hover:text-[#C77DFF] transition-colors duration-300">
-                Changelog
-              </Link>
-            </div>
-          </div>
+        <div className="flex flex-col justify-between gap-4 pt-7 text-xs sm:flex-row sm:items-center">
+          <span>{branding?.footerText || `© ${new Date().getFullYear()} StarfinPlugins. Todos os direitos reservados.`}</span>
+          <a href="https://github.com/Alanls-mx/StarfinBans" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-white">StarfinBans no GitHub <ArrowUpRight size={13}/></a>
         </div>
       </div>
-
-      {/* Decorative Elements */}
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#7B2CBF] rounded-full blur-[150px] opacity-5 pointer-events-none"></div>
-      <div className="absolute top-0 right-0 w-64 h-64 bg-[#C77DFF] rounded-full blur-[150px] opacity-5 pointer-events-none"></div>
     </footer>
   );
 }
