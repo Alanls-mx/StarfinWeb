@@ -426,6 +426,19 @@ app.post('/v1/license/check', (req, res) => {
   const withBootstrapPlugin = (plugins: string[]) => {
     return Array.from(new Set([...bootstrapPluginNames, ...plugins.filter(Boolean)]));
   };
+  const authorizationProductIds = (allowedPlugins: string[]): string[] => {
+    const authorizedNames = new Set(allowedPlugins.map(name => name.toLowerCase()));
+    return Array.from(new Set(pluginSummaries
+      .filter(p => authorizedNames.has(p.name.toLowerCase()))
+      .map(p => {
+        // Product identifiers are stable and independent from display names.
+        if (p.name.toLowerCase() === 'starfinbans') return 'starfin_bans';
+        const declared = String(p.licenseName || p.slug || '').toLowerCase().trim();
+        return /^[a-z0-9_]{2,64}$/.test(declared) ? declared : '';
+      })
+      .filter(Boolean)));
+  };
+  const licenseAuthorizationLease = () => new Date(Date.now() + 45 * 60_000).toISOString();
   const buildUpdates = (allowedPlugins: string[]) => {
     const entries: Array<[string, string]> = [];
     for (const pluginName of allowedPlugins) {
@@ -554,6 +567,9 @@ app.post('/v1/license/check', (req, res) => {
         plan: user.plan,
         serverName: matchingServer.name,
         allowedPlugins,
+        allowedProductIds: authorizationProductIds(allowedPlugins),
+        authorizationExpiresAt: licenseAuthorizationLease(),
+        protocolVersion: 2,
         updates: buildUpdates(allowedPlugins)
       });
     }
@@ -584,6 +600,9 @@ app.post('/v1/license/check', (req, res) => {
       licenseOwner: user.name,
       plan: user.plan,
       allowedPlugins,
+      allowedProductIds: authorizationProductIds(allowedPlugins),
+      authorizationExpiresAt: licenseAuthorizationLease(),
+      protocolVersion: 2,
       updates: buildUpdates(allowedPlugins)
     });
   }
@@ -613,6 +632,9 @@ app.post('/v1/license/check', (req, res) => {
       licenseOwner: owner.name,
       plan: owner.plan,
       allowedPlugins,
+      allowedProductIds: authorizationProductIds(allowedPlugins),
+      authorizationExpiresAt: licenseAuthorizationLease(),
+      protocolVersion: 2,
       updates: buildUpdates(allowedPlugins)
     });
   }
@@ -686,6 +708,9 @@ app.post('/v1/license/check', (req, res) => {
       licenseOwner: owner?.name || 'Cliente',
       plan: owner?.plan || 'Free',
       allowedPlugins,
+      allowedProductIds: authorizationProductIds(allowedPlugins),
+      authorizationExpiresAt: licenseAuthorizationLease(),
+      protocolVersion: 2,
       updates: buildUpdates(allowedPlugins)
     });
   }
