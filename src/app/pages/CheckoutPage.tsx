@@ -63,16 +63,20 @@ export function CheckoutPage() {
         })
       });
 
-      if (res.checkoutUrl) {
-        window.location.href = res.checkoutUrl;
-        return;
+      // A created payment link is not proof of a completed purchase.
+      // Entitlements are only delivered by the verified provider reconciliation.
+      if (!res.checkoutUrl) {
+        throw new Error('O provedor ainda nao retornou um link de pagamento valido.');
       }
-
-      setSuccess(true);
-      clearCart();
-      setTimeout(() => {
-        navigate('/account');
-      }, 3000);
+      const paymentUrl = new URL(res.checkoutUrl);
+      if (paymentUrl.protocol !== 'https:' ||
+          !(['mercadopago.com', 'mercadopago.com.br', 'mercadopago.com.mx',
+              'mercadopago.com.ar', 'mercadopago.cl', 'mercadopago.com.co']
+            .some(domain => paymentUrl.hostname === domain || paymentUrl.hostname.endsWith('.' + domain)))) {
+        throw new Error('O provedor retornou um endereco de pagamento inesperado.');
+      }
+      window.location.assign(paymentUrl.toString());
+      return;
     } catch (err: any) {
       setError(err.message || 'Erro ao processar checkout');
     } finally {
