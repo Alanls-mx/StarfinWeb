@@ -1,444 +1,88 @@
-import { Star, Download, ShoppingCart, Heart, Shield, Zap, Award, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Box, Check, ShoppingBag, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { createPurchase, getPlugin, postReview, type PluginDetail as PluginDetailType } from '../lib/api';
+import { getPlugin, postReview, type PluginDetail as Product } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 
+const panel = 'rounded-xl border border-white/10 bg-card p-6 sm:p-8';
+
 export function PluginDetail() {
   const { id } = useParams();
-  const pluginId = Number(id);
-  const navigate = useNavigate();
+  const productId = Number(id);
   const { state } = useAuth();
   const { addItem } = useCart();
-  const token = state.status === 'authenticated' ? state.token : null;
-  const [plugin, setPlugin] = useState<PluginDetailType | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'description' | 'gallery' | 'docs' | 'reviews'>('description');
-  const [reviewUser, setReviewUser] = useState('');
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewSent, setReviewSent] = useState<null | { user: string; rating: number; dateISO: string; comment: string }>(null);
-  const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [tab, setTab] = useState<'overview' | 'gallery' | 'reviews'>('overview');
+  const [comment, setComment] = useState('');
+  const [rating, setRating] = useState(5);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setPlugin(null);
-    (async () => {
-      try {
-        const data = await getPlugin(pluginId);
-        if (!cancelled) setPlugin(data);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pluginId]);
+    let active = true;
+    setLoading(true); setError(''); setProduct(null);
+    if (!Number.isSafeInteger(productId) || productId <= 0) { setError('Produto inválido.'); setLoading(false); return; }
+    getPlugin(productId)
+      .then(data => { if (active) setProduct(data); })
+      .catch(() => { if (active) setError('Este produto não está disponível.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [productId]);
 
-  const features = [
-    { icon: Shield, title: 'Seguro e Confiável', description: 'Código auditado e testado' },
-    { icon: Zap, title: 'Alto Desempenho', description: 'Otimizado para servidores grandes' },
-    { icon: Award, title: 'Suporte Premium', description: 'Suporte dedicado 24/7' }
-  ];
+  async function submitReview(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!product || state.status !== 'authenticated' || sending) return;
+    setSending(true);
+    try {
+      await postReview(state.token, { pluginId: product.id, rating, comment: comment.trim() });
+      setProduct(await getPlugin(product.id));
+      setComment('');
+      toast.success('Avaliação registrada');
+    } catch (cause) { toast.error(cause instanceof Error ? cause.message : 'Não foi possível avaliar o produto.'); }
+    finally { setSending(false); }
+  }
 
-  const resolvedPlugin = plugin;
-
-  return (
-    <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-400 mb-8">
-          <Link to="/" className="hover:text-[#C77DFF] transition-colors duration-300">
-            Início
-          </Link>
-          <ChevronRight className="w-4 h-4" />
-          <Link to="/plugins" className="hover:text-[#C77DFF] transition-colors duration-300">
-            Plugins
-          </Link>
-          <ChevronRight className="w-4 h-4" />
-          <span className="text-white">{resolvedPlugin?.name ?? 'Carregando...'}</span>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Hero Image/Banner */}
-            <div className="relative h-96 rounded-2xl overflow-hidden bg-gradient-to-br from-[#7B2CBF]/30 to-[#3C096C]/30 border border-[#7B2CBF]/20">
-              <img
-                src={resolvedPlugin?.screenshots?.[0] ?? resolvedPlugin?.imageUrl ?? ''}
-                alt={resolvedPlugin?.name ?? 'Plugin'}
-                className="w-full h-full object-cover opacity-70"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0F] via-transparent to-transparent"></div>
-              <button className="absolute top-4 right-4 p-3 bg-[#1A1A22]/80 backdrop-blur-sm rounded-full hover:bg-[#7B2CBF]/50 transition-all duration-300 group">
-                <Heart className="w-6 h-6 text-white group-hover:fill-white transition-all duration-300" />
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="border-b border-[#7B2CBF]/20">
-              <div className="flex gap-8">
-                {[
-                  { id: 'description' as const, label: 'Descrição' },
-                  { id: 'gallery' as const, label: 'Galeria' },
-                  { id: 'docs' as const, label: 'Documentação' },
-                  { id: 'reviews' as const, label: 'Avaliações' }
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`pb-4 relative transition-all duration-300 ${
-                      activeTab === tab.id
-                        ? 'text-[#C77DFF]'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {tab.label}
-                    {activeTab === tab.id && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#C77DFF] to-transparent"></div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-8">
-              {activeTab === 'description' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-2xl mb-4">Sobre o Plugin</h3>
-                    <p className="text-gray-400 leading-relaxed mb-4">{resolvedPlugin?.tagline || '—'}</p>
-                    <p className="text-gray-400 leading-relaxed">{resolvedPlugin?.description || '—'}</p>
-                  </div>
-
-                  <div>
-                    <h4 className="text-xl mb-4">Recursos Principais</h4>
-                    <ul className="space-y-3">
-                      {(resolvedPlugin?.features?.length ? resolvedPlugin.features.map((f) => f.title) : []).map((feature, index) => (
-                        <li key={index} className="flex items-start gap-3 text-gray-400">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#C77DFF] mt-2 flex-shrink-0"></div>
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    {resolvedPlugin?.features?.length ? (
-                      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {resolvedPlugin.features.slice(0, 4).map((f) => (
-                          <div
-                            key={f.title}
-                            className="p-4 bg-[#0B0B0F]/40 rounded-lg border border-[#7B2CBF]/10"
-                          >
-                            <div className="text-white mb-1">{f.title}</div>
-                            <div className="text-sm text-gray-400">{f.description}</div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'gallery' && (
-                <div className="grid grid-cols-2 gap-4">
-                  {(resolvedPlugin?.screenshots?.length ? resolvedPlugin.screenshots : []).map((url, i) => (
-                    <div
-                      key={`${url}_${i}`}
-                      className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-[#7B2CBF]/20 to-[#3C096C]/20 border border-[#7B2CBF]/20 hover:border-[#7B2CBF]/50 transition-all duration-300 cursor-pointer group"
-                    >
-                      <img
-                        src={url}
-                        alt={`Screenshot ${i + 1}`}
-                        className="w-full h-full object-cover opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === 'docs' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-2xl mb-4">Documentação</h3>
-                    <p className="text-gray-400 mb-6">
-                      Guias e seções oficiais do plugin.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    {(resolvedPlugin?.docsSections ?? []).map((doc, index) => (
-                      <button
-                        key={index}
-                        className="w-full flex items-center justify-between p-4 bg-[#0B0B0F]/50 rounded-lg border border-[#7B2CBF]/10 hover:border-[#7B2CBF]/30 hover:bg-[#7B2CBF]/5 transition-all duration-300 group"
-                      >
-                        <div className="text-left">
-                          <div className="text-white mb-1 group-hover:text-[#C77DFF] transition-colors duration-300">
-                            {doc.title}
-                          </div>
-                          <div className="text-sm text-gray-400">{doc.description}</div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-[#C77DFF] group-hover:translate-x-1 transition-all duration-300" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'reviews' && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-2xl">Avaliações</h3>
-                    <div className="text-sm text-gray-400">
-                      {resolvedPlugin?.reviewsCount ?? 0} avaliações
-                    </div>
-                  </div>
-
-                  {state.status === 'authenticated' ? (
-                    <div className="p-5 bg-[#0B0B0F]/50 rounded-lg border border-[#7B2CBF]/10 space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="px-4 py-3 bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-lg text-gray-400 text-sm flex items-center">
-                          Postando como: <span className="text-white ml-2 font-medium">{state.user.name}</span>
-                        </div>
-                        <select
-                          value={reviewRating}
-                          onChange={(e) => setReviewRating(Number(e.target.value))}
-                          className="px-4 py-3 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg text-white focus:outline-none focus:border-[#7B2CBF] transition-all duration-300"
-                        >
-                          {[5, 4, 3, 2, 1].map((n) => (
-                            <option key={n} value={n}>
-                              {n} estrelas
-                            </option>
-                          ))}
-                        </select>
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          disabled={reviewSubmitting || loading || !resolvedPlugin || !reviewComment.trim()}
-                          onClick={async () => {
-                            if (!resolvedPlugin || !token) return;
-                            setReviewSubmitting(true);
-                            try {
-                              const res = await postReview(token, {
-                                pluginId: resolvedPlugin.id,
-                                rating: reviewRating,
-                                comment: reviewComment
-                              });
-                              toast.success('Avaliação enviada com sucesso!');
-                              setReviewComment('');
-                              // Refresh plugin data
-                              const updatedPlugin = await getPlugin(resolvedPlugin.id);
-                              setPlugin(updatedPlugin);
-                            } catch (e) {
-                              console.error(e);
-                            } finally {
-                              setReviewSubmitting(false);
-                            }
-                          }}
-                          className="px-4 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-lg hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300 disabled:opacity-60"
-                        >
-                          {reviewSubmitting ? 'Enviando...' : 'Enviar Avaliação'}
-                        </motion.button>
-                      </div>
-                      <textarea
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        placeholder="O que você achou deste plugin? Sua opinião é importante!"
-                        className="w-full px-4 py-3 bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#7B2CBF] focus:ring-2 focus:ring-[#7B2CBF]/20 transition-all duration-300 min-h-28"
-                      />
-                    </div>
-                  ) : (
-                    <div className="p-8 bg-[#0B0B0F]/50 rounded-lg border border-dashed border-[#7B2CBF]/20 text-center">
-                      <p className="text-gray-400 mb-4">Você precisa estar logado para avaliar este plugin.</p>
-                      <Link
-                        to="/login"
-                        className="inline-block px-6 py-2 bg-[#7B2CBF]/20 text-[#C77DFF] border border-[#7B2CBF]/30 rounded-lg hover:bg-[#7B2CBF]/30 transition-all"
-                      >
-                        Fazer Login
-                      </Link>
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    {(resolvedPlugin?.reviews ?? []).map((review, index) => (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        key={index}
-                        className="p-6 bg-[#0B0B0F]/40 rounded-xl border border-[#7B2CBF]/10"
-                      >
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7B2CBF] to-[#9D4EDD] flex items-center justify-center text-white font-bold">
-                              {(review.user || '?').charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="text-white font-medium">{review.user || 'Anônimo'}</div>
-                              <div className="text-xs text-gray-500">{review.dateISO}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-4 h-4 ${
-                                  i < review.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-600'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-gray-400 text-sm leading-relaxed">{review.comment}</p>
-                      </motion.div>
-                    ))}
-                    {(resolvedPlugin?.reviews ?? []).length === 0 && (
-                      <div className="text-center py-12 text-gray-500 italic">
-                        Nenhuma avaliação ainda. Seja o primeiro a avaliar!
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+  return <main className="mx-auto min-h-[75vh] max-w-7xl px-5 pb-24 pt-32 sm:px-8">
+    <Link to="/plugins" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-white"><ArrowLeft size={16}/> Voltar ao catálogo</Link>
+    {loading ? <div role="status" className="mt-10 grid gap-5 lg:grid-cols-[1fr_340px]"><div className="h-[400px] animate-pulse rounded-xl bg-card"/><div className="h-[320px] animate-pulse rounded-xl bg-card"/></div>
+    : error || !product ? <div className={`${panel} mt-10`} role="alert"><h1 className="text-2xl font-semibold">Produto indisponível</h1><p className="mt-3 text-muted-foreground">{error}</p></div>
+    : <>
+      <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-medium uppercase tracking-[.16em] text-primary"><span>{product.category}</span>{product.platform && <span className="text-muted-foreground">/ {product.platform}</span>}</div>
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">{product.name}</h1>
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">{product.tagline || product.description}</p>
+          <div className="mt-9 overflow-hidden rounded-xl border border-white/10 bg-[#171c25]">
+            {product.imageUrl ? <img src={product.imageUrl} alt={`Imagem de ${product.name}`} className="aspect-[16/8] w-full object-cover"/> : <div className="flex aspect-[16/8] items-center justify-center"><Box size={46} className="text-primary"/></div>}
           </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              {/* Purchase Card */}
-              <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6 space-y-6 relative overflow-hidden">
-                {state.status === 'authenticated' && state.user?.plan === 'Premium' && (
-                  <div className="absolute top-0 right-0 bg-emerald-500 text-[#0B0B0F] text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">
-                    Liberado no seu Plano
-                  </div>
-                )}
-                <div>
-                  <h2 className="text-3xl mb-2">{resolvedPlugin?.name ?? '—'}</h2>
-                  <p className="text-gray-400 text-sm">{resolvedPlugin?.tagline ?? '—'}</p>
-                </div>
-
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl text-[#C77DFF]">
-                    {state.status === 'authenticated' && state.user?.plan === 'Premium' ? 'GRÁTIS' : (resolvedPlugin?.priceDisplay ?? '—')}
-                  </span>
-                  {(!state.user || state.user.plan !== 'Premium') && <span className="text-gray-500 line-through">R$ 79,90</span>}
-                </div>
-
-                {state.status === 'authenticated' && state.user?.plan === 'Premium' ? (
-                  <button
-                    onClick={() => {
-                      if (resolvedPlugin?.jarUrl) {
-                        window.open(resolvedPlugin.jarUrl, '_blank');
-                      } else {
-                        toast.error('Link de download não disponível para este plugin.');
-                      }
-                    }}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300 hover:scale-[1.02]"
-                  >
-                    <Download className="w-5 h-5" />
-                    Baixar Agora (Premium)
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (!resolvedPlugin) return;
-                      addItem({
-                        id: resolvedPlugin.id,
-                        name: resolvedPlugin.name,
-                        price: resolvedPlugin.priceCents || 0,
-                        slug: resolvedPlugin.slug,
-                        imageUrl: resolvedPlugin.imageUrl
-                      });
-                      toast.success('Adicionado ao carrinho!');
-                    }}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-xl hover:shadow-[#7B2CBF]/50 transition-all duration-300 hover:scale-[1.02]"
-                  >
-                    <ShoppingCart className="w-5 h-5" />
-                    Adicionar ao Carrinho
-                  </button>
-                )}
-                
-                {state.user?.plan !== 'Premium' && (
-                  <Link
-                    to="/premium"
-                    className="block text-center text-xs text-[#C77DFF] hover:underline"
-                  >
-                    Ou tenha todos os plugins com Starfin Premium →
-                  </Link>
-                )}
-                {purchaseMessage ? <div className="text-sm text-gray-400">{purchaseMessage}</div> : null}
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="p-3 bg-[#0B0B0F]/50 rounded-lg border border-[#7B2CBF]/10">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      <span className="text-white">{resolvedPlugin?.rating ?? '—'}</span>
-                    </div>
-                    <div className="text-gray-500 text-xs">{resolvedPlugin?.reviewsCount ?? 0} avaliações</div>
-                  </div>
-                  <div className="p-3 bg-[#0B0B0F]/50 rounded-lg border border-[#7B2CBF]/10">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Download className="w-4 h-4 text-[#C77DFF]" />
-                      <span className="text-white">{resolvedPlugin?.downloadsDisplay ?? '—'}</span>
-                    </div>
-                    <div className="text-gray-500 text-xs">Downloads</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Info Card */}
-              <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6 space-y-4">
-                <h3 className="text-lg mb-4">Informações</h3>
-                {[
-                  { label: 'Versão', value: resolvedPlugin?.version ?? '—' },
-                  { label: 'Minecraft', value: resolvedPlugin?.mcVersion ?? '—' },
-                  { label: 'Desenvolvedor', value: resolvedPlugin?.author ?? '—' },
-                  { label: 'Última Atualização', value: resolvedPlugin?.lastUpdateISO ?? '—' }
-                ].map((info, index) => (
-                  <div key={index} className="flex justify-between items-center text-sm">
-                    <span className="text-gray-400">{info.label}</span>
-                    <span className="text-white">{info.value}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Features */}
-              <div className="bg-[#1A1A22]/60 backdrop-blur-sm border border-[#7B2CBF]/20 rounded-xl p-6 space-y-4">
-                {features.map((feature, index) => (
-                  <div key={index} className="flex gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#7B2CBF]/20 flex items-center justify-center flex-shrink-0">
-                      <feature.icon className="w-5 h-5 text-[#C77DFF]" />
-                    </div>
-                    <div>
-                      <div className="text-white mb-1">{feature.title}</div>
-                      <div className="text-sm text-gray-400">{feature.description}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-gradient-to-br from-[#7B2CBF]/15 to-[#3C096C]/10 backdrop-blur-sm border border-[#7B2CBF]/25 rounded-xl p-6 space-y-3">
-                <h3 className="text-lg text-white">Integração & API</h3>
-                <p className="text-sm text-gray-400">
-                  Para conectar o plugin ao seu servidor, gere uma chave de API na sua conta e valide a licença via
-                  endpoint.
-                </p>
-                <Link
-                  to="/docs#api"
-                  className="inline-flex items-center justify-center w-full px-4 py-3 bg-white text-[#0B0B0F] rounded-lg hover:bg-gray-100 transition-all duration-300 text-sm"
-                >
-                  Ver Documentação da API
-                </Link>
-              </div>
-            </div>
+          <div className="mt-10 flex gap-6 overflow-x-auto border-b border-white/10" role="tablist" aria-label="Informações do produto">
+            {(['overview', 'gallery', 'reviews'] as const).map(value => <button key={value} role="tab" aria-selected={tab === value} type="button" onClick={() => setTab(value)} className={`border-b-2 pb-4 text-sm font-medium ${tab === value ? 'border-primary text-white' : 'border-transparent text-muted-foreground hover:text-white'}`}>{value === 'overview' ? 'Visão geral' : value === 'gallery' ? 'Galeria' : 'Avaliações'}</button>)}
+          </div>
+          <div className={`${panel} mt-6`} role="tabpanel">
+            {tab === 'overview' && <div className="space-y-9">
+              <section><h2 className="text-xl font-semibold">Sobre o plugin</h2><p className="mt-4 whitespace-pre-line leading-8 text-muted-foreground">{product.description}</p></section>
+              {product.features.length > 0 && <section><h2 className="text-xl font-semibold">Recursos</h2><ul className="mt-5 grid gap-4 sm:grid-cols-2">{product.features.map(feature => <li key={feature.title} className="flex gap-3 rounded-lg border border-white/10 p-4"><Check size={18} className="mt-1 shrink-0 text-primary"/><span><strong className="block text-sm">{feature.title}</strong><small className="mt-1 block leading-6 text-muted-foreground">{feature.description}</small></span></li>)}</ul></section>}
+              {product.dependencies.length > 0 && <section><h2 className="text-xl font-semibold">Dependências</h2><p className="mt-3 text-muted-foreground">{product.dependencies.join(', ')}</p></section>}
+              <Link to="/docs" className="inline-flex text-sm font-semibold text-primary hover:text-white">Consultar documentação →</Link>
+            </div>}
+            {tab === 'gallery' && (product.screenshots.length > 0 ? <div className="grid gap-4 sm:grid-cols-2">{product.screenshots.map((url, index) => <img key={`${url}-${index}`} src={url} alt={`${product.name}: captura ${index + 1}`} className="aspect-video w-full rounded-lg border border-white/10 object-cover"/>)}</div> : <p className="text-sm text-muted-foreground">Nenhuma captura publicada para este produto.</p>)}
+            {tab === 'reviews' && <div className="space-y-7">
+              <h2 className="text-xl font-semibold">Avaliações {product.reviewsCount > 0 && <span className="text-sm font-normal text-muted-foreground">({product.reviewsCount})</span>}</h2>
+              {state.status === 'authenticated' ? <form onSubmit={submitReview} className="space-y-3 rounded-lg border border-white/10 p-5"><label htmlFor="rating" className="block text-sm">Sua nota</label><select id="rating" value={rating} onChange={event => setRating(Number(event.target.value))} className="rounded-lg border border-input bg-input-background px-3 py-2 text-sm">{[5,4,3,2,1].map(value => <option key={value} value={value}>{value} estrela{value > 1 ? 's' : ''}</option>)}</select><label htmlFor="review" className="block text-sm">Seu comentário</label><textarea id="review" required minLength={3} value={comment} onChange={event => setComment(event.target.value)} className="min-h-24 w-full rounded-lg border border-input bg-input-background p-3 text-sm"/><button disabled={sending} className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">{sending ? 'Enviando...' : 'Publicar avaliação'}</button></form> : <p className="text-sm text-muted-foreground"><Link to="/login" className="text-primary hover:underline">Entre na sua conta</Link> para avaliar.</p>}
+              {product.reviews.length > 0 ? <ul className="divide-y divide-white/10">{product.reviews.map((review, index) => <li key={index} className="py-5"><div className="flex flex-wrap items-center justify-between gap-3"><strong className="text-sm">{review.user}</strong><span className="inline-flex items-center gap-1 text-sm text-amber-300"><Star size={14} fill="currentColor"/> {review.rating}/5</span></div><p className="mt-2 text-sm leading-7 text-muted-foreground">{review.comment}</p><time className="mt-2 block text-xs text-muted-foreground">{review.dateISO}</time></li>)}</ul> : <p className="text-sm text-muted-foreground">Este produto ainda não recebeu avaliações.</p>}
+            </div>}
           </div>
         </div>
+        <aside className="lg:pt-3"><div className={`${panel} sticky top-28 space-y-6`}>
+          <div><p className="text-xs font-medium uppercase tracking-[.16em] text-muted-foreground">Licença do produto</p><p className="mt-2 text-3xl font-semibold">{product.priceDisplay}</p></div>
+          <button type="button" onClick={() => { addItem({ id: String(product.id), name: product.name, price: product.priceCents, slug: String(product.id), imageUrl: product.imageUrl }); toast.success('Adicionado ao carrinho'); }} className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17}/> Adicionar ao carrinho</button>
+          <dl className="divide-y divide-white/10 border-t border-white/10 text-sm"><div className="flex justify-between gap-3 py-3"><dt className="text-muted-foreground">Versão</dt><dd>{product.version || 'Não informada'}</dd></div><div className="flex justify-between gap-3 py-3"><dt className="text-muted-foreground">Minecraft</dt><dd>{product.mcVersion || 'Consultar suporte'}</dd></div><div className="flex justify-between gap-3 py-3"><dt className="text-muted-foreground">Desenvolvedor</dt><dd>{product.author || 'StarfinPlugins'}</dd></div>{product.reviewsCount > 0 && <div className="flex justify-between gap-3 py-3"><dt className="text-muted-foreground">Avaliação</dt><dd>{product.rating}/5</dd></div>}</dl>
+          <p className="text-xs leading-6 text-muted-foreground">Após a confirmação do pagamento, consulte sua licença e a disponibilidade de arquivos na área da conta.</p>
+        </div></aside>
       </div>
-    </div>
-  );
+    </>}
+  </main>;
 }

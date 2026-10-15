@@ -16,36 +16,6 @@ type CareerFormState = {
   message: string;
 };
 
-const defaultJobs: CareerJob[] = [
-  {
-    id: 'job_java_senior',
-    title: 'Desenvolvedor Java Senior',
-    location: 'Remoto',
-    salary: 'A combinar',
-    type: 'Tempo Integral',
-    description: 'Responsavel pela arquitetura e desenvolvimento de plugins complexos de alta performance.',
-    enabled: true
-  },
-  {
-    id: 'job_ui_ux',
-    title: 'Designer de UI/UX',
-    location: 'Remoto',
-    salary: 'A combinar',
-    type: 'Tempo Integral',
-    description: 'Criar interfaces modernas e intuitivas para nossos plugins e dashboard web.',
-    enabled: true
-  },
-  {
-    id: 'job_support',
-    title: 'Suporte Tecnico',
-    location: 'Remoto',
-    salary: 'A combinar',
-    type: 'Meio Periodo',
-    description: 'Auxiliar clientes com instalacao e configuracao de plugins e licencas.',
-    enabled: true
-  }
-];
-
 function buildInitialForm(role: string): CareerFormState {
   return {
     name: '',
@@ -61,7 +31,7 @@ function buildInitialForm(role: string): CareerFormState {
 }
 
 export function CareersPage() {
-  const [jobs, setJobs] = useState<CareerJob[]>(defaultJobs);
+  const [jobs, setJobs] = useState<CareerJob[]>([]);
   const [hasLoadedRemoteJobs, setHasLoadedRemoteJobs] = useState(false);
   const talentPoolRole = 'Banco de Talentos';
   const availableRoles = useMemo(() => [talentPoolRole, ...jobs.map((job) => job.title)], [jobs]);

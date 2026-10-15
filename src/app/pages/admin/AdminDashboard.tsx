@@ -127,7 +127,6 @@ export function AdminDashboard() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-bold text-white">{plugin.sales} aprovações</div>
-                  <div className="text-xs text-emerald-400">R$ {(plugin.revenueCents / 100).toFixed(2)}</div>
                 </div>
               </div>
             ))}

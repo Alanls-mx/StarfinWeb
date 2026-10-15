@@ -96,6 +96,7 @@ export function AdminUsersPage() {
           ? Math.max(0, Math.floor(normalizedDurationDays as number))
           : undefined
       };
+      if (!editingUser.id) throw new Error('Usuário sem identificador');
       const updated = await updateAdminUser(token, editingUser.id, dataToSave);
       setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
       toast.success('Usuário atualizado com sucesso!');

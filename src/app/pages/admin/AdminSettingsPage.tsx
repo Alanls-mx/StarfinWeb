@@ -28,7 +28,8 @@ export function AdminSettingsPage() {
     if (!token) return;
     setSaving(true);
     try {
-      await adminSaveSettings(token, settings);
+      const result = await adminSaveSettings(token, settings);
+      setSettings(result.settings);
       toast.success('Configurações salvas com sucesso!');
     } catch (e) {
       console.error(e);
@@ -245,7 +246,7 @@ export function AdminSettingsPage() {
                 value={settings.mercadopagoAccessToken || ''}
                 onChange={(e) => setSettings({ ...settings, mercadopagoAccessToken: e.target.value })}
                 className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none transition-all"
-                placeholder="APP_USR-..."
+                placeholder={settings.mercadopagoTokenConfigured ? 'Token configurado — digite para substituir' : 'APP_USR-...'}
               />
             </div>
             <div>

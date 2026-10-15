@@ -3,25 +3,36 @@ export type PluginTag = 'Popular' | 'Novo' | 'Premium';
 export type PluginCategory = string;
 
 export interface PluginSummary {
-  id: string;
+  id: number;
   name: string;
-  slug: string;
   description: string;
   category: PluginCategory;
   licenseName: string | null;
-  price: number;
-  jarUrl: string | null;
+  tags: PluginTag[];
+  mcVersion: string;
+  rating: number;
+  downloads: number;
+  downloadsDisplay: string;
+  priceDisplay: string;
+  priceCents: number;
+  currency: 'BRL';
+  jarUrl?: string | null;
   dependencies: string[];
   platform: string | null;
-  latestVersion: string | null;
-  imageUrl: string | null;
-  images: string[];
+  imageUrl: string;
   featured: boolean;
-  createdAt: string;
 }
 
 export interface PluginDetail extends PluginSummary {
-  reviews?: Array<{ user: string; rating: number; dateISO: string; comment: string }>;
+  tagline: string;
+  version: string;
+  author: string;
+  lastUpdateISO: string;
+  reviewsCount: number;
+  screenshots: string[];
+  features: Array<{ title: string; description: string }>;
+  docsSections: Array<{ title: string; description: string }>;
+  reviews: Array<{ user: string; rating: number; dateISO: string; comment: string }>;
 }
 
 export interface UserProfile {
@@ -415,6 +426,7 @@ export interface AdminSiteSettings extends PublicSettings {
   newsletterLastSentISO: string | null;
   mercadopagoEnabled: boolean;
   mercadopagoAccessToken: string;
+  mercadopagoTokenConfigured?: boolean;
   mercadopagoPublicKey: string;
   mercadopagoWebhookUrl: string;
 }
@@ -439,17 +451,14 @@ export function adminCreatePlugin(
   token: string,
   input: {
     name: string;
-    slug: string;
     description: string;
     category: PluginCategory;
     licenseName?: string | null;
-    price: number;
-    jarUrl?: string | null;
-    dependencies?: string[];
-    platform?: string;
-    latestVersion?: string | null;
-    imageUrl?: string | null;
-    images?: string[];
+    tags: PluginTag[];
+    mcVersion: string;
+    priceDisplay: string;
+    imageUrl: string;
+    platform?: string | null;
     featured?: boolean;
   }
 ) {
@@ -460,7 +469,7 @@ export function adminCreatePlugin(
   });
 }
 
-export function adminUpdatePlugin(token: string, id: string, input: Partial<PluginSummary>) {
+export function adminUpdatePlugin(token: string, id: number, input: Partial<PluginDetail>) {
   return apiFetch<PluginSummary>(`/api/admin/plugins/${id}`, {
     method: 'PUT',
     token,
@@ -468,7 +477,7 @@ export function adminUpdatePlugin(token: string, id: string, input: Partial<Plug
   });
 }
 
-export function adminDeletePlugin(token: string, id: string) {
+export function adminDeletePlugin(token: string, id: number) {
   return apiFetch<{ ok: true }>(`/api/admin/plugins/${id}`, { method: 'DELETE', token });
 }
 
@@ -752,11 +761,11 @@ export function adminListPurchases(token: string) {
   return apiFetch<{ items: Purchase[] }>('/api/admin/purchases', { token });
 }
 
-export function adminUpdatePurchase(token: string, id: string, status: Purchase['status']) {
+export function adminUpdatePurchase(token: string, id: string, input: { allowedIp: string | null; resetHwid?: boolean }) {
   return apiFetch<{ ok: true; purchase: Purchase }>(`/api/admin/purchases/${encodeURIComponent(id)}`, {
     method: 'PUT',
     token,
-    body: JSON.stringify({ status })
+    body: JSON.stringify(input)
   });
 }
 
@@ -1076,7 +1085,7 @@ export function getMyPayments(token: string) {
 }
 
 export function getPluginConfig(token: string, id: number) {
-  return apiFetch<{ jarUrl: string; version: string; pluginId: number; hwid: string; allowedIp: string }>(`/api/plugins/${id}/config`, { token });
+  return apiFetch<{ jarUrl: string | null; version: string; pluginId: number; hwid: string; allowedIp: string }>(`/api/plugins/${id}/config`, { token });
 }
 
 export function updatePluginConfig(token: string, id: number, data: any) {

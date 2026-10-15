@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { adminListPurchases, adminUpdatePurchase } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { toast } from 'sonner';
 
 export function AdminPurchasesPage() {
   const { state } = useAuth();
@@ -35,11 +36,12 @@ export function AdminPurchasesPage() {
     if (!token || !editingItem) return;
     setSaving(true);
     try {
-      await adminUpdatePurchase(token, editingItem.id, editingItem);
-      setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, ...editingItem } : i));
+      const result = await adminUpdatePurchase(token, editingItem.id, { allowedIp: editingItem.allowedIp || null, resetHwid: editingItem.resetHwid === true });
+      setItems(prev => prev.map(i => i.id === editingItem.id ? result.purchase : i));
+      toast.success('Vínculo da instalação atualizado');
       setEditingItem(null);
     } catch (e) {
-      console.error(e);
+      toast.error(e instanceof Error ? e.message : 'Não foi possível salvar.');
     } finally {
       setSaving(false);
     }
@@ -56,7 +58,7 @@ export function AdminPurchasesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Vendas e Licenças</h1>
-          <p className="text-gray-400">Gerencie pedidos, chaves de licença e IPs autorizados.</p>
+          <p className="text-gray-400">Consulte licenças e ajuste o vínculo de instalação. Aprovações financeiras dependem do provedor.</p>
         </div>
         <div className="relative w-full md:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
@@ -119,7 +121,8 @@ export function AdminPurchasesPage() {
                     </td>
                     <td className="p-4 text-right">
                       <button 
-                        onClick={() => setEditingItem(item)}
+                        onClick={() => setEditingItem({ ...item, resetHwid: false })}
+                        aria-label={`Editar instalação da licença ${item.id}`}
                         className="p-2 text-gray-400 hover:text-[#C77DFF] hover:bg-[#7B2CBF]/10 rounded-lg transition-all"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -148,7 +151,7 @@ export function AdminPurchasesPage() {
               className="relative w-full max-w-lg bg-[#13131A] border border-[#7B2CBF]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
               <div className="flex items-center justify-between p-6 border-b border-[#7B2CBF]/10">
-                <h3 className="text-xl text-white font-medium">Editar Licença</h3>
+                <h3 className="text-xl text-white font-medium">Instalação da licença</h3>
                 <button onClick={() => setEditingItem(null)} className="p-2 text-gray-400 hover:text-white transition-colors">
                   <X className="w-6 h-6" />
                 </button>
@@ -156,24 +159,10 @@ export function AdminPurchasesPage() {
 
               <form onSubmit={handleSave} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Status da Compra</label>
-                  <select
-                    value={editingItem.status}
-                    onChange={e => setEditingItem({ ...editingItem, status: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white focus:border-[#7B2CBF] outline-none"
-                  >
-                    <option value="pending">Pendente</option>
-                    <option value="approved">Aprovada</option>
-                    <option value="rejected">Recusada</option>
-                    <option value="cancelled">Cancelada</option>
-                  </select>
-                </div>
-
-                <div>
                   <label className="block text-sm text-gray-400 mb-2">Chave de Licença</label>
                   <input
                     value={editingItem.licenseKey || ''}
-                    onChange={e => setEditingItem({ ...editingItem, licenseKey: e.target.value })}
+                    readOnly
                     className="w-full px-4 py-3 bg-[#0B0B0F] border border-[#7B2CBF]/20 rounded-xl text-white font-mono text-sm focus:border-[#7B2CBF] outline-none"
                   />
                 </div>
@@ -199,10 +188,10 @@ export function AdminPurchasesPage() {
                     />
                     <button 
                       type="button"
-                      onClick={() => setEditingItem({ ...editingItem, hwid: null })}
+                      onClick={() => setEditingItem({ ...editingItem, hwid: null, resetHwid: true })}
                       className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-xs hover:bg-red-500/20 transition-all"
                     >
-                      Resetar
+                      {editingItem.resetHwid ? 'Reset solicitado' : 'Resetar'}
                     </button>
                   </div>
                 </div>

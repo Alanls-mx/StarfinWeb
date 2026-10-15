@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { getCategories, getPlugins, type PluginCategory, type PluginSummary } from '../lib/api';
 import { useCart } from '../lib/cart';
-import { useAuth } from '../lib/auth';
 
 type Sort = 'popular' | 'rating' | 'recent' | 'price_asc' | 'price_desc';
 const sorts: Array<{ value: Sort; label: string }> = [
@@ -15,7 +14,6 @@ const sorts: Array<{ value: Sort; label: string }> = [
 
 export function Store() {
   const { addItem } = useCart();
-  const { state } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Array<PluginCategory | 'Todas'>>(['Todas']);
   const [items, setItems] = useState<PluginSummary[]>([]);
@@ -27,7 +25,6 @@ export function Store() {
   const category = searchParams.get('category') || 'Todas';
   const sortValue = searchParams.get('sort') || 'recent';
   const sort: Sort = sorts.some((s) => s.value === sortValue) ? sortValue as Sort : 'recent';
-  const hasPremium = state.status === 'authenticated' && state.user.plan === 'Premium';
 
   const changeFilter = (name: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -137,13 +134,13 @@ export function Store() {
                 <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
                   <span className="text-xl font-semibold">{plugin.priceDisplay}</span>
                   <div className="flex items-center gap-2">
-                    {!hasPremium && <button type="button" aria-label={`Adicionar ${plugin.name} ao carrinho`} onClick={() => addItem({
+                    <button type="button" aria-label={`Adicionar ${plugin.name} ao carrinho`} onClick={() => addItem({
                       id: String(plugin.id),
                       name: plugin.name,
                       price: plugin.priceCents,
-                      slug: plugin.slug,
+                      slug: String(plugin.id),
                       imageUrl: plugin.imageUrl
-                    })} className="rounded-lg border border-white/15 p-2.5 text-[#c2c4ff] hover:border-[#b8bafb] hover:bg-white/[.05]"><ShoppingBag size={17}/></button>}
+                    })} className="rounded-lg border border-white/15 p-2.5 text-[#c2c4ff] hover:border-[#b8bafb] hover:bg-white/[.05]"><ShoppingBag size={17}/></button>
                     <Link to={`/plugins/${plugin.id}`} className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2.5 text-xs font-semibold text-white hover:border-[#b8bafb]">Detalhes <ArrowRight size={14}/></Link>
                   </div>
                 </div>

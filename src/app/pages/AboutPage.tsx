@@ -4,49 +4,7 @@ import { Users, Target, Rocket, Shield, Heart, Zap } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { getPublicSettings, type TeamMemberProfile } from '../lib/api';
 
-const defaultTeamMembers: TeamMemberProfile[] = [
-  {
-    id: 'team_ana',
-    name: 'Ana Ribeiro',
-    role: 'Head de Produto',
-    bio: 'Define o roadmap dos plugins e garante que cada lancamento resolva dores reais dos donos de servidores.',
-    imageUrl: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=80',
-    skills: ['Produto', 'UX', 'Metricas']
-  },
-  {
-    id: 'team_lucas',
-    name: 'Lucas Fernandes',
-    role: 'Tech Lead Backend',
-    bio: 'Lidera a arquitetura dos sistemas criticos com foco em estabilidade, baixa latencia e escalabilidade.',
-    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80',
-    skills: ['Java', 'APIs', 'Performance']
-  },
-  {
-    id: 'team_marina',
-    name: 'Marina Costa',
-    role: 'Especialista em Sucesso do Cliente',
-    bio: 'Acompanha servidores parceiros de ponta a ponta para acelerar adocao e retencao dos plugins.',
-    imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80',
-    skills: ['Onboarding', 'Suporte', 'Retencao']
-  },
-  {
-    id: 'team_rafael',
-    name: 'Rafael Nogueira',
-    role: 'Designer UI/UX',
-    bio: 'Transforma fluxos complexos em interfaces claras, mantendo consistencia visual em toda a plataforma.',
-    imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=80',
-    skills: ['Design System', 'Pesquisa', 'Prototipacao']
-  }
-];
-
 export function AboutPage() {
-  const stats = [
-    { label: 'Clientes Ativos', value: '10.000+', icon: Users },
-    { label: 'Plugins Criados', value: '50+', icon: Zap },
-    { label: 'Anos de Experiencia', value: '5+', icon: Rocket },
-    { label: 'Suporte 24/7', value: '100%', icon: Shield }
-  ];
-
   const values = [
     {
       title: 'Inovacao',
@@ -65,7 +23,7 @@ export function AboutPage() {
     }
   ];
 
-  const [teamMembers, setTeamMembers] = useState<TeamMemberProfile[]>(defaultTeamMembers);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberProfile[]>([]);
 
   useEffect(() => {
     getPublicSettings()
@@ -93,26 +51,11 @@ export function AboutPage() {
           transition={{ delay: 0.1 }}
           className="text-gray-400 text-lg max-w-3xl mx-auto leading-relaxed"
         >
-          A StarfinPlugins nasceu da paixao por criar experiencias unicas em servidores de Minecraft. O que comecou como
-          pequenos scripts para amigos evoluiu para uma das maiores lojas de plugins do mercado.
+          Desenvolvemos ferramentas para servidores Minecraft e mantemos a documentação,
+          o licenciamento e o suporte em um só lugar.
         </motion.p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-24">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.1 }}
-            className="p-6 bg-[#13131A] border border-[#7B2CBF]/10 rounded-2xl text-center group hover:border-[#7B2CBF]/30 transition-all"
-          >
-            <stat.icon className="w-8 h-8 text-[#7B2CBF] mx-auto mb-4 group-hover:scale-110 transition-transform" />
-            <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-            <div className="text-sm text-gray-500">{stat.label}</div>
-          </motion.div>
-        ))}
-      </div>
 
       <div className="grid lg:grid-cols-2 gap-16 items-center mb-24">
         <div>
@@ -147,7 +90,7 @@ export function AboutPage() {
         </div>
       </div>
 
-      <section>
+      {teamMembers.length > 0 && <section>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
           <div>
             <h2 className="text-3xl font-bold text-white">Nossa Equipe</h2>
@@ -189,7 +132,7 @@ export function AboutPage() {
             </motion.article>
           ))}
         </div>
-      </section>
+      </section>}
     </div>
   );
 }

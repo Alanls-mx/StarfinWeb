@@ -11,6 +11,7 @@ import { DocsPage } from './pages/DocsPage';
 import { ChangelogPage } from './pages/ChangelogPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { PasswordRecoveryPage } from './pages/PasswordRecoveryPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SupportPage } from './pages/SupportPage';
 import { TicketDetailPage } from './pages/TicketDetailPage';
@@ -100,6 +101,8 @@ export default function App() {
               <Route path="/support" element={<SupportPage />} />
               <Route path="/support/ticket/:id" element={<TicketDetailPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<PasswordRecoveryPage />} />
+              <Route path="/reset-password" element={<PasswordRecoveryPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/cart" element={<CheckoutPage />} />

@@ -1,227 +1,67 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { useCart } from '../lib/cart';
-import { useAuth } from '../lib/auth';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { ArrowRight, ShoppingBag, Trash2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
-import { ShoppingBag, Tag, CreditCard, ChevronRight, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '../lib/auth';
+import { useCart } from '../lib/cart';
+
+const money = (cents: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 
 export function CheckoutPage() {
-  const { items, removeItem, total, clearCart } = useCart();
+  const { items, removeItem, total, planItem } = useCart();
   const { state } = useAuth();
   const navigate = useNavigate();
-  
-  const [couponCode, setCouponCode] = useState('');
-  const [couponData, setCouponData] = useState<{ code: string; discountCents: number } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [coupon, setCoupon] = useState<{ code: string; discountCents: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const payable = Math.max(0, total - (coupon?.discountCents || 0));
 
-  const subtotal = total;
-  const discount = couponData ? couponData.discountCents : 0;
-  const finalTotal = Math.max(0, subtotal - discount);
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
-    setError(null);
+  async function validateCoupon() {
+    setError(''); setCoupon(null);
+    if (!couponInput.trim()) return;
     try {
-      const res = await apiFetch<{ code: string; discountCents: number }>('/api/commerce/coupon/validate', {
+      const result = await apiFetch<{ code: string; discountCents: number }>('/api/commerce/coupon/validate', {
         method: 'POST',
         token: state.status === 'authenticated' ? state.token : null,
-        body: JSON.stringify({ code: couponCode, totalCents: subtotal })
+        body: JSON.stringify({ code: couponInput.trim(), totalCents: total })
       });
-      setCouponData(res);
-    } catch (err: any) {
-      if (err.status === 401) {
-        setError('Você precisa estar logado para aplicar cupons.');
-      } else {
-        setError(err.message || 'Cupom inválido');
-      }
-      setCouponData(null);
-    }
-  };
-
-  const handleCheckout = async () => {
-    if (state.status !== 'authenticated') {
-      navigate('/login?redirect=/checkout');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    const pluginIds = items.filter(i => i.type !== 'plan').map(i => i.id);
-    const planItem = items.find(i => i.type === 'plan');
-
-    try {
-      const res = await apiFetch<{ orderId: string; checkoutUrl: string }>('/api/commerce/checkout', {
-        method: 'POST',
-        token: state.status === 'authenticated' ? state.token : null,
-        body: JSON.stringify({
-          pluginIds,
-          planId: planItem?.id,
-          couponCode: couponData?.code
-        })
-      });
-
-      // A created payment link is not proof of a completed purchase.
-      // Entitlements are only delivered by the verified provider reconciliation.
-      if (!res.checkoutUrl) {
-        throw new Error('O provedor ainda nao retornou um link de pagamento valido.');
-      }
-      const paymentUrl = new URL(res.checkoutUrl);
-      if (paymentUrl.protocol !== 'https:' ||
-          !(['mercadopago.com', 'mercadopago.com.br', 'mercadopago.com.mx',
-              'mercadopago.com.ar', 'mercadopago.cl', 'mercadopago.com.co']
-            .some(domain => paymentUrl.hostname === domain || paymentUrl.hostname.endsWith('.' + domain)))) {
-        throw new Error('O provedor retornou um endereco de pagamento inesperado.');
-      }
-      window.location.assign(paymentUrl.toString());
-      return;
-    } catch (err: any) {
-      setError(err.message || 'Erro ao processar checkout');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (success) {
-    return (
-      <div className="pt-32 pb-20 px-4 flex flex-col items-center justify-center text-center">
-        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6">
-          <CheckCircle2 className="w-10 h-10 text-green-500" />
-        </div>
-        <h1 className="text-3xl font-bold mb-4">Compra Realizada com Sucesso!</h1>
-        <p className="text-gray-400 max-w-md mb-8">
-          Seu pedido foi processado e suas licenças já estão disponíveis no seu painel. 
-          Você também receberá um e-mail com os detalhes.
-        </p>
-        <button 
-          onClick={() => navigate('/account')}
-          className="bg-[#7B2CBF] hover:bg-[#9D4EDD] text-white px-8 py-3 rounded-xl font-bold transition-all"
-        >
-          Ir para Meus Plugins
-        </button>
-      </div>
-    );
+      setCoupon(result);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Cupom indisponível.'); }
   }
 
-  return (
-    <div className="pt-32 pb-20 px-4 max-w-6xl mx-auto">
-      <div className="flex items-center gap-2 mb-8 text-sm text-gray-400">
-        <span className="hover:text-white cursor-pointer" onClick={() => navigate('/')}>Início</span>
-        <ChevronRight className="w-4 h-4" />
-        <span className="text-white">Checkout</span>
-      </div>
+  async function continueToPayment() {
+    if (state.status !== 'authenticated') { navigate('/login?next=/checkout'); return; }
+    if (planItem) { setError('Assinaturas estão indisponíveis até a homologação financeira. Remova o plano para continuar.'); return; }
+    setBusy(true); setError('');
+    try {
+      const result = await apiFetch<{ orderId: string; checkoutUrl: string }>('/api/commerce/checkout', {
+        method: 'POST', token: state.token,
+        body: JSON.stringify({ pluginIds: items.map(item => item.id), couponCode: coupon?.code || null })
+      });
+      const paymentUrl = new URL(result.checkoutUrl);
+      const allowedDomains = ['mercadopago.com', 'mercadopago.com.br', 'mercadopago.com.mx', 'mercadopago.com.ar', 'mercadopago.cl', 'mercadopago.com.co'];
+      if (paymentUrl.protocol !== 'https:' || !allowedDomains.some(domain => paymentUrl.hostname === domain || paymentUrl.hostname.endsWith(`.${domain}`))) throw new Error('O provedor retornou um endereço de pagamento inesperado.');
+      window.location.assign(paymentUrl.toString());
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível iniciar o pagamento.'); setBusy(false); }
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <ShoppingBag className="w-6 h-6 text-[#7B2CBF]" />
-            Seu Carrinho ({items.length})
-          </h2>
-
-          {items.length === 0 ? (
-            <div className="bg-[#13131A] border border-[#7B2CBF]/10 rounded-2xl p-12 text-center">
-              <p className="text-gray-400 mb-6">Seu carrinho está vazio.</p>
-              <button 
-                onClick={() => navigate('/plugins')}
-                className="bg-[#7B2CBF] hover:bg-[#9D4EDD] text-white px-6 py-2 rounded-lg transition-all"
-              >
-                Ver Plugins
-              </button>
-            </div>
-          ) : (
-            items.map(item => (
-              <div key={item.id} className="bg-[#13131A] border border-[#7B2CBF]/10 rounded-2xl p-4 flex items-center gap-4">
-                <div className="w-16 h-16 bg-[#1A1A22] rounded-xl flex items-center justify-center">
-                  <ShoppingBag className="w-8 h-8 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold">{item.name}</h3>
-                  <p className="text-sm text-gray-400">
-                    {item.type === 'plan' ? 'Assinatura Mensal' : 'Licença Vitalícia'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-[#7B2CBF]">R$ {(item.price / 100).toFixed(2)}</p>
-                  <button 
-                    onClick={() => removeItem(item.id)}
-                    className="text-gray-500 hover:text-red-500 transition-colors p-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Summary */}
-        <div className="space-y-6">
-          <div className="bg-[#13131A] border border-[#7B2CBF]/20 rounded-2xl p-6 sticky top-32">
-            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-[#7B2CBF]" />
-              Resumo do Pedido
-            </h3>
-
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between text-gray-400">
-                <span>Subtotal</span>
-                <span>R$ {(subtotal / 100).toFixed(2)}</span>
-              </div>
-              {couponData && (
-                <div className="flex justify-between text-green-500">
-                  <span>Desconto ({couponData.code})</span>
-                  <span>- R$ {(discount / 100).toFixed(2)}</span>
-                </div>
-              )}
-              <div className="h-px bg-[#7B2CBF]/10 my-2" />
-              <div className="flex justify-between text-xl font-bold">
-                <span>Total</span>
-                <span className="text-[#7B2CBF]">R$ {(finalTotal / 100).toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Coupon Input */}
-            <div className="mb-6">
-              <label className="block text-sm text-gray-400 mb-2">Tem um cupom?</label>
-              <div className="flex gap-2">
-                <input 
-                  type="text"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  placeholder="CÓDIGO"
-                  className="bg-[#1A1A22] border border-[#7B2CBF]/20 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:border-[#7B2CBF]"
-                />
-                <button 
-                  onClick={handleApplyCoupon}
-                  className="bg-[#1A1A22] border border-[#7B2CBF]/20 hover:border-[#7B2CBF] px-4 py-2 rounded-lg text-sm transition-all"
-                >
-                  Aplicar
-                </button>
-              </div>
-              {error && (
-                <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" /> {error}
-                </p>
-              )}
-            </div>
-
-            <button 
-              disabled={items.length === 0 || loading}
-              onClick={handleCheckout}
-              className="w-full bg-[#7B2CBF] hover:bg-[#9D4EDD] disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-[#7B2CBF]/20 flex items-center justify-center gap-2"
-            >
-              {loading ? 'Processando...' : 'Finalizar Compra'}
-            </button>
-            
-            <p className="text-[10px] text-gray-500 text-center mt-4">
-              Ao finalizar a compra você concorda com nossos termos de serviço.
-            </p>
-          </div>
-        </div>
-      </div>
+  return <main className="mx-auto min-h-[75vh] max-w-7xl px-5 pb-24 pt-32 sm:px-8">
+    <p className="text-xs font-semibold uppercase tracking-[.2em] text-primary">Loja / Pedido</p>
+    <h1 className="mt-3 text-4xl font-semibold tracking-tight">Seu carrinho</h1>
+    <p className="mt-4 max-w-2xl leading-7 text-muted-foreground">Confira os produtos antes de seguir para o provedor de pagamento. A licença será liberada após a confirmação do pedido.</p>
+    <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <section aria-label="Produtos no carrinho" className="overflow-hidden rounded-xl border border-white/10 bg-card">
+        {items.length === 0 ? <div className="px-7 py-16 text-center"><ShoppingBag size={32} className="mx-auto text-primary"/><h2 className="mt-4 text-xl font-semibold">Carrinho vazio</h2><p className="mt-2 text-sm text-muted-foreground">Explore o catálogo para escolher seus plugins.</p><Link to="/plugins" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">Ver catálogo <ArrowRight size={16}/></Link></div> :
+          <ul className="divide-y divide-white/10">{items.map(item => <li key={item.id} className="flex items-center gap-5 p-5 sm:p-7"><div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-secondary">{item.imageUrl ? <img src={item.imageUrl} alt="" className="h-full w-full object-cover"/> : <ShoppingBag size={22} className="text-primary"/>}</div><div className="min-w-0 flex-1"><h2 className="font-semibold">{item.name}</h2><p className="mt-1 text-xs text-muted-foreground">{item.type === 'plan' ? 'Plano' : 'Plugin'}</p></div><div className="text-right"><strong className="block whitespace-nowrap">{money(item.price)}</strong><button type="button" onClick={() => { removeItem(item.id); setCoupon(null); }} className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive" aria-label={`Remover ${item.name}`}><Trash2 size={13}/> Remover</button></div></li>)}</ul>}
+      </section>
+      <aside className="h-fit rounded-xl border border-white/10 bg-card p-6 sm:p-7"><h2 className="text-xl font-semibold">Resumo do pedido</h2><dl className="mt-6 space-y-3 text-sm"><div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{money(total)}</dd></div>{coupon && <div className="flex justify-between text-emerald-300"><dt>Cupom {coupon.code}</dt><dd>− {money(coupon.discountCents)}</dd></div>}<div className="flex justify-between border-t border-white/10 pt-4 text-lg font-semibold"><dt>Total estimado</dt><dd>{money(payable)}</dd></div></dl>
+        {items.length > 0 && <div className="mt-7"><label htmlFor="coupon" className="text-xs font-medium text-muted-foreground">Cupom de desconto</label><div className="mt-2 flex gap-2"><input id="coupon" value={couponInput} onChange={event => { setCouponInput(event.target.value); setCoupon(null); }} className="min-w-0 flex-1 rounded-lg border border-input bg-input-background px-3 py-2.5 text-sm" placeholder="Código"/><button type="button" onClick={validateCoupon} className="rounded-lg border border-white/20 px-3 text-sm">Aplicar</button></div></div>}
+        {planItem && <p className="mt-5 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">A contratação de planos está indisponível até a homologação financeira.</p>}
+        {error && <p role="alert" className="mt-5 rounded-lg border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
+        <button type="button" disabled={items.length === 0 || busy || Boolean(planItem)} onClick={continueToPayment} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Preparando pagamento...' : 'Continuar para pagamento'} <ArrowRight size={16}/></button>
+        <p className="mt-4 text-xs leading-6 text-muted-foreground">O valor final é confirmado pelo servidor antes do redirecionamento. A criação do pedido não confirma o pagamento.</p>
+      </aside>
     </div>
-  );
+  </main>;
 }

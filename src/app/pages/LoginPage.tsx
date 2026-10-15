@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const next = searchParams.get('next') || '/account';
+  const requestedNext = searchParams.get('next') || '/account';
+  const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/account';
   const { login, state } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -88,6 +89,8 @@ export function LoginPage() {
             </div>
 
             {error ? <div className="text-sm text-red-400">{error}</div> : null}
+
+            <Link to="/forgot-password" className="block text-right text-sm text-[#c5c7ff] hover:text-white">Esqueceu a senha?</Link>
 
             <motion.button
               whileHover={{ scale: 1.02 }}

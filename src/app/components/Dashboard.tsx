@@ -1204,13 +1204,13 @@ export function Dashboard() {
                           </div>
 
                           <div className="pt-4 border-t border-[#7B2CBF]/10">
-                            <a
-                              href={modalData.jarUrl}
-                              className="w-full py-4 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#7B2CBF]/30 transition-all"
-                            >
-                              <Download className="w-5 h-5" />
-                              Baixar .JAR (v{modalData.version})
-                            </a>
+                            {modalData.jarUrl ? (
+                              <a href={modalData.jarUrl} className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-medium flex items-center justify-center gap-2">
+                                <Download className="w-5 h-5" /> Baixar .JAR (v{modalData.version})
+                              </a>
+                            ) : (
+                              <p className="rounded-lg border border-white/10 p-4 text-sm text-muted-foreground">Download indisponível. Entre em contato com o suporte para obter esta versão.</p>
+                            )}
                           </div>
                         </div>
                       </div>
