@@ -38,3 +38,9 @@ O proxy deve remover cabeçalhos fornecidos diretamente pelo cliente e impedir a
 - O caminho de download e o fluxo de checkout precisam de testes ponta a ponta antes do lançamento.
 - Sem execução contra banco real, não afirmar que toda a segurança/comportamento está homologada.
 - O design de páginas secundárias/admin operacionais ainda precisará de uma segunda passada, além da nova base visual.
+
+## Achado financeiro crítico — rota Next de checkout
+O endpoint Next `app/api/commerce/checkout/route.ts` marcava pedidos como concluídos e criava licenças sem verificar pagamento externo. Foi desabilitado com HTTP 503. **Não** reativar o código demonstrativo; integrar o Mercado Pago com confirmação autenticada no servidor antes de liberar licenças. O checkout Express é uma implementação diferente e ainda precisa ser homologado antes de um deploy.
+
+## Autenticação Next
+Os usuários banidos agora são recusados pelo login e por `requireUser`. Limite de tentativas por fingerprint de e-mail e limite global substituem confiança direta em IP encaminhado. Devem ser executados testes com múltiplas instâncias e usuários legítimos, antes do merge.

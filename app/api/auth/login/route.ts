@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { db } from '@backend/lib/db';
 import { jsonError, jsonOk } from '@backend/lib/http';
@@ -12,20 +13,26 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const limit = await rateLimit({ key: `auth:login:${ip}`, limit: 10, windowMs: 60_000 });
-  if (!limit.ok) return jsonError('RATE_LIMITED', 'Muitas tentativas. Tente novamente em instantes.', 429);
-
   try {
     const input = bodySchema.parse(await req.json());
-    const user = await db.user.findUnique({ where: { email: input.email } });
-    if (!user) {
+    const email = input.email.toLowerCase();
+    // Untrusted X-Forwarded-For is not a safe identifier for brute-force limits.
+    const fingerprint = createHash('sha256').update(email).digest('hex');
+    const [perAccount, global] = await Promise.all([
+      rateLimit({ key: `auth:login:email:${fingerprint}`, limit: 10, windowMs: 60_000 }),
+      rateLimit({ key: 'auth:login:global', limit: 600, windowMs: 60_000 })
+    ]);
+    if (!perAccount.ok || !global.ok) {
+      return jsonError('RATE_LIMITED', 'Muitas tentativas. Tente novamente em instantes.', 429);
+    }
+
+    const user = await db.user.findUnique({ where: { email } });
+    // Same reply for unknown, banned or incorrect-password accounts.
+    if (!user || user.banned) {
       return jsonError('UNAUTHORIZED', 'Credenciais inválidas', 401);
     }
     const ok = await verifyPassword(input.password, user.passwordHash);
-    if (!ok) {
-      return jsonError('UNAUTHORIZED', 'Credenciais inválidas', 401);
-    }
+    if (!ok) return jsonError('UNAUTHORIZED', 'Credenciais inválidas', 401);
 
     const token = signJwt({ userId: user.id, role: user.role });
     return jsonOk({
@@ -39,10 +46,8 @@ export async function POST(req: Request) {
         createdAt: user.createdAt.toISOString()
       }
     });
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      return jsonError('INVALID_INPUT', 'Entrada inválida', 400, e.flatten());
-    }
+  } catch (error) {
+    if (error instanceof z.ZodError) return jsonError('INVALID_INPUT', 'Entrada inválida', 400, error.flatten());
     return jsonError('INTERNAL_ERROR', 'Erro interno', 500);
   }
 }
