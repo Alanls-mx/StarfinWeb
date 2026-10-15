@@ -124,7 +124,7 @@ import {
   purchasedPlugins,
   revokeApiKeyForUser
 } from './data.js';
-import { reconcilePayment, type VerifiedPayment } from './payment-validation.js';
+import { reconcilePayment, verifyMercadoPagoWebhook, type VerifiedPayment } from './payment-validation.js';
 import { sendEmail, testSmtp, getVerificationEmailHtml, getPasswordResetEmailHtml, getOrderConfirmationHtml, EMAIL_LAYOUT } from './email.js';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 
@@ -1973,6 +1973,19 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
   const paymentId = String(req.body?.data?.id ?? req.query?.['data.id'] ?? '');
   if (type !== 'payment' || !/^\\d{1,32}$/.test(paymentId)) {
     res.sendStatus(200);
+    return;
+  }
+
+  const secret = process.env.MP_WEBHOOK_SECRET || '';
+  if (!secret) {
+    res.status(503).json({ error: 'Assinatura de webhook nao configurada' });
+    return;
+  }
+  const signedDataId = String(req.query?.['data.id'] || '');
+  if (signedDataId !== paymentId || !verifyMercadoPagoWebhook(
+    req.get('x-signature'), req.get('x-request-id'), signedDataId, secret
+  )) {
+    res.status(401).json({ error: 'Assinatura do webhook invalida' });
     return;
   }
 
