@@ -86,7 +86,7 @@ export interface IntegrationConfig {
 export interface StatusComponent {
   id: string;
   name: string;
-  status: 'operational' | 'degraded' | 'down';
+  status: 'unknown' | 'operational' | 'degraded' | 'down';
   message: string;
   updatedISO: string;
 }

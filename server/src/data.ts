@@ -114,6 +114,13 @@ sqlite.exec(`
     "key" VARCHAR(191) PRIMARY KEY,
     value LONGTEXT
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CREATE TABLE IF NOT EXISTS status_components (
+    id VARCHAR(191) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    message LONGTEXT,
+    updatedISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS newsletter_subscribers (
     email VARCHAR(255) PRIMARY KEY,
     createdISO VARCHAR(64),
@@ -1788,7 +1795,7 @@ export interface IntegrationConfig {
 export interface StatusComponent {
   id: string;
   name: string;
-  status: 'operational' | 'degraded' | 'down';
+  status: 'unknown' | 'operational' | 'degraded' | 'down';
   message: string;
   updatedISO: string;
 }
@@ -1898,29 +1905,26 @@ export function saveIntegrationConfig(config: IntegrationConfig) {
 
 loadSettings();
 
-export const statusComponents: StatusComponent[] = [
-  {
-    id: 'api',
-    name: 'API',
-    status: 'operational',
-    message: 'Operando normalmente',
-    updatedISO: new Date().toISOString()
-  },
-  {
-    id: 'site',
-    name: 'Site',
-    status: 'operational',
-    message: 'Operando normalmente',
-    updatedISO: new Date().toISOString()
-  },
-  {
-    id: 'auth',
-    name: 'Autenticação',
-    status: 'operational',
-    message: 'Operando normalmente',
-    updatedISO: new Date().toISOString()
-  }
-];
+export const statusComponents: StatusComponent[] = [];
+for (const component of [{ id: 'api', name: 'API' }, { id: 'site', name: 'Site' }, { id: 'auth', name: 'Autenticação' }]) {
+  sqlite.prepare(`INSERT INTO status_components (id, name, status, message, updatedISO)
+    VALUES (?, ?, 'unknown', 'Sem atualização publicada', '') ON CONFLICT (id) DO NOTHING`).run(component.id, component.name);
+}
+
+export function syncStatusComponents() {
+  const rows = sqlite.prepare('SELECT * FROM status_components ORDER BY id').all() as StatusComponent[];
+  statusComponents.splice(0, statusComponents.length, ...rows);
+}
+syncStatusComponents();
+
+export function updateStatusComponent(id: string, status: StatusComponent['status'], message: string): StatusComponent | null {
+  const updatedISO = new Date().toISOString();
+  const result = sqlite.prepare('UPDATE status_components SET status = ?, message = ?, updatedISO = ? WHERE id = ?')
+    .run(status, message, updatedISO, id);
+  if (!result.changes) return null;
+  syncStatusComponents();
+  return statusComponents.find(item => item.id === id) || null;
+}
 
 export const changelog: ChangelogEntry[] = [];
 export function syncChangelog() {

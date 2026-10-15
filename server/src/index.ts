@@ -32,6 +32,7 @@ import {
   saveIntegrationConfig,
   smtpConfig,
   statusComponents,
+  updateStatusComponent,
   changelog,
   clearNotifications,
   deleteNotification,
@@ -3565,17 +3566,15 @@ app.put('/api/admin/status/:id', (req, res) => {
     return;
   }
   const id = req.params.id;
-  const idx = statusComponents.findIndex((s) => s.id === id);
-  if (idx === -1) {
-    res.status(404).json({ error: 'componente não encontrado' });
-    return;
+  const status = req.body?.status;
+  const message = req.body?.message;
+  if (!['unknown', 'operational', 'degraded', 'down'].includes(status) ||
+      typeof message !== 'string' || !message.trim() || message.length > 500) {
+    return res.status(400).json({ error: 'Informe status e mensagem válidos.' });
   }
-  const status = typeof req.body?.status === 'string' ? req.body.status : '';
-  const message = typeof req.body?.message === 'string' ? req.body.message : '';
-  if (status) statusComponents[idx].status = status;
-  if (message) statusComponents[idx].message = message;
-  statusComponents[idx].updatedISO = new Date().toISOString();
-  res.json({ ok: true, item: statusComponents[idx] });
+  const item = updateStatusComponent(id, status, message.trim());
+  if (!item) return res.status(404).json({ error: 'componente não encontrado' });
+  res.json({ ok: true, item });
 });
 
 app.post('/api/admin/changelog', (req, res) => {

@@ -3,18 +3,21 @@ import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { adminUpdateStatus, getSystemStatus, type StatusComponent } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { toast } from 'sonner';
 
 export function AdminStatusPage() {
   const { state } = useAuth();
   const token = state.status === 'authenticated' ? state.token : null;
   const [items, setItems] = useState<StatusComponent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const res = await getSystemStatus();
-      if (!cancelled) setItems(res.items);
-    })();
+    getSystemStatus().then(res => { if (!cancelled) setItems(res.items); })
+      .catch(cause => { if (!cancelled) setError(cause instanceof Error ? cause.message : 'Não foi possível consultar o status.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => {
       cancelled = true;
     };
@@ -30,8 +33,11 @@ export function AdminStatusPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Status do Sistema</h1>
-        <p className="text-sm text-gray-400">Gerencie o estado operacional dos serviços do site.</p>
+        <p className="text-sm text-gray-400">Publique a situação informada pela equipe. Esta página não executa monitoramento automático.</p>
       </div>
+
+      {error && <p role="alert" className="rounded-xl border border-red-500/30 p-4 text-sm text-red-200">{error}</p>}
+      {loading && <p role="status" className="text-sm text-gray-400">Carregando componentes...</p>}
 
       <div className="max-w-5xl">
         <div className="space-y-4">
@@ -49,9 +55,10 @@ export function AdminStatusPage() {
                     }}
                     className="mt-2 w-full px-4 py-3 bg-[#0B0B0F]/60 border border-[#7B2CBF]/20 rounded-lg text-white"
                   >
-                    <option value="operational">operational</option>
-                    <option value="degraded">degraded</option>
-                    <option value="down">down</option>
+                    <option value="unknown">Não verificado</option>
+                    <option value="operational">Operacional</option>
+                    <option value="degraded">Degradado</option>
+                    <option value="down">Indisponível</option>
                   </select>
                 </label>
                 <label className="md:col-span-2 text-sm text-gray-400">
@@ -71,14 +78,22 @@ export function AdminStatusPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={async () => {
-                    await adminUpdateStatus(token, s.id, { status: s.status, message: s.message });
-                    const res = await getSystemStatus();
-                    setItems(res.items);
+                    setSavingId(s.id);
+                    try {
+                      const result = await adminUpdateStatus(token, s.id, { status: s.status, message: s.message });
+                      setItems(previous => previous.map(item => item.id === s.id ? result.item : item));
+                      toast.success('Status publicado.');
+                    } catch (cause) {
+                      toast.error(cause instanceof Error ? cause.message : 'Não foi possível publicar o status.');
+                    } finally {
+                      setSavingId(null);
+                    }
                   }}
+                  disabled={savingId === s.id}
                   className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-[#7B2CBF] to-[#9D4EDD] text-white rounded-xl hover:shadow-lg hover:shadow-[#7B2CBF]/50 transition-all duration-300"
                 >
                   <Save className="w-4 h-4" />
-                  Salvar
+                  {savingId === s.id ? 'Salvando...' : 'Salvar'}
                 </motion.button>
               </div>
             </div>

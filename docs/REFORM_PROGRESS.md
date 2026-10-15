@@ -44,11 +44,12 @@ Verificações locais: build Vite, typecheck estrito do frontend, typecheck do s
 - O modal do plugin deixou de chamar a edição do IP global como se alterasse o IP daquela compra. A API valida IPv4/IPv6 na edição do IP global e rotas duplicadas de configurações, perfil e regeneração foram removidas.
 - O painel administrativo separa pedidos financeiros de licenças e instalações. Pedidos têm consulta somente de leitura com cliente, itens, valor e estado vindo do banco; a tela de instalações mascara a chave na lista, trata erros e estados vazios, e a API valida o IP antes da edição administrativa. A consulta do cliente agora busca seus pedidos por `userId` diretamente no banco.
 - A página de contato deixou de confirmar falsamente o envio de um formulário sem backend e passou a encaminhar para chamados persistidos e documentação. FAQ e página de planos não prometem downloads nem assinatura antes da homologação. Benefícios de emprego não cadastrados foram retirados da página de carreiras.
+- A página de novidades usa publicações reais do changelog; artigos e autores demonstrativos e newsletter sem ação foram removidos. O status não começa mais como "operacional" com horário inventado: componentes iniciam como não verificados e as alterações administrativas são persistidas na nova tabela `status_components`.
 - A API não aceita mais marcar 2FA como ativo por uma simples preferência, pois ainda não há fluxo de autenticação em duas etapas. A interface indica a indisponibilidade.
 
 Revisão visual local feita em viewport estreito: home, carrinho vazio e recuperação de senha. O backend local não subiu sem PostgreSQL; a revisão visual de páginas com dados, desktop, tablet, admin e conta permanece pendente.
 
-Commits locais na `main`: `bda16cc` (PostgreSQL, licenças e segurança da API), `3404049` (loja, conta inicial e navegação administrativa), `a5fd68d` (validação de catálogo), `fa71c8b` (segurança da conta). Todos ainda sem push para evitar publicação automática não verificada.
+As fases implementadas estão registradas em commits locais na `main` (`git log --oneline`). Ainda não houve push para evitar publicação automática não verificada.
 
 ## Próximas fases
 
@@ -64,7 +65,7 @@ Commits locais na `main`: `bda16cc` (PostgreSQL, licenças e segurança da API),
 
 - A VPS de produção não foi tocada nesta reformulação. Publicação e migrações exigem autorização posterior.
 - O adaptador PostgreSQL pode requerer ajuste para bases antigas com divergências de esquema. Antes de publicar: backup, comparação de esquema, ensaio com cópia descartável e plano de reversão de serviço.
-- A nova tabela `password_reset_tokens` é criada no início da API. A publicação futura deve comparar o esquema esperado com uma cópia do banco real, exportar backup com `pg_dump --format=custom`, ensaiar a inicialização na cópia e validar login, licença e pedidos. Reversão: voltar ao binário anterior e à configuração de conexão anterior; restaurar o backup em banco separado se houver alteração incompatível, sem sobrescrever produção às cegas.
+- As novas tabelas `password_reset_tokens` e `status_components` são criadas no início da API. A publicação futura deve comparar o esquema esperado com uma cópia do banco real, exportar backup com `pg_dump --format=custom`, ensaiar a inicialização na cópia e validar login, licença, pedidos e status. Reversão: voltar ao binário anterior e à configuração de conexão anterior; restaurar o backup em banco separado se houver alteração incompatível, sem sobrescrever produção às cegas.
 - O checkout Express usa o adaptador síncrono Python/psycopg2 para PostgreSQL. O custo de abrir uma conexão por consulta precisa ser medido antes de homologar desempenho.
 - `main` pode estar conectada a um deploy externo por push; os commits desta sessão ficam locais até ser comprovado que a publicação automática está desativada. Nenhum push foi realizado.
 - SMTP e Mercado Pago de produção dependem da configuração manual informada pelo proprietário. Sem credenciais e sandbox de pagamento, não declarar os fluxos financeiros homologados.
