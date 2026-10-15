@@ -93,6 +93,11 @@ import {
   findServerByLicenseKey,
   createOrder,
   updateOrderStatus,
+  claimVerifiedOrder,
+  completeVerifiedOrder,
+  grantOrderPluginOnce,
+  reverseVerifiedOrder,
+  revokeOrderPlugins,
   listAllOrders,
   findOrderById,
   users,
@@ -119,6 +124,7 @@ import {
   purchasedPlugins,
   revokeApiKeyForUser
 } from './data.js';
+import { reconcilePayment, type VerifiedPayment } from './payment-validation.js';
 import { sendEmail, testSmtp, getVerificationEmailHtml, getPasswordResetEmailHtml, getOrderConfirmationHtml, EMAIL_LAYOUT } from './email.js';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 
@@ -1679,6 +1685,18 @@ app.post('/api/commerce/checkout', async (req, res) => {
   const pluginIds = Array.isArray(req.body?.pluginIds) ? req.body.pluginIds.map(Number) : [];
   const planId = typeof req.body?.planId === 'string' ? req.body.planId : null;
   const couponCode = typeof req.body?.couponCode === 'string' ? req.body.couponCode : null;
+  // Subscriptions need a durable fulfillment ledger before they can be sold.
+  if (planId) {
+    res.status(503).json({ error: 'Assinaturas temporariamente indisponiveis ate homologacao financeira.' });
+    return;
+  }
+  if (pluginIds.length === 0 || pluginIds.length > 30 ||
+      pluginIds.some(id => !Number.isSafeInteger(id) || id <= 0) ||
+      new Set(pluginIds).size !== pluginIds.length ||
+      pluginIds.some(id => !getPluginDetail(id) || Number(getPluginDetail(id)?.priceCents) <= 0)) {
+    res.status(400).json({ error: 'Itens do pedido invalidos ou indisponiveis.' });
+    return;
+  }
   
   if (pluginIds.length === 0 && !planId) {
     res.status(400).json({ error: 'nenhum item selecionado' });
@@ -1743,7 +1761,10 @@ app.post('/api/commerce/checkout', async (req, res) => {
   // Apply coupon if any
   if (couponCode && items.length > 0 && totalCents > 0) {
     const coupon = findCouponByCode(couponCode);
-    if (coupon && coupon.active) {
+    if (coupon && coupon.active &&
+        (!coupon.expiresAt || Date.parse(coupon.expiresAt) > Date.now()) &&
+        (coupon.maxUses == null || coupon.usedCount < coupon.maxUses) &&
+        (coupon.minPurchase == null || totalCents >= coupon.minPurchase)) {
       let totalDiscountCents = 0;
       if (coupon.discountType === 'percentage') {
         totalDiscountCents = Math.floor((totalCents * coupon.discountValue) / 100);
@@ -1765,6 +1786,17 @@ app.post('/api/commerce/checkout', async (req, res) => {
       
       totalCents = Math.max(0, totalCents - totalDiscountCents);
     }
+  }
+
+  // The Mercado Pago preference and persisted amount must match exactly.
+  if (!items.length || items.some(item => !Number.isFinite(item.unit_price) || item.unit_price <= 0)) {
+    res.status(400).json({ error: 'Pedido de valor zero nao autorizado pelo checkout comercial.' });
+    return;
+  }
+  totalCents = items.reduce((sum, item) => sum + Math.round(item.unit_price * 100), 0);
+  if (!Number.isSafeInteger(totalCents) || totalCents <= 0) {
+    res.status(400).json({ error: 'Total invalido.' });
+    return;
   }
 
   // Create internal order
@@ -1818,41 +1850,19 @@ app.post('/api/commerce/checkout', async (req, res) => {
        return;
     }
     
-    if (validItems.length === 0) {
-      // If total is 0 (e.g. 100% discount), we can complete the order immediately
-      updateOrderStatus(orderId, 'completed', 'FREE_BY_COUPON');
-      addNotification(
-        'Venda aprovada automaticamente',
-        `Pedido ${orderId} concluído automaticamente por cupom/valor zero.`,
-        {
-          type: 'sale',
-          priority: 'high',
-          source: 'checkout',
-          metadata: { orderId, paymentId: 'FREE_BY_COUPON', totalCents: 0 }
-        }
-      );
-      
-      let origin = req.headers.origin || req.headers.referer;
-      if (origin) {
-        origin = origin.replace(/\/$/, '');
-      } else {
-        origin = `${req.protocol}://${req.get('host')}`;
-      }
-      
-      res.json({ orderId, checkoutUrl: `${origin}/account?order=${orderId}&status=success`, totalCents: 0 });
+    if (validItems.length !== items.length ||
+        validItems.reduce((sum, item) => sum + Math.round(item.unit_price * 100), 0) !== totalCents) {
+      res.status(400).json({ error: 'Valor do pagamento inconsistente. Pedido nao enviado.' });
       return;
     }
 
-    let origin = req.headers.origin || req.headers.referer || '';
-    if (origin) {
-      origin = origin.replace(/\/$/, '');
-    }
-    
-    // Final fallback if origin/referer are missing
-    if (!origin || origin === 'null' || origin === 'undefined') {
-      const host = req.get('host') || 'localhost:3001';
-      const protocol = (req.secure || req.headers['x-forwarded-proto'] === 'https') ? 'https' : 'http';
-      origin = protocol + '://' + host;
+    // Never construct payment return URLs from untrusted Origin/Referer headers.
+    const siteUrl = process.env.PUBLIC_SITE_URL || 'https://starfinplugins.com.br';
+    const parsedSiteUrl = new URL(siteUrl);
+    const origin = parsedSiteUrl.origin;
+    if (parsedSiteUrl.protocol !== 'https:' &&
+        !(process.env.NODE_ENV === 'development' && parsedSiteUrl.hostname === 'localhost')) {
+      throw new Error('PUBLIC_SITE_URL deve ser HTTPS');
     }
 
     const preferenceData: any = {
@@ -1958,77 +1968,97 @@ app.post('/api/commerce/checkout', async (req, res) => {
 
 // Webhook for Mercado Pago
 app.post('/api/webhooks/mercadopago', async (req, res) => {
-  const { type, data } = req.body;
-  
-  if (type === 'payment') {
-    const paymentId = data.id;
-    try {
-      const { accessToken } = getMpCredentials();
-      const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-      const payment = (await response.json()) as { status?: string; external_reference?: string };
-      
-      const orderId = payment.external_reference;
-      if (!orderId) return res.sendStatus(200);
-      const order = findOrderById(orderId);
-      if (!order) return res.sendStatus(200);
-
-      const paymentStatus = String(payment.status || '').toLowerCase();
-      const approvedStatuses = new Set(['approved']);
-      const rejectedStatuses = new Set(['rejected', 'cancelled', 'canceled', 'refunded', 'charged_back']);
-
-      if (approvedStatuses.has(paymentStatus)) {
-        updateOrderStatus(orderId, 'completed', paymentId);
-
-        // Grant items
-        if (order.planId) {
-          const plan = findPlanById(order.planId);
-          if (plan) {
-            updateUserAdmin(order.userId, { 
-              plan: toUserPlan(plan.name),
-              role: plan.grantsAllPlugins ? 'premium' : 'user'
-            });
-            const expiresAt = new Date();
-            expiresAt.setMonth(expiresAt.getMonth() + 1);
-            updateUserAdmin(order.userId, { planExpiresAt: expiresAt.toISOString() });
-          }
-        }
-        
-        for (const pid of order.pluginIds) {
-          const p = createPurchase(order.userId, pid);
-          updatePurchaseStatus(p.id, 'approved');
-        }
-
-        addNotification(
-          'Venda aprovada',
-          `Pedido ${orderId} aprovado no Mercado Pago.`,
-          {
-            type: 'sale',
-            priority: 'high',
-            source: 'mercadopago_webhook',
-            metadata: { orderId, paymentId, status: paymentStatus }
-          }
-        );
-      } else if (rejectedStatuses.has(paymentStatus)) {
-        updateOrderStatus(orderId, paymentStatus === 'rejected' ? 'rejected' : 'cancelled', paymentId);
-        addNotification(
-          'Pagamento recusado/cancelado',
-          `Pedido ${orderId} retornou status ${paymentStatus}.`,
-          {
-            type: 'sale',
-            priority: 'high',
-            source: 'mercadopago_webhook',
-            metadata: { orderId, paymentId, status: paymentStatus }
-          }
-        );
-      }
-    } catch (err) {
-      console.error('Webhook Error:', err);
-    }
+  // Webhook contents are only a hint. Always retrieve the payment from MP.
+  const type = String(req.body?.type || req.query?.type || '').toLowerCase();
+  const paymentId = String(req.body?.data?.id ?? req.query?.['data.id'] ?? '');
+  if (type !== 'payment' || !/^\\d{1,32}$/.test(paymentId)) {
+    res.sendStatus(200);
+    return;
   }
-  
-  res.sendStatus(200);
+
+  try {
+    const { accessToken } = getMpCredentials();
+    if (!accessToken) {
+      res.status(503).json({ error: 'Gateway nao configurado' });
+      return;
+    }
+    const paymentResponse = await fetch(
+      `https://api.mercadopago.com/v1/payments/${paymentId}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: AbortSignal.timeout(10000)
+      }
+    );
+    if (!paymentResponse.ok) {
+      res.status(503).json({ error: 'Consulta ao provedor falhou' });
+      return;
+    }
+    const payment = await paymentResponse.json() as VerifiedPayment;
+    const orderId = String(payment.external_reference || '');
+    const order = orderId ? findOrderById(orderId) : null;
+    if (!order) {
+      res.sendStatus(200);
+      return;
+    }
+    const reconciliation = reconcilePayment(order, payment, paymentId);
+    if (!reconciliation.ok) {
+      console.warn('[MercadoPago] Conciliacao recusada', {
+        orderId, reason: reconciliation.reason
+      });
+      res.status(409).json({ error: 'Dados de pagamento divergentes' });
+      return;
+    }
+    if (reconciliation.state === 'pending') {
+      res.sendStatus(200);
+      return;
+    }
+    if (reconciliation.state === 'reversed') {
+      const reversalStatus = payment.status === 'charged_back' ? 'charged_back'
+        : payment.status === 'refunded' ? 'refunded'
+        : payment.status === 'rejected' ? 'rejected' : 'cancelled';
+      const reversed = reverseVerifiedOrder(orderId, paymentId, reversalStatus);
+      if (reversed) {
+        revokeOrderPlugins(orderId, order.pluginIds);
+        addNotification('Pagamento revertido', `Pedido ${orderId}: ${reversalStatus}`, {
+          type: 'sale',
+          priority: 'high',
+          source: 'mercadopago_webhook',
+          metadata: { orderId, paymentId, status: reversalStatus }
+        });
+      }
+      res.sendStatus(200);
+      return;
+    }
+    if (order.planId) {
+      // Legacy plan orders must not be fulfilled through an untracked privilege update.
+      res.status(409).json({ error: 'Pedido de assinatura requer conciliacao manual' });
+      return;
+    }
+    if (order.status === 'completed' && order.paymentId === paymentId) {
+      res.sendStatus(200);
+      return;
+    }
+    if (!claimVerifiedOrder(orderId, paymentId)) {
+      res.status(409).json({ error: 'Pedido nao pode ser confirmado neste estado' });
+      return;
+    }
+    // Deterministic purchase IDs permit safe retry after a partial grant.
+    for (const pluginId of order.pluginIds) {
+      grantOrderPluginOnce(orderId, order.userId, pluginId);
+    }
+    const complete = completeVerifiedOrder(orderId, paymentId);
+    if (!complete) throw new Error('Nao foi possivel finalizar a conciliacao');
+    addNotification('Venda aprovada', `Pedido ${orderId} aprovado no Mercado Pago.`, {
+      type: 'sale',
+      priority: 'high',
+      source: 'mercadopago_webhook',
+      metadata: { orderId, paymentId, status: 'approved' }
+    });
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('[MercadoPago] Falha na conciliacao:', error instanceof Error ? error.message : 'error');
+    res.status(503).json({ error: 'Falha temporaria de conciliacao' });
+  }
 });
 
 app.post('/api/plugin-auth/verify', (req, res) => {
