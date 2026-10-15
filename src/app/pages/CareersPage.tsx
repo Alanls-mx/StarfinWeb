@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { MapPin, DollarSign, Clock, Users, ArrowRight, Send, X } from 'lucide-react';
+import { MapPin, DollarSign, ArrowRight, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { applyCareer, getPublicSettings, type CareerJob } from '../lib/api';
 
@@ -114,30 +114,8 @@ export function CareersPage() {
           transition={{ delay: 0.1 }}
           className="text-gray-400 text-lg max-w-2xl mx-auto leading-relaxed"
         >
-          Estamos sempre em busca de talentos apaixonados por tecnologia e Minecraft para se juntarem ao nosso time.
+          Consulte as oportunidades publicadas pela StarfinPlugins e envie sua candidatura pela plataforma.
         </motion.p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-24">
-        {[
-          { title: 'Trabalho 100% Remoto', icon: MapPin, desc: 'Trabalhe de onde voce se sentir mais produtivo.' },
-          { title: 'Horarios Flexiveis', icon: Clock, desc: 'Organize seu tempo da forma que preferir.' },
-          { title: 'Ambiente Inovador', icon: Users, desc: 'Trabalhe com as tecnologias mais modernas do mercado.' }
-        ].map((perk, i) => (
-          <motion.div
-            key={perk.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="p-8 bg-[#13131A] border border-[#7B2CBF]/10 rounded-3xl group hover:border-[#7B2CBF]/30 transition-all"
-          >
-            <div className="w-12 h-12 rounded-xl bg-[#7B2CBF]/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <perk.icon className="w-6 h-6 text-[#C77DFF]" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">{perk.title}</h3>
-            <p className="text-gray-500 text-sm leading-relaxed">{perk.desc}</p>
-          </motion.div>
-        ))}
       </div>
 
       <div className="space-y-6">
@@ -168,7 +146,7 @@ export function CareersPage() {
                 <div className="text-white font-bold mb-1 flex items-center gap-1 justify-end">
                   <DollarSign className="w-4 h-4 text-[#7B2CBF]" /> {job.salary}
                 </div>
-                <div className="text-gray-500 text-xs uppercase tracking-wider">Remuneracao Media</div>
+                <div className="text-gray-500 text-xs uppercase tracking-wider">Remuneração informada</div>
               </div>
               <button
                 type="button"

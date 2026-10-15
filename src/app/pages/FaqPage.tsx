@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Minus, Search, MessageCircle } from 'lucide-react';
+import { Link } from 'react-router';
 
 export function FaqPage() {
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -10,32 +11,32 @@ export function FaqPage() {
     {
       id: 1,
       category: 'Geral',
-      question: 'Como faço para baixar meus plugins após a compra?',
-      answer: 'Após a confirmação do pagamento, você receberá um e-mail com os links para download. Você também pode acessar a seção "Minha Conta" no site para baixar seus plugins a qualquer momento.',
+      question: 'Quando a licença aparece após a compra?',
+      answer: 'A licença aparece na sua conta depois que o provedor confirma o pagamento. Um pedido pendente não libera o produto. O download do arquivo ainda não está disponível nesta plataforma.',
     },
     {
       id: 2,
       category: 'Pagamentos',
       question: 'Quais as formas de pagamento aceitas?',
-      answer: 'Aceitamos cartões de crédito, PIX e boleto bancário através do Mercado Pago. Todas as transações são seguras e criptografadas.',
+      answer: 'As opções disponíveis são apresentadas pelo Mercado Pago durante o checkout. Consulte o status do pedido na sua conta após retornar do provedor.',
     },
     {
       id: 3,
       category: 'Licença',
       question: 'Posso usar um plugin em mais de um servidor?',
-      answer: 'Cada licença de plugin é vinculada a uma chave de API que pode ser usada em um servidor por vez. Para múltiplos servidores, você precisará de licenças adicionais.',
+      answer: 'A autorização depende das licenças da conta e das atribuições configuradas para cada servidor. Cadastre os servidores e confira as regras de IP na sua conta.',
     },
     {
       id: 4,
       category: 'Suporte',
       question: 'Como entro em contato com o suporte?',
-      answer: 'Oferecemos suporte via ticket no nosso site e também através do nosso servidor no Discord para clientes premium.',
+      answer: 'Abra um chamado na área de suporte do site e acompanhe as respostas pela sua conta.',
     },
     {
       id: 5,
       category: 'Premium',
-      question: 'O plano premium dá acesso a todos os plugins?',
-      answer: 'Sim! O plano Starfin Premium dá acesso ilimitado a todos os plugins da nossa loja enquanto sua assinatura estiver ativa.',
+      question: 'Posso assinar o plano Premium agora?',
+      answer: 'A contratação de planos está indisponível até a homologação financeira. Os produtos disponíveis podem ser consultados individualmente no catálogo.',
     },
   ];
 
@@ -110,9 +111,9 @@ export function FaqPage() {
         <MessageCircle className="w-10 h-10 text-[#C77DFF] mx-auto mb-4" />
         <h3 className="text-xl font-bold mb-2">Ainda tem dúvidas?</h3>
         <p className="text-gray-400 text-sm mb-6">Estamos prontos para te ajudar com qualquer outra questão.</p>
-        <button className="bg-[#7B2CBF] hover:bg-[#9D4EDD] text-white px-8 py-3 rounded-xl font-bold transition-all">
+        <Link to="/support" className="inline-block bg-[#7B2CBF] hover:bg-[#9D4EDD] text-white px-8 py-3 rounded-xl font-bold transition-all">
           Abrir um Ticket
-        </button>
+        </Link>
       </div>
     </div>
   );
