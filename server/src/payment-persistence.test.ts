@@ -37,3 +37,20 @@ test('synthetic MySQL: duplicate payment delivery grants the product only once',
   assert.equal(revoked.status, 'cancelled');
   assert.equal(claimVerifiedOrder(orderId, '100100'), false);
 });
+
+test('synthetic MySQL: reversal competing with fulfillment cannot complete a reversed order', () => {
+  const orderId = createOrder({
+    userId: 'ci-race',
+    pluginIds: [88000],
+    planId: null,
+    totalCents: 1590,
+    paymentProvider: 'mercadopago'
+  });
+  assert.equal(claimVerifiedOrder(orderId, '700700'), true);
+  assert.equal(reverseVerifiedOrder(orderId, '700700', 'charged_back'), true);
+  const purchase = grantOrderPluginOnce(orderId, 'ci-race', 88000);
+  assert.equal(purchase.status, 'approved');
+  assert.equal(completeVerifiedOrder(orderId, '700700'), false);
+  revokeOrderPlugins(orderId, [88000]);
+  assert.equal(grantOrderPluginOnce(orderId, 'ci-race', 88000).status, 'cancelled');
+});

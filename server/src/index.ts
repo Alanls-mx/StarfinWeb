@@ -2060,7 +2060,22 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
       grantOrderPluginOnce(orderId, order.userId, pluginId);
     }
     const complete = completeVerifiedOrder(orderId, paymentId);
-    if (!complete) throw new Error('Nao foi possivel finalizar a conciliacao');
+    if (!complete) {
+      const latest = findOrderById(orderId);
+      // Refund/reversal may race a delayed successful webhook. Never leave
+      // an active purchase linked to a reversed order.
+      if (latest && ['rejected', 'cancelled', 'refunded', 'charged_back'].includes(latest.status)) {
+        revokeOrderPlugins(orderId, order.pluginIds);
+        res.sendStatus(200);
+        return;
+      }
+      // A concurrent repeated notification already finished fulfillment.
+      if (latest?.status === 'completed' && latest.paymentId === paymentId) {
+        res.sendStatus(200);
+        return;
+      }
+      throw new Error('Nao foi possivel finalizar a conciliacao');
+    }
     addNotification('Venda aprovada', `Pedido ${orderId} aprovado no Mercado Pago.`, {
       type: 'sale',
       priority: 'high',
