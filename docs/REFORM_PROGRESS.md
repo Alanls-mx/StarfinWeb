@@ -1,6 +1,6 @@
 # Reformulação StarfinWeb — acompanhamento
 
-Atualizado em 15/10/2026. Base: `main` do GitHub no commit `5ce97c4`.
+Atualizado em 15/10/2026. A implementação descrita abaixo foi publicada na `main` e implantada na VPS no commit `0ffda33`.
 
 ## Mapa auditado
 
@@ -27,7 +27,7 @@ Implementado nesta fase:
 - Histórico de pagamentos passa a vir de pedidos reais; links fictícios de JAR deixam de ser anunciados.
 - Conteúdo fictício inicial de equipe, vagas e estatísticas foi removido dos defaults.
 
-Verificações locais: build Vite, typecheck estrito do frontend, typecheck do servidor, testes unitários do adaptador SQL e testes de validação Mercado Pago. A integração de persistência PostgreSQL e o teste HTTP do contrato StarfinCore foram adicionados à CI, mas ainda precisam executar contra um PostgreSQL descartável antes de considerar esta fase fechada.
+Verificações: build Vite, typecheck estrito do frontend e do servidor, testes unitários, persistência PostgreSQL e teste HTTP do contrato StarfinCore. Os testes de banco foram executados em uma cópia isolada da base publicada; não substituem a homologação de um pagamento real.
 
 ## Fases 2 a 5 — implementação parcial
 
@@ -49,7 +49,7 @@ Verificações locais: build Vite, typecheck estrito do frontend, typecheck do s
 
 Revisão visual local feita em viewport estreito: home, carrinho vazio e recuperação de senha. O backend local não subiu sem PostgreSQL; a revisão visual de páginas com dados, desktop, tablet, admin e conta permanece pendente.
 
-As fases implementadas estão registradas em commits locais na `main` (`git log --oneline`). Ainda não houve push para evitar publicação automática não verificada.
+As fases implementadas estão registradas na `main` (`git log --oneline`). O ensaio foi feito em uma cópia isolada do banco de produção antes da implantação.
 
 ## Próximas fases
 
@@ -63,10 +63,9 @@ As fases implementadas estão registradas em commits locais na `main` (`git log 
 
 ## Limites e rollback
 
-- A VPS de produção não foi tocada nesta reformulação. Publicação e migrações exigem autorização posterior.
-- O adaptador PostgreSQL pode requerer ajuste para bases antigas com divergências de esquema. Antes de publicar: backup, comparação de esquema, ensaio com cópia descartável e plano de reversão de serviço.
-- As novas tabelas `password_reset_tokens` e `status_components` são criadas no início da API. A publicação futura deve comparar o esquema esperado com uma cópia do banco real, exportar backup com `pg_dump --format=custom`, ensaiar a inicialização na cópia e validar login, licença, pedidos e status. Reversão: voltar ao binário anterior e à configuração de conexão anterior; restaurar o backup em banco separado se houver alteração incompatível, sem sobrescrever produção às cegas.
+- A VPS recebeu o build da `main` em 15/10/2026. A troca ficou restrita a `starfinweb.service`, `/opt/starfinweb/app/dist` e `/opt/starfinweb/app/server/dist`; Nginx, PostgreSQL compartilhado e serviços vizinhos não foram reiniciados.
+- O adaptador PostgreSQL foi testado com um clone do banco publicado. Antes da troca foi gerado um backup `pg_dump --format=custom` e outro dos arquivos antigos. As tabelas novas são aditivas. Para reversão, usar os diretórios antigos preservados em `/opt/starfinweb/rollback-*` e reiniciar somente `starfinweb.service`; não restaurar o banco de produção às cegas.
 - O checkout Express usa o adaptador síncrono Python/psycopg2 para PostgreSQL. O custo de abrir uma conexão por consulta precisa ser medido antes de homologar desempenho.
-- `main` pode estar conectada a um deploy externo por push; os commits desta sessão ficam locais até ser comprovado que a publicação automática está desativada. Nenhum push foi realizado.
+- A `main` foi enviada ao GitHub por solicitação do proprietário. O workflow do repositório executa a suíte com PostgreSQL após o push.
 - SMTP e Mercado Pago de produção dependem da configuração manual informada pelo proprietário. Sem credenciais e sandbox de pagamento, não declarar os fluxos financeiros homologados.
 - Nenhum produto ou JAR real foi inventado. Downloads privados devem permanecer indisponíveis até a implementação autorizada.
