@@ -2795,13 +2795,66 @@ export function deleteReview(id: string) {
 }
 
 export function createOrder(data: { userId: string, pluginIds: number[], planId: string | null, totalCents: number, paymentProvider: string }) {
-  const id = `ord_${Date.now()}`;
+  const id = `ord_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
   sqlite.prepare(`
     INSERT INTO orders (id, userId, pluginIds, planId, totalCents, status, paymentProvider, createdISO, updatedISO)
     VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)
   `).run(id, data.userId, JSON.stringify(data.pluginIds), data.planId, data.totalCents, data.paymentProvider, now, now);
   return id;
+}
+
+/**
+ * Grant by order+product exactly once. Database primary key makes webhook replay
+ * idempotent, even after partial process failure. No purchase existed before
+ * external payment verification.
+ */
+export function grantOrderPluginOnce(orderId: string, userId: string, pluginId: number) {
+  const id = `pur_order_${orderId}_${pluginId}`;
+  const now = new Date().toISOString();
+  const key = `LIC-${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
+  sqlite.prepare(`INSERT IGNORE INTO purchases
+    (id, userId, pluginId, status, licenseKey, createdISO, updatedISO)
+    VALUES (?, ?, ?, 'approved', ?, ?, ?)`).run(id, userId, pluginId, key, now, now);
+  const row = sqlite.prepare('SELECT * FROM purchases WHERE id = ?').get(id) as Purchase | undefined;
+  if (!row || row.userId !== userId || row.pluginId !== pluginId)
+    throw new Error('Conflito na conciliacao da compra');
+  return row;
+}
+
+/** Removes access associated with a reversed Mercado Pago order. */
+export function revokeOrderPlugins(orderId: string, pluginIds: number[]) {
+  const now = new Date().toISOString();
+  for (const pid of pluginIds) {
+    sqlite.prepare(`UPDATE purchases SET status = 'cancelled', updatedISO = ?
+      WHERE id = ? AND status = 'approved'`).run(now, `pur_order_${orderId}_${pid}`);
+  }
+}
+
+/** A payment must have already been confirmed through Mercado Pago API. */
+export function claimVerifiedOrder(orderId: string, paymentId: string): boolean {
+  const now = new Date().toISOString();
+  const r = sqlite.prepare(`UPDATE orders SET status = 'paid', paymentId = ?, updatedISO = ?
+    WHERE id = ? AND paymentProvider = 'mercadopago'
+    AND (status = 'pending' AND paymentId IS NULL
+      OR status = 'paid' AND paymentId = ?)`)
+    .run(paymentId, now, orderId, paymentId);
+  return r.changes > 0;
+}
+export function completeVerifiedOrder(orderId: string, paymentId: string): boolean {
+  const r = sqlite.prepare(`UPDATE orders SET status = 'completed', updatedISO = ?
+    WHERE id = ? AND status = 'paid' AND paymentId = ?`)
+    .run(new Date().toISOString(), orderId, paymentId);
+  return r.changes > 0;
+}
+export function reverseVerifiedOrder(orderId: string, paymentId: string, status: string): boolean {
+  if (!['rejected', 'cancelled', 'refunded', 'charged_back'].includes(status)) return false;
+  const r = sqlite.prepare(`UPDATE orders SET status = ?, paymentId = ?, updatedISO = ?
+    WHERE id = ? AND paymentProvider = 'mercadopago'
+      AND (paymentId IS NULL OR paymentId = ?)
+      AND status IN ('pending', 'paid', 'completed', 'rejected', 'cancelled')`)
+    .run(status, paymentId, new Date().toISOString(), orderId, paymentId);
+  return r.changes > 0;
 }
 
 export function updateOrderStatus(id: string, status: string, paymentId?: string) {

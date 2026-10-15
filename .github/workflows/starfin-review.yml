@@ -16,3 +16,4 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run server:typecheck
+      - run: node --import tsx --test server/src/payment-validation.test.ts
