@@ -376,27 +376,13 @@ app.get('/api/public/plans', (_req, res) => {
   res.json({ items: plans.filter(p => p.active) });
 });
 
-app.post('/api/users/me/plans/subscribe', (req, res) => {
-  if (!hasValidAuthHeader(req)) return res.status(401).json({ error: 'não autorizado' });
-  const ctx = getAuthContext(req)!;
-  const planId = typeof req.body?.planId === 'string' ? req.body.planId : '';
-  
-  const allPlans = listPlans();
-  const plan = allPlans.find(p => p.id === planId && p.active);
-  if (!plan) return res.status(404).json({ error: 'plano não encontrado ou inativo' });
-
-  const expiresAt = new Date();
-  expiresAt.setMonth(expiresAt.getMonth() + 1); // 1 month subscription
-
-  const updated = updateUserAdmin(ctx.userId, { 
-    plan: toUserPlan(plan.name),
-    planExpiresAt: expiresAt.toISOString(),
-    role: plan.grantsAllPlugins ? 'premium' : 'user'
+// Do not grant paid privileges from an authenticated self-service request.
+// A subscription must be created by a verified payment/reconciliation path.
+app.post('/api/users/me/plans/subscribe', (_req, res) => {
+  res.status(403).json({
+    error: 'Assinaturas são liberadas somente após confirmação do pagamento.',
+    code: 'PAYMENT_REQUIRED'
   });
-
-  if (!updated) return res.status(500).json({ error: 'erro ao atualizar plano' });
-  
-  res.json({ ok: true, plan: updated.plan, planExpiresAt: updated.planExpiresAt });
 });
 
 app.all('/v1/license/check', (req, res, next) => {

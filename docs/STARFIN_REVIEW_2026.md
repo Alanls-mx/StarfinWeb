@@ -44,3 +44,6 @@ O endpoint Next `app/api/commerce/checkout/route.ts` marcava pedidos como conclu
 
 ## Autenticação Next
 Os usuários banidos agora são recusados pelo login e por `requireUser`. Limite de tentativas por fingerprint de e-mail e limite global substituem confiança direta em IP encaminhado. Devem ser executados testes com múltiplas instâncias e usuários legítimos, antes do merge.
+
+## Achado financeiro crítico — assinatura Express
+O antigo endpoint `POST /api/users/me/plans/subscribe` concedia plano Premium e permissões sem um pagamento confirmado. Foi bloqueado com HTTP 403; assinaturas devem ser provisionadas somente por fluxo autenticado de pagamento/conciliação. O fluxo de carrinho/checkout de planos precisa de homologação antes de voltar a vender assinaturas.
