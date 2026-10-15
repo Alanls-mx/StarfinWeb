@@ -526,7 +526,10 @@ app.post('/v1/license/check', (req, res) => {
     }
     const storedUserHwid = normalizeHwid(user.licenseHwid || '');
     if (!storedUserHwid) {
-      bindUserLicenseHwid(user.id, normalizedHwid);
+      const bound = bindUserLicenseHwid(user.id, normalizedHwid);
+      if (normalizeHwid(bound?.licenseHwid || '') !== normalizedHwid) {
+        return res.status(200).json({ valid: false, ok: false, reason: 'HWID nao autorizado.' });
+      }
       console.log(`${auditPrefix} Global HWID bound on first activation. user=${user.id} hwid=${normalizedHwid} ip=${incomingIp}`);
     } else if (storedUserHwid !== normalizedHwid) {
       console.warn(`${auditPrefix} Global HWID mismatch. user=${user.id} expected=${storedUserHwid} received=${normalizedHwid} ip=${incomingIp}`);
@@ -673,7 +676,7 @@ app.post('/v1/license/check', (req, res) => {
     const plugin = getPluginDetail(purchase.pluginId);
     const storedPurchaseHwid = normalizeHwid(purchase.hwid || '');
     if (!storedPurchaseHwid) {
-      updatePurchaseTelemetry(purchase.id, {
+      const bound = updatePurchaseTelemetry(purchase.id, {
         hwid: normalizedHwid,
         allowedIp: incomingIp,
         ip: incomingIp,
@@ -682,6 +685,9 @@ app.post('/v1/license/check', (req, res) => {
         platform: normalizedPlatform,
         performance: normalizedPerformance
       });
+      if (normalizeHwid(bound?.hwid || '') !== normalizedHwid) {
+        return res.status(200).json({ valid: false, ok: false, reason: 'HWID nao autorizado.' });
+      }
       console.log(`${auditPrefix} Purchase HWID bound on first activation. purchase=${purchase.id} hwid=${normalizedHwid} ip=${incomingIp}`);
     } else if (storedPurchaseHwid !== normalizedHwid) {
       console.warn(`${auditPrefix} Purchase HWID mismatch. purchase=${purchase.id} expected=${storedPurchaseHwid} received=${normalizedHwid} ip=${incomingIp}`);

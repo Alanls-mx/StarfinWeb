@@ -2373,7 +2373,7 @@ export function updateUserAllowedIp(userId: string, ip: string | null) {
 }
 
 export function bindUserLicenseHwid(userId: string, hwid: string) {
-  sqlite.prepare('UPDATE users SET licenseHwid = ? WHERE id = ?').run(hwid, userId);
+  sqlite.prepare("UPDATE users SET licenseHwid = ? WHERE id = ? AND (licenseHwid IS NULL OR licenseHwid = '')").run(hwid, userId);
   return findUserById(userId);
 }
 
@@ -2558,7 +2558,7 @@ export function findPurchaseByLicenseKey(key: string) {
 
 export function updatePurchaseTelemetry(id: string, data: { hwid?: string, allowedIp?: string, ip: string, port: number, serverName: string, platform: string, performance: string }) {
   sqlite.prepare(`
-    UPDATE purchases SET 
+    UPDATE purchases SET
       hwid = COALESCE(hwid, ?),
       allowedIp = COALESCE(allowedIp, ?),
       lastIp = ?,
@@ -2569,6 +2569,7 @@ export function updatePurchaseTelemetry(id: string, data: { hwid?: string, allow
       updatedISO = ?
     WHERE id = ?
   `).run(data.hwid || null, data.allowedIp || null, data.ip, data.port, data.serverName, data.platform, data.performance, new Date().toISOString(), id);
+  return sqlite.prepare('SELECT hwid FROM purchases WHERE id = ?').get(id) as { hwid: string | null } | undefined;
 }
 
 export interface ServerRecord {
