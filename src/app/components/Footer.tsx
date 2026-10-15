@@ -1,6 +1,6 @@
 import { ArrowUpRight, Mail } from 'lucide-react';
 import { Link } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { getPublicSettings, subscribeNewsletter } from '../lib/api';
 
 const groups = [
@@ -20,7 +20,7 @@ export function Footer() {
     getPublicSettings().then((s) => setBranding({ siteName: s.siteName, footerText: s.footerText })).catch(() => {});
   }, []);
 
-  const subscribe = async (event: React.FormEvent<HTMLFormElement>) => {
+  const subscribe = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!email.trim() || sending) return;
     setSending(true);

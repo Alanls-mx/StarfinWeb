@@ -224,11 +224,17 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
   }
 
   if (!license.hwid) {
-    // First bind: if the license has no HWID yet, bind it to the first server that validates successfully.
-    await db.license.update({
-      where: { id: license.id },
+    // Atomic compare-and-set: two concurrent servers cannot both claim the same license.
+    const claimed = await db.license.updateMany({
+      where: { id: license.id, hwid: null },
       data: { hwid }
     });
+    if (claimed.count === 0) {
+      const current = await db.license.findUnique({ where: { id: license.id }, select: { hwid: true } });
+      if (current?.hwid !== hwid) {
+        return { ...baseResponse('HWID_MISMATCH'), licenseOwner: license.user.name, plan: license.plan };
+      }
+    }
     licenseCache.delete(license.licenseKey);
     const redis = getRedis();
     if (redis) await redis.del(`license:${crypto.createHash('sha256').update(license.licenseKey).digest('hex')}`);
@@ -254,10 +260,19 @@ export async function checkLicense(input: LicenseCheckRequest): Promise<LicenseC
   // Only product checks bind individual product installations; bootstrap does not.
   if (targetPlugin) {
     if (!targetPlugin.userHwid) {
-      await db.licensePlugin.update({
-        where: { id: targetPlugin.lpId },
+      const claimed = await db.licensePlugin.updateMany({
+        where: { id: targetPlugin.lpId, hwid: null },
         data: { hwid }
       });
+      if (claimed.count === 0) {
+        const current = await db.licensePlugin.findUnique({
+          where: { id: targetPlugin.lpId },
+          select: { hwid: true }
+        });
+        if (current?.hwid !== hwid) {
+          return { ...baseResponse('HWID_MISMATCH'), licenseOwner: license.user.name, plan: license.plan };
+        }
+      }
       licenseCache.delete(license.licenseKey);
       const redis = getRedis();
       if (redis) await redis.del(`license:${crypto.createHash('sha256').update(license.licenseKey).digest('hex')}`);
