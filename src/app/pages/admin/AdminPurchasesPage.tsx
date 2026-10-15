@@ -1,26 +1,32 @@
 import { CheckCircle, Clock, Edit2, Search, XCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { adminListPurchases, adminUpdatePurchase } from '../../lib/api';
+import { adminListPurchases, adminUpdatePurchase, type AdminPurchase } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { toast } from 'sonner';
 
 export function AdminPurchasesPage() {
   const { state } = useAuth();
   const token = state.status === 'authenticated' ? state.token : null;
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<AdminPurchase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [editingItem, setEditingItem] = useState<(AdminPurchase & { resetHwid?: boolean }) | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!token) return;
-      const res = await adminListPurchases(token);
-      if (!cancelled) setItems(res.items);
-      setLoading(false);
+      try {
+        const res = await adminListPurchases(token);
+        if (!cancelled) setItems(res.items);
+      } catch (cause) {
+        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar licenças.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, [token]);
@@ -57,7 +63,7 @@ export function AdminPurchasesPage() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Vendas e Licenças</h1>
+          <h1 className="text-3xl font-bold mb-2">Licenças e instalações</h1>
           <p className="text-gray-400">Consulte licenças e ajuste o vínculo de instalação. Aprovações financeiras dependem do provedor.</p>
         </div>
         <div className="relative w-full md:w-96">
@@ -71,11 +77,14 @@ export function AdminPurchasesPage() {
         </div>
       </div>
 
+        {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="w-10 h-10 border-4 border-[#7B2CBF] border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ) : (
+        ) : !error && filtered.length === 0 ? (
+          <div className="rounded-xl border border-white/10 bg-card p-10 text-center text-sm text-muted-foreground">{items.length === 0 ? 'Nenhuma licença registrada.' : 'Nenhuma licença corresponde à busca.'}</div>
+        ) : !error && (
           <div className="bg-[#1A1A22]/40 border border-[#7B2CBF]/10 rounded-2xl overflow-x-auto backdrop-blur-sm">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
@@ -100,7 +109,7 @@ export function AdminPurchasesPage() {
                       <div className="text-xs text-[#C77DFF]">Plugin #{item.pluginId}</div>
                     </td>
                     <td className="p-4">
-                      <code className="text-xs text-gray-400 bg-[#0B0B0F] px-2 py-1 rounded">{item.licenseKey || '---'}</code>
+                      <code className="text-xs text-gray-400 bg-[#0B0B0F] px-2 py-1 rounded">{item.licenseKey ? `•••• ${item.licenseKey.slice(-4)}` : '---'}</code>
                     </td>
                     <td className="p-4">
                       <div className="text-xs text-gray-400">{item.allowedIp || 'Não vinculado'}</div>

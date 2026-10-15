@@ -102,6 +102,7 @@ import {
   reverseVerifiedOrder,
   revokeOrderPlugins,
   listAllOrders,
+  listOrdersForUser,
   findOrderById,
   users,
   verifyEmailToken,
@@ -1166,7 +1167,8 @@ app.get('/api/users/me/payments', (req, res) => {
     return;
   }
   const ctx = getAuthContext(req)!;
-  const orders = listAllOrders().filter(o => o.userId === ctx.userId);
+  const orders = listOrdersForUser(ctx.userId);
+  const productNames = new Map(pluginSummaries.map(plugin => [plugin.id, plugin.name]));
   res.json(orders.map(o => ({
     id: o.id,
     dateISO: o.createdISO,
@@ -1174,7 +1176,7 @@ app.get('/api/users/me/payments', (req, res) => {
     status: o.status,
     method: o.paymentProvider,
     paymentId: o.paymentId,
-    pluginName: o.pluginIds.map(id => getPluginDetail(id)?.name || `Produto ${id}`).join(', ')
+    pluginName: o.pluginIds.map(id => productNames.get(id) || `Produto ${id}`).join(', ')
   })));
 });
 
@@ -3498,6 +3500,31 @@ app.get('/api/admin/purchases', (req, res) => {
   res.json({ items: listAllPurchases() });
 });
 
+app.get('/api/admin/orders', (req, res) => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: 'admin token requerido' });
+    return;
+  }
+  const customers = new Map(listAllUsers().map(user => [user.id, user]));
+  const productNames = new Map(pluginSummaries.map(plugin => [plugin.id, plugin.name]));
+  res.json({ items: listAllOrders().map(order => {
+    const customer = customers.get(order.userId);
+    return {
+      id: order.id,
+      customerName: customer?.name || 'Usuário indisponível',
+      customerEmail: customer?.email || null,
+      pluginNames: order.pluginIds.map(id => productNames.get(id) || `Produto ${id}`),
+      planId: order.planId,
+      totalCents: order.totalCents,
+      status: order.status,
+      paymentProvider: order.paymentProvider,
+      paymentId: order.paymentId,
+      createdISO: order.createdISO,
+      updatedISO: order.updatedISO
+    };
+  }) });
+});
+
 app.put('/api/admin/purchases/:id', async (req, res) => {
   if (!isAdmin(req)) {
     res.status(403).json({ error: 'admin token requerido' });
@@ -3511,6 +3538,10 @@ app.put('/api/admin/purchases/:id', async (req, res) => {
     res.status(400).json({ error: 'Somente IP autorizado e reset de HWID podem ser alterados aqui.' });
     return;
   }
+  if (typeof body.allowedIp === 'string' && body.allowedIp.trim() && !net.isIP(body.allowedIp.trim())) {
+    return res.status(400).json({ error: 'Informe um endereço IPv4 ou IPv6 válido.' });
+  }
+  if (typeof body.allowedIp === 'string') body.allowedIp = body.allowedIp.trim() || null;
   
   const purchase = updatePurchaseAdmin(id, body);
   if (!purchase) {

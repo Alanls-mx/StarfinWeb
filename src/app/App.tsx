@@ -36,6 +36,7 @@ import { AdminSupportPage } from './pages/admin/AdminSupportPage';
 import { AdminSmtpPage } from './pages/admin/AdminSmtpPage';
 import { AdminIntegrationsPage } from './pages/admin/AdminIntegrationsPage';
 import { AdminPurchasesPage } from './pages/admin/AdminPurchasesPage';
+import { AdminOrdersPage } from './pages/admin/AdminOrdersPage';
 import { AdminStatusPage } from './pages/admin/AdminStatusPage';
 import { AdminChangelogPage } from './pages/admin/AdminChangelogPage';
 import { AdminDocsPage } from './pages/admin/AdminDocsPage';
@@ -131,6 +132,7 @@ export default function App() {
                 <Route path="users" element={<AdminUsersPage />} />
                 <Route path="support" element={<AdminSupportPage />} />
                 <Route path="purchases" element={<AdminPurchasesPage />} />
+                <Route path="orders" element={<AdminOrdersPage />} />
                 <Route path="smtp" element={<AdminSmtpPage />} />
                 <Route path="integrations" element={<AdminIntegrationsPage />} />
                 <Route path="status" element={<AdminStatusPage />} />

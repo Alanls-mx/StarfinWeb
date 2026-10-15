@@ -757,12 +757,35 @@ export function adminSaveIntegrations(token: string, input: Partial<IntegrationC
   });
 }
 
+export interface AdminPurchase extends Purchase {
+  hwid: string | null;
+  allowedIp: string | null;
+}
+
 export function adminListPurchases(token: string) {
-  return apiFetch<{ items: Purchase[] }>('/api/admin/purchases', { token });
+  return apiFetch<{ items: AdminPurchase[] }>('/api/admin/purchases', { token });
+}
+
+export interface AdminOrder {
+  id: string;
+  customerName: string;
+  customerEmail: string | null;
+  pluginNames: string[];
+  planId: string | null;
+  totalCents: number;
+  status: string;
+  paymentProvider: string;
+  paymentId: string | null;
+  createdISO: string;
+  updatedISO: string;
+}
+
+export function adminListOrders(token: string) {
+  return apiFetch<{ items: AdminOrder[] }>('/api/admin/orders', { token });
 }
 
 export function adminUpdatePurchase(token: string, id: string, input: { allowedIp: string | null; resetHwid?: boolean }) {
-  return apiFetch<{ ok: true; purchase: Purchase }>(`/api/admin/purchases/${encodeURIComponent(id)}`, {
+  return apiFetch<{ ok: true; purchase: AdminPurchase }>(`/api/admin/purchases/${encodeURIComponent(id)}`, {
     method: 'PUT',
     token,
     body: JSON.stringify(input)

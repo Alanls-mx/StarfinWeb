@@ -2866,6 +2866,11 @@ export function listAllOrders(): OrderRecord[] {
   return rows.map(mapOrderRow);
 }
 
+export function listOrdersForUser(userId: string): OrderRecord[] {
+  const rows = sqlite.prepare('SELECT * FROM orders WHERE userId = ? ORDER BY createdISO DESC').all(userId) as any[];
+  return rows.map(mapOrderRow);
+}
+
 function mapRaffleRow(row: any): RaffleRecord {
   const winner = row.winnerUserId ? findUserById(row.winnerUserId) : null;
   const entrantRow = sqlite
