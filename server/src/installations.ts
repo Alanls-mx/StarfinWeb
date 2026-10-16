@@ -13,6 +13,7 @@ db.exec(`
   ALTER TABLE servers ADD COLUMN IF NOT EXISTS platform TEXT;
   ALTER TABLE servers ADD COLUMN IF NOT EXISTS coreVersion TEXT;
   ALTER TABLE servers ADD COLUMN IF NOT EXISTS lastSyncISO TEXT;
+  ALTER TABLE servers ADD COLUMN IF NOT EXISTS authorizedPort INTEGER;
   CREATE UNIQUE INDEX IF NOT EXISTS servers_installation_identity ON servers (installationId) WHERE installationId IS NOT NULL AND revokedISO IS NULL;
   CREATE TABLE IF NOT EXISTS installation_challenges (
     codeHash TEXT PRIMARY KEY,
@@ -22,11 +23,13 @@ db.exec(`
     platform TEXT,
     coreVersion TEXT,
     observedIp TEXT,
+    serverPort INTEGER,
     createdISO TEXT NOT NULL,
     expiresISO TEXT NOT NULL,
     claimedServerId TEXT
   );
   CREATE INDEX IF NOT EXISTS installation_challenges_identity ON installation_challenges (installationId);
+  ALTER TABLE installation_challenges ADD COLUMN IF NOT EXISTS serverPort INTEGER;
   CREATE TABLE IF NOT EXISTS installation_events (
     id TEXT PRIMARY KEY,
     serverId TEXT NOT NULL,
@@ -110,8 +113,8 @@ export function logInstallationEvent(serverId: string, action: string, actorUser
     .run(crypto.randomUUID(), serverId, actorUserId, action, reason, JSON.stringify(details), now());
 }
 
-export function createInstallationChallenge(input: { installationId: string; credential: string; name: string; platform: string; coreVersion: string; observedIp: string }) {
-  if (!validId(input.installationId) || !validCredential(input.credential) || !input.name.trim() || input.name.length > 100) return { error: 'INVALID_REQUEST' } as const;
+export function createInstallationChallenge(input: { installationId: string; credential: string; name: string; platform: string; coreVersion: string; observedIp: string; serverPort: number }) {
+  if (!validId(input.installationId) || !validCredential(input.credential) || !input.name.trim() || input.name.length > 100 || !validPort(input.serverPort)) return { error: 'INVALID_REQUEST' } as const;
   const existing = db.prepare('SELECT id FROM servers WHERE installationId = ? AND revokedISO IS NULL').get(input.installationId);
   if (existing) return { error: 'ALREADY_LINKED' } as const;
   const existingChallenge = db.prepare('SELECT codeHash, expiresISO FROM installation_challenges WHERE installationId = ? AND credentialHash = ? AND claimedServerId IS NULL ORDER BY createdISO DESC LIMIT 1')
@@ -119,8 +122,8 @@ export function createInstallationChallenge(input: { installationId: string; cre
   if (existingChallenge && existingChallenge.expiresISO > now()) return { error: 'CHALLENGE_PENDING' } as const;
   const code = crypto.randomBytes(5).toString('hex').toUpperCase();
   const expiresISO = new Date(Date.now() + 10 * 60_000).toISOString();
-  db.prepare('INSERT INTO installation_challenges (codeHash, installationId, credentialHash, name, platform, coreVersion, observedIp, createdISO, expiresISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(sha(code), input.installationId, sha(input.credential), input.name.trim(), input.platform.slice(0, 64), input.coreVersion.slice(0, 64), input.observedIp, now(), expiresISO);
+  db.prepare('INSERT INTO installation_challenges (codeHash, installationId, credentialHash, name, platform, coreVersion, observedIp, serverPort, createdISO, expiresISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(sha(code), input.installationId, sha(input.credential), input.name.trim(), input.platform.slice(0, 64), input.coreVersion.slice(0, 64), input.observedIp, input.serverPort, now(), expiresISO);
   return { code, expiresISO } as const;
 }
 
@@ -137,7 +140,9 @@ export function claimInstallation(code: string, userId: string, serverId: string
     ), linked AS (
       UPDATE servers s SET installationId = c.installationId, credentialHash = c.credentialHash,
         activationISO = ?, revokedISO = NULL, observedIp = c.observedIp, platform = c.platform,
-        coreVersion = c.coreVersion, lastSyncISO = NULL
+        coreVersion = c.coreVersion, authorizedPort = c.serverPort,
+        ips = CASE WHEN s.ips IS NULL OR s.ips = '[]' THEN json_build_array(c.observedIp)::text ELSE s.ips END,
+        lastSyncISO = NULL
       FROM challenge c, target t
       WHERE s.id = t.id AND NOT EXISTS (SELECT 1 FROM servers other WHERE other.installationId = c.installationId AND other.id <> s.id AND other.revokedISO IS NULL)
       RETURNING s.id, s.name, s.installationId
@@ -155,6 +160,26 @@ export function findAuthenticatedInstallation(installationId: string, credential
   const row = db.prepare('SELECT * FROM servers WHERE installationId = ? AND credentialHash = ? AND revokedISO IS NULL')
     .get(installationId, sha(credential)) as Record<string, unknown> | undefined;
   return row || null;
+}
+
+export const validPort = (port: unknown): port is number => typeof port === 'number' && Number.isInteger(port) && port >= 1 && port <= 65535;
+
+export function pinLegacyInstallationIp(serverId: string, observedIp: string): string[] {
+  db.prepare("UPDATE servers SET ips = ? WHERE id = ? AND (ips IS NULL OR ips = '[]') AND credentialHash IS NOT NULL AND revokedISO IS NULL")
+    .run(JSON.stringify([observedIp]), serverId);
+  const row = db.prepare('SELECT ips FROM servers WHERE id = ? AND credentialHash IS NOT NULL AND revokedISO IS NULL')
+    .get(serverId) as { ips: string } | undefined;
+  return row ? JSON.parse(row.ips || '[]') as string[] : [];
+}
+
+export function authorizedInstallationPort(serverId: string, reportedPort: number, allowLegacyBind: boolean): number | null {
+  if (!validPort(reportedPort)) return null;
+  // Older links predate port capture. Their authenticated first check pins the port once.
+  if (allowLegacyBind) db.prepare('UPDATE servers SET authorizedPort = ? WHERE id = ? AND authorizedPort IS NULL AND credentialHash IS NOT NULL AND revokedISO IS NULL')
+    .run(reportedPort, serverId);
+  const row = db.prepare('SELECT authorizedPort FROM servers WHERE id = ? AND credentialHash IS NOT NULL AND revokedISO IS NULL')
+    .get(serverId) as { authorizedPort: number | null } | undefined;
+  return row?.authorizedPort ?? null;
 }
 
 export function updateInstallationSync(serverId: string, observedIp: string, platform: string, coreVersion: string) {

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { test } from 'node:test';
 import { app } from './index.js';
-import { createPlugin, createPurchase, createSession, createUser, updatePurchaseStatus, updateUserAdmin } from './data.js';
+import { createPlugin, createPurchase, createSession, createUser, findServerById, updatePurchaseStatus, updateUserAdmin } from './data.js';
 import { transferInstallation } from './installations.js';
+import Database from './postgres-sync.js';
 
 test('installation activation, identity, purchased quantity, observed IP and revocation', async () => {
   const plugin = createPlugin({ name: `CoreTest-${Date.now()}`, description: 'Teste de instalação', category: 'Administração', tags: [], mcVersion: '1.21', imageUrl: 'https://example.invalid/core.png', priceDisplay: 'R$ 10,00', licenseName: 'core_test' });
@@ -18,7 +19,8 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     const address = server.address();
     assert.ok(address && typeof address !== 'string');
     const base = `http://127.0.0.1:${address.port}`;
-    const post = (path: string, body: unknown, auth?: string) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(auth ? { authorization: auth } : {}) }, body: JSON.stringify(body) });
+    const post = (path: string, body: any, auth?: string) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(auth ? { authorization: auth } : {}) },
+      body: JSON.stringify(path.startsWith('/v3/installations/') ? { serverPort: 25565, ...body } : body) });
     const first = await post('/api/users/me/servers', { name: 'Lobby', ips: ['127.0.0.1'] }, `Bearer ${token}`);
     const second = await post('/api/users/me/servers', { name: 'Survival', ips: [] }, `Bearer ${token}`);
     assert.equal(first.status, 201); assert.equal(second.status, 201);
@@ -57,10 +59,30 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     assert.equal(authorized.valid, true);
     assert.equal(authorized.protocolVersion, 3);
     assert.equal(authorized.installation.observedIp, '127.0.0.1');
+    assert.equal(authorized.installation.authorizedPort, 25565);
+    assert.equal(authorized.installation.reportedPort, 25565);
+    assert.equal(authorized.installation.portMatches, true);
     assert.deepEqual(authorized.allowedProductIds, ['core_test']);
     assert.equal(authorized.products[0].quantity.purchased, 2);
     assert.equal(authorized.products[0].quantity.used, 2);
     assert.equal(authorized.products[0].quantity.available, 2);
+    // Links created before port capture are pinned by their first authenticated check.
+    new Database().prepare("UPDATE servers SET authorizedPort = NULL, ips = '[]' WHERE id = ?").run(winner);
+    const legacyPortCheck = await post('/v3/installations/check', { installationId }, `Installation ${credential}`);
+    assert.equal((await legacyPortCheck.json() as any).installation.authorizedPort, 25565);
+    assert.deepEqual(findServerById(winner)?.ips, ['127.0.0.1']);
+    const wrongPort = await post('/v3/installations/check', { installationId, serverPort: 25566 }, `Installation ${credential}`);
+    const wrongPortBody = await wrongPort.json() as any;
+    assert.equal(wrongPortBody.valid, false);
+    assert.equal(wrongPortBody.code, 'PORT_MISMATCH');
+    assert.equal(wrongPortBody.installation.portMatches, false);
+    assert.deepEqual(wrongPortBody.allowedProductIds, []);
+    const changePort = await fetch(`${base}/api/users/me/servers/${winner}`, { method: 'PATCH', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ authorizedPort: 25566 }) });
+    assert.equal(changePort.status, 200);
+    assert.equal((await changePort.json() as any).authorizedPort, 25566);
+    assert.equal((await (await post('/v3/installations/check', { installationId, serverPort: 25566 }, `Installation ${credential}`)).json() as any).valid, true);
+    assert.equal((await (await post('/v3/installations/check', { installationId }, `Installation ${credential}`)).json() as any).code, 'PORT_MISMATCH');
+    assert.equal((await fetch(`${base}/api/users/me/servers/${winner}`, { method: 'PATCH', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ authorizedPort: 25565 }) })).status, 200);
     assert.equal((await post('/v3/installations/check', { installationId }, 'Installation wrongcredential')).status, 401);
 
     const secondInstallationId = crypto.randomUUID();
@@ -69,6 +91,7 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     assert.equal(secondChallenge.status, 201);
     const secondCode = (await secondChallenge.json() as { code: string }).code;
     assert.equal((await post(`/api/users/me/servers/${loser}/claim`, { code: secondCode, reason: 'Segunda ativação CI' }, `Bearer ${token}`)).status, 200);
+    assert.deepEqual(findServerById(loser)?.ips, ['127.0.0.1']);
     updatePurchaseStatus(secondPurchase.id, 'cancelled');
     const afterRefund = await Promise.all([
       post('/v3/installations/check', { installationId }, `Installation ${credential}`),
@@ -91,7 +114,7 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     assert.equal((await assign(winner)).status, 409); // another installation still holds the remaining paid seat
     const list = await fetch(`${base}/api/users/me/servers`, { headers: { authorization: `Bearer ${token}` } });
     const items = (await list.json() as { items: any[] }).items;
-    assert.equal(items.find(item => item.id === winner).entitlements[0].purchased, 1);
+    assert.equal(items.find(item => item.id === winner).entitlements.find((item: any) => item.pluginId === plugin.id).purchased, 1);
     assert.equal(items.find(item => item.id === winner).credentialHash, undefined);
     const recipient = createUser({ name: 'Destino de transferência', email: `installation-target-${Date.now()}@example.invalid`, password: 'test-only-password' });
     assert.ok(recipient);

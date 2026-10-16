@@ -1335,6 +1335,7 @@ export interface ServerRecord {
   platform?: string | null;
   coreVersion?: string | null;
   lastSyncISO?: string | null;
+  authorizedPort?: number | null;
   entitlements?: Array<{ pluginId: number; purchased: number; limit: number; used: number; available: number }>;
 }
 
@@ -1350,7 +1351,7 @@ export function createServer(token: string, data: { name: string, ips: string[] 
   });
 }
 
-export function updateServer(token: string, id: string, data: { name?: string, ips?: string[] }) {
+export function updateServer(token: string, id: string, data: { name?: string, ips?: string[], authorizedPort?: number }) {
   return apiFetch<ServerRecord>(`/api/users/me/servers/${id}`, {
     method: 'PATCH',
     token,

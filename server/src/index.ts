@@ -153,7 +153,8 @@ import {
   assignProductWithLimit, claimInstallation, createInstallationChallenge,
   findAuthenticatedInstallation, listInstallationEvents, logInstallationEvent,
   productEntitlements, revokeInstallation, updateInstallationSync,
-  migrateMatchingLegacyPurchases, transferInstallation, installationHasSeat, transferProductAssignment
+  migrateMatchingLegacyPurchases, transferInstallation, installationHasSeat, transferProductAssignment,
+  authorizedInstallationPort, pinLegacyInstallationIp, validPort
 } from './installations.js';
 
 function getMpCredentials() {
@@ -596,7 +597,7 @@ app.post('/v3/installations/challenge', (req, res) => {
   const result = createInstallationChallenge({
     installationId: String(input.installationId || ''), credential: String(input.credential || ''),
     name: String(input.name || '').slice(0, 101), platform: String(input.platform || ''),
-    coreVersion: String(input.coreVersion || ''), observedIp
+    coreVersion: String(input.coreVersion || ''), observedIp, serverPort: input.serverPort
   });
   if ('error' in result) return res.status(result.error === 'ALREADY_LINKED' ? 409 : 400).json({ code: result.error });
   res.status(201).json({ code: result.code, expiresISO: result.expiresISO, observedIp });
@@ -609,8 +610,14 @@ app.post('/v3/installations/check', (req, res) => {
   if (!owner || owner.banned) return res.status(403).json({ valid: false, code: 'ACCOUNT_SUSPENDED', reason: 'Conta suspensa ou indisponível.' });
   const observedIp = getObservedRequestIp(req);
   if (!observedIp) return res.status(400).json({ valid: false, code: 'IP_UNKNOWN', reason: 'IP de origem indisponível.' });
-  const ips = JSON.parse(String(installation.ips || '[]')) as string[];
-  const ipMatches = ips.length === 0 || ips.map(normalizeIp).includes(observedIp);
+  const reportedPort = req.body?.serverPort;
+  if (!validPort(reportedPort)) return res.status(403).json({ valid: false, code: 'PORT_INVALID', reason: 'Porta do servidor ausente ou inválida.' });
+  const storedIps = JSON.parse(String(installation.ips || '[]')) as string[];
+  const ips = storedIps.length ? storedIps : pinLegacyInstallationIp(String(installation.id), observedIp);
+  const ipMatches = ips.map(normalizeIp).includes(observedIp);
+  const authorizedPort = authorizedInstallationPort(String(installation.id), reportedPort, ipMatches);
+  if (authorizedPort === null) return res.status(401).json({ valid: false, code: 'INSTALLATION_UNAUTHENTICATED' });
+  const portMatches = authorizedPort === reportedPort;
   const stamp = updateInstallationSync(String(installation.id), observedIp, String(req.body?.platform || ''), String(req.body?.coreVersion || ''));
   const purchased = getLicensesForUser(owner.id).filter(item => item.status === 'Ativo');
   const purchasedIds = [...new Set(purchased.map(item => item.pluginId))];
@@ -622,7 +629,7 @@ app.post('/v3/installations/check', (req, res) => {
     const quantity = productEntitlements(owner.id, id);
     const releases = listPluginReleases(id).map(release => ({ ...publicRelease(release),
       downloadPath: `/v3/installations/releases/${encodeURIComponent(release.id)}/download` }));
-    const authorized = ipMatches && assigned.has(id) && installationHasSeat(owner.id, String(installation.id), id, quantity.limit);
+    const authorized = ipMatches && portMatches && assigned.has(id) && installationHasSeat(owner.id, String(installation.id), id, quantity.limit);
     const productId = detail?.name.toLowerCase() === 'starfinbans' ? 'starfin_bans' : String(detail?.licenseName || `starfin_product_${id}`).toLowerCase();
     return { id, productId, name: detail?.name || `Produto ${id}`, acquired: purchasedIds.includes(id), assigned: assigned.has(id), authorized,
       quantity, releases, downloadAvailable: authorized && releases.length > 0 };
@@ -632,14 +639,16 @@ app.post('/v3/installations/check', (req, res) => {
   const regularExpiry = new Date(Date.now() + 45 * 60_000).toISOString();
   const expiresAt = owner.planExpiresAt && owner.planExpiresAt > stamp && planIds.some(id => !getPluginDetail(id)?.tags.includes('Free'))
     ? (owner.planExpiresAt < regularExpiry ? owner.planExpiresAt : regularExpiry) : regularExpiry;
-  const code = !ipMatches ? 'IP_MISMATCH' : 'AUTHORIZED';
+  const code = !ipMatches ? 'IP_MISMATCH' : !portMatches ? 'PORT_MISMATCH' : 'AUTHORIZED';
   res.json({
-    valid: ipMatches, ok: ipMatches, code, reason: ipMatches ? 'Instalação autenticada.' : 'IP observado não corresponde ao IP autorizado.',
+    valid: ipMatches && portMatches, ok: ipMatches && portMatches, code,
+    reason: !ipMatches ? 'IP observado não corresponde ao IP autorizado.' : !portMatches ? 'Porta do servidor não corresponde à porta autorizada.' : 'Instalação autenticada.',
     protocolVersion: 3, checkedAt: stamp, authorizationExpiresAt: expiresAt,
     authentication: { authenticated: true, connected: true },
     account: { displayName: owner.name, state: 'active' },
     installation: { id: installation.installationId, name: installation.name, state: 'active', observedIp,
-      authorizedIps: ips, ipMatches, platform: req.body?.platform || installation.platform, coreVersion: req.body?.coreVersion || installation.coreVersion, lastSyncISO: stamp },
+      authorizedIps: ips, ipMatches, authorizedPort, reportedPort, portMatches,
+      platform: req.body?.platform || installation.platform, coreVersion: req.body?.coreVersion || installation.coreVersion, lastSyncISO: stamp },
     licensing: { acquiredProducts: purchasedIds.length, assignedProducts: assigned.size, authorizedProducts: allowed.length },
     products, allowedProductIds, allowedPlugins: allowed.map(item => item.name), updates: {}
   });
@@ -656,6 +665,9 @@ app.get('/v3/installations/releases/:id/download', (req, res) => {
   const ips = JSON.parse(String(installation.ips || '[]')) as string[];
   const observedIp = getObservedRequestIp(req);
   if (ips.length && !ips.map(normalizeIp).includes(observedIp)) return res.status(403).json({ code: 'IP_MISMATCH' });
+  const reportedPort = Number(req.headers['x-server-port']);
+  if (!validPort(reportedPort) || authorizedInstallationPort(String(installation.id), reportedPort, false) !== reportedPort)
+    return res.status(403).json({ code: 'PORT_MISMATCH' });
   updateInstallationSync(String(installation.id), observedIp, String(installation.platform || ''), String(installation.coreVersion || ''));
   if (!installationHasSeat(owner.id, String(installation.id), release.pluginId, quantity.limit))
     return res.status(403).json({ code: 'PRODUCT_UNAUTHORIZED' });
@@ -2853,11 +2865,16 @@ app.patch('/api/users/me/servers/:id', (req, res) => {
   if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
   const name = req.body?.name === undefined ? undefined : typeof req.body.name === 'string' ? req.body.name.trim() : '';
   const ips = req.body?.ips === undefined ? undefined : parseAuthorizedIps(req.body.ips);
+  const authorizedPort = req.body?.authorizedPort;
   if (name !== undefined && (!name || name.length > 100) || ips === null)
     return res.status(400).json({ error: 'Nome ou IPs inválidos (máximo de três IPv4/IPv6).' });
-  const updated = updateServer(server.id, { name, ips });
+  if (authorizedPort !== undefined && (!server.installationId || Boolean(server.revokedISO) || !validPort(authorizedPort)))
+    return res.status(400).json({ error: 'Porta autorizada inválida.' });
+  const updated = updateServer(server.id, { name, ips, authorizedPort });
   if (ips !== undefined && JSON.stringify(server.ips) !== JSON.stringify(ips))
     logInstallationEvent(server.id, 'network.update', ctx.userId, 'Alteração do IP autorizado', { previous: server.ips, current: ips });
+  if (authorizedPort !== undefined && server.authorizedPort !== authorizedPort)
+    logInstallationEvent(server.id, 'port.update', ctx.userId, 'Alteração da porta autorizada', { previous: server.authorizedPort, current: authorizedPort });
   res.json(publicServer(updated));
 });
 

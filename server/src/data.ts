@@ -2767,6 +2767,7 @@ export interface ServerRecord {
   platform?: string | null;
   coreVersion?: string | null;
   lastSyncISO?: string | null;
+  authorizedPort?: number | null;
 }
 
 export function createServer(userId: string, name: string, ips: string[] = []) {
@@ -2803,12 +2804,13 @@ export function listServersForUser(userId: string): ServerRecord[] {
   });
 }
 
-export function updateServer(id: string, data: { name?: string, ips?: string[] }) {
+export function updateServer(id: string, data: { name?: string, ips?: string[], authorizedPort?: number }) {
   const current = findServerById(id);
   if (!current) return null;
   const name = data.name ?? current.name;
   const ips = data.ips ? JSON.stringify(data.ips.slice(0, 3)) : JSON.stringify(current.ips);
-  sqlite.prepare('UPDATE servers SET name = ?, ips = ? WHERE id = ?').run(name, ips, id);
+  sqlite.prepare('UPDATE servers SET name = ?, ips = ?, authorizedPort = ? WHERE id = ?')
+    .run(name, ips, data.authorizedPort ?? current.authorizedPort ?? null, id);
   return findServerById(id);
 }
 
