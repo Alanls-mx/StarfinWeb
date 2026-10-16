@@ -9,7 +9,8 @@ const groups = [
     { to: '/admin/plugins', label: 'Plugins', icon: Boxes },
     { to: '/admin/categories', label: 'Categorias', icon: ListOrdered },
     { to: '/admin/orders', label: 'Pedidos', icon: ShoppingBag },
-    { to: '/admin/purchases', label: 'Licenças e instalações', icon: Ticket },
+    { to: '/admin/purchases', label: 'Compras e licenças', icon: Ticket },
+    { to: '/admin/installations', label: 'Instalações Core', icon: Boxes },
     { to: '/admin/plans', label: 'Planos', icon: CreditCard },
     { to: '/admin/coupons', label: 'Cupons', icon: Ticket },
     { to: '/admin/raffles', label: 'Sorteios', icon: Gift }

@@ -40,6 +40,7 @@ jobs:
       - run: python3 -m pip install --break-system-packages psycopg2-binary
       - run: node --import tsx --test server/src/payment-persistence.test.ts
       - run: node --import tsx --test server/src/license-contract.test.ts
+      - run: node --import tsx --test server/src/installation-contract.test.ts
       - run: node --import tsx --test server/src/release-access.test.ts
       - run: node --import tsx --test server/src/media-access.test.ts
       - run: node --import tsx --test server/src/public-bootstrap.test.ts

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { app } from './index.js';
-import { addNotification, createPlugin, createPurchase, createSession, createUser, createUserAdmin, findPurchaseById, listAdminAudit, syncChangelog, updatePurchaseStatus } from './data.js';
+import { addNotification, createPlugin, createPurchase, createSession, createUser, createUserAdmin, findPurchaseById, listAdminAudit, syncChangelog, updatePurchaseStatus, updatePurchaseTelemetry } from './data.js';
 
 test('StarfinCore v2 contract authorizes only a paid product and binds the installation', async () => {
   const product = createPlugin({
@@ -39,6 +39,8 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
       return response.json() as Promise<Record<string, any>>;
     };
 
+    assert.equal((await check(approved.licenseKey, 'ci-installation-a', 'StarfinBans')).code, 'ACTIVATION_REQUIRED');
+    updatePurchaseTelemetry(approved.id, { hwid: 'ci-installation-a', ip: '127.0.0.1', port: 25565, serverName: 'Legacy', platform: 'Bukkit', performance: '{}' });
     const allowed = await check(approved.licenseKey, 'ci-installation-a', 'StarfinBans');
     assert.equal(allowed.valid, true);
     assert.equal(allowed.protocolVersion, 2);
@@ -54,6 +56,7 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
     const secondPurchase = createPurchase(owner.id, product.id);
     const secondApproved = updatePurchaseStatus(secondPurchase.id, 'approved');
     assert.ok(secondApproved?.licenseKey);
+    updatePurchaseTelemetry(secondApproved.id, { hwid: 'owner-installation', ip: '127.0.0.1', port: 25565, serverName: 'Legacy 2', platform: 'Bukkit', performance: '{}' });
     assert.equal((await check(secondApproved.licenseKey, 'attacker-installation', 'UnownedPlugin')).valid, false);
     assert.equal((await check(secondApproved.licenseKey, 'owner-installation', 'StarfinBans')).valid, true);
 

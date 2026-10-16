@@ -555,6 +555,8 @@ export interface PluginRelease {
   pluginId: number;
   version: string;
   mcVersion: string;
+  platform: string;
+  javaVersion: number;
   notes: string | null;
   originalName: string;
   sha256: string;
@@ -567,10 +569,12 @@ export function adminListPluginReleases(token: string, pluginId: number) {
   return apiFetch<{ items: PluginRelease[] }>(`/api/admin/plugins/${pluginId}/releases`, { token });
 }
 
-export function adminUploadPluginRelease(token: string, pluginId: number, input: { version: string; mcVersion: string; notes: string; file: File }) {
+export function adminUploadPluginRelease(token: string, pluginId: number, input: { version: string; mcVersion: string; platform: string; javaVersion: number; notes: string; file: File }) {
   const body = new FormData();
   body.set('version', input.version);
   body.set('mcVersion', input.mcVersion);
+  body.set('platform', input.platform);
+  body.set('javaVersion', String(input.javaVersion));
   body.set('notes', input.notes);
   body.set('file', input.file);
   return apiFetch<{ item: PluginRelease }>(`/api/admin/plugins/${pluginId}/releases`, { method: 'POST', token, body });
@@ -1316,13 +1320,23 @@ export function regenerateMyLicense(token: string) {
 export interface ServerRecord {
   id: string;
   name: string;
-  licenseKey: string;
+  licenseKey: string | null;
   ips: string[];
   plugins: number[];
+  installationId?: string | null;
+  installationIdMasked?: string | null;
+  linked?: boolean;
+  activationISO?: string | null;
+  revokedISO?: string | null;
+  observedIp?: string | null;
+  platform?: string | null;
+  coreVersion?: string | null;
+  lastSyncISO?: string | null;
+  entitlements?: Array<{ pluginId: number; purchased: number; limit: number; used: number; available: number }>;
 }
 
 export function listMyServers(token: string) {
-  return apiFetch<{ items: ServerRecord[] }>('/api/users/me/servers', { token });
+  return apiFetch<{ items: ServerRecord[]; availableProducts: Array<{ pluginId: number; name: string; source: 'purchase' | 'plan' }> }>('/api/users/me/servers', { token });
 }
 
 export function createServer(token: string, data: { name: string, ips: string[] }) {
@@ -1360,5 +1374,53 @@ export function unassignPluginFromServer(token: string, serverId: string, plugin
   return apiFetch<{ ok: boolean }>(`/api/users/me/servers/${serverId}/plugins/${pluginId}`, {
     method: 'DELETE',
     token
+  });
+}
+
+export function transferPluginBetweenServers(token: string, sourceServerId: string, pluginId: number, targetServerId: string) {
+  return apiFetch<{ ok: boolean }>(`/api/users/me/servers/${sourceServerId}/plugins/${pluginId}/transfer`, {
+    method: 'POST', token, body: JSON.stringify({ targetServerId })
+  });
+}
+
+export function claimInstallation(token: string, serverId: string, code: string, reason: string) {
+  return apiFetch<{ item: ServerRecord }>(`/api/users/me/servers/${serverId}/claim`, {
+    method: 'POST', token, body: JSON.stringify({ code, reason })
+  });
+}
+
+export function revokeInstallation(token: string, serverId: string, reason: string) {
+  return apiFetch<{ ok: boolean }>(`/api/users/me/servers/${serverId}/revoke`, {
+    method: 'POST', token, body: JSON.stringify({ reason })
+  });
+}
+
+export interface InstallationEvent {
+  id: string; action: string; actorUserId: string | null; reason: string; details: string; createdISO: string;
+}
+export function getInstallationHistory(token: string, serverId: string) {
+  return apiFetch<{ items: InstallationEvent[] }>(`/api/users/me/servers/${serverId}/history`, { token });
+}
+
+export function adminListUserInstallations(token: string, userId: string) {
+  return apiFetch<{ items: ServerRecord[] }>(`/api/admin/users/${encodeURIComponent(userId)}/installations`, { token });
+}
+export function adminInstallationHistory(token: string, serverId: string) {
+  return apiFetch<{ items: InstallationEvent[] }>(`/api/admin/installations/${serverId}/history`, { token });
+}
+export function adminRevokeInstallation(token: string, serverId: string, reason: string) {
+  return apiFetch<{ ok: boolean }>(`/api/admin/installations/${serverId}/revoke`, { method: 'POST', token, body: JSON.stringify({ reason }) });
+}
+export function adminTransferInstallation(token: string, serverId: string, targetUserId: string, reason: string) {
+  return apiFetch<{ ok: boolean; item: ServerRecord }>(`/api/admin/installations/${serverId}/transfer`, { method: 'POST', token, body: JSON.stringify({ targetUserId, reason }) });
+}
+export function adminRevokeProductAssignment(token: string, serverId: string, pluginId: number, reason: string) {
+  return apiFetch<{ ok: boolean }>(`/api/admin/installations/${serverId}/plugins/${pluginId}`, {
+    method: 'DELETE', token, body: JSON.stringify({ reason })
+  });
+}
+export function adminTransferProductAssignment(token: string, serverId: string, pluginId: number, targetServerId: string, reason: string) {
+  return apiFetch<{ ok: boolean }>(`/api/admin/installations/${serverId}/plugins/${pluginId}/transfer`, {
+    method: 'POST', token, body: JSON.stringify({ targetServerId, reason })
   });
 }

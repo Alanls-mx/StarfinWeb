@@ -146,6 +146,12 @@ import {
 import { reconcilePayment, verifyMercadoPagoWebhook, type VerifiedPayment } from './payment-validation.js';
 import { sendEmail, testSmtp, getVerificationEmailHtml, getPasswordResetEmailHtml, getOrderConfirmationHtml, EMAIL_LAYOUT } from './email.js';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
+import {
+  assignProductWithLimit, claimInstallation, createInstallationChallenge,
+  findAuthenticatedInstallation, listInstallationEvents, logInstallationEvent,
+  productEntitlements, revokeInstallation, updateInstallationSync,
+  migrateMatchingLegacyPurchases, transferInstallation, installationHasSeat, transferProductAssignment
+} from './installations.js';
 
 function getMpCredentials() {
   const settings = getAdminSettings();
@@ -497,6 +503,108 @@ app.post('/api/users/me/plans/subscribe', (_req, res) => {
   });
 });
 
+const installationAttempts = new Map<string, { count: number; until: number }>();
+function installationRateLimited(ip: string) {
+  const current = installationAttempts.get(ip);
+  const time = Date.now();
+  if (!current || current.until < time) {
+    installationAttempts.set(ip, { count: 1, until: time + 10 * 60_000 });
+    return false;
+  }
+  current.count += 1;
+  return current.count > 10;
+}
+
+function publicServer(server: ReturnType<typeof findServerById>) {
+  if (!server) return null;
+  const { installationId, licenseKey, ...safe } = server;
+  return { ...safe, installationIdMasked: installationId ? `••••${installationId.slice(-8)}` : null,
+    linked: Boolean(installationId && !server.revokedISO), licenseKey: licenseKey ? `••••${licenseKey.slice(-4)}` : null };
+}
+
+function installationFromRequest(req: express.Request) {
+  const match = /^Installation ([A-Za-z0-9_-]{43,128})$/.exec(req.headers.authorization || '');
+  const id = typeof req.body?.installationId === 'string' ? req.body.installationId :
+    typeof req.headers['x-installation-id'] === 'string' ? req.headers['x-installation-id'] : '';
+  return match ? findAuthenticatedInstallation(id, match[1]) : null;
+}
+
+app.post('/v3/installations/challenge', (req, res) => {
+  const observedIp = getObservedRequestIp(req);
+  if (!observedIp) return res.status(400).json({ code: 'IP_UNKNOWN', error: 'IP de origem indisponível' });
+  if (installationRateLimited(observedIp)) return res.status(429).json({ code: 'RATE_LIMITED', error: 'Aguarde antes de gerar outro código' });
+  const input = req.body || {};
+  const result = createInstallationChallenge({
+    installationId: String(input.installationId || ''), credential: String(input.credential || ''),
+    name: String(input.name || '').slice(0, 101), platform: String(input.platform || ''),
+    coreVersion: String(input.coreVersion || ''), observedIp
+  });
+  if ('error' in result) return res.status(result.error === 'ALREADY_LINKED' ? 409 : 400).json({ code: result.error });
+  res.status(201).json({ code: result.code, expiresISO: result.expiresISO, observedIp });
+});
+
+app.post('/v3/installations/check', (req, res) => {
+  const installation = installationFromRequest(req);
+  if (!installation) return res.status(401).json({ valid: false, code: 'INSTALLATION_UNAUTHENTICATED', reason: 'Instalação não ativada ou credencial revogada.' });
+  const owner = findUserById(String(installation.userId));
+  if (!owner || owner.banned) return res.status(403).json({ valid: false, code: 'ACCOUNT_SUSPENDED', reason: 'Conta suspensa ou indisponível.' });
+  const observedIp = getObservedRequestIp(req);
+  if (!observedIp) return res.status(400).json({ valid: false, code: 'IP_UNKNOWN', reason: 'IP de origem indisponível.' });
+  const ips = JSON.parse(String(installation.ips || '[]')) as string[];
+  const ipMatches = ips.length === 0 || ips.map(normalizeIp).includes(observedIp);
+  const stamp = updateInstallationSync(String(installation.id), observedIp, String(req.body?.platform || ''), String(req.body?.coreVersion || ''));
+  const purchased = getLicensesForUser(owner.id).filter(item => item.status === 'Ativo');
+  const purchasedIds = [...new Set(purchased.map(item => item.pluginId))];
+  const assigned = new Set(listPluginsForServer(String(installation.id)));
+  const ownerPlan = listPlans().find(plan => plan.name === owner.plan && plan.active);
+  const globalAccess = owner.role === 'admin' || (Boolean(ownerPlan?.grantsAllPlugins) && (!owner.planExpiresAt || owner.planExpiresAt > stamp));
+  const catalogIds = [...new Set([...purchasedIds, ...(globalAccess ? [...assigned] : [])])];
+  const products = catalogIds.map(id => {
+    const detail = getPluginDetail(id);
+    const quantity = productEntitlements(owner.id, id);
+    const releases = listPluginReleases(id).map(release => ({ ...publicRelease(release),
+      downloadPath: `/v3/installations/releases/${encodeURIComponent(release.id)}/download` }));
+    const authorized = ipMatches && assigned.has(id) && installationHasSeat(owner.id, String(installation.id), id, quantity.limit);
+    const productId = detail?.name.toLowerCase() === 'starfinbans' ? 'starfin_bans' : String(detail?.licenseName || `starfin_product_${id}`).toLowerCase();
+    return { id, productId, name: detail?.name || `Produto ${id}`, acquired: purchasedIds.includes(id), assigned: assigned.has(id), authorized,
+      quantity, releases, downloadAvailable: authorized && releases.length > 0 };
+  });
+  const allowed = products.filter(item => item.authorized);
+  const allowedProductIds = allowed.map(item => item.productId).filter(id => /^[a-z0-9_]{2,64}$/.test(id));
+  const expiresAt = new Date(Date.now() + 45 * 60_000).toISOString();
+  const code = !ipMatches ? 'IP_MISMATCH' : 'AUTHORIZED';
+  res.json({
+    valid: ipMatches, ok: ipMatches, code, reason: ipMatches ? 'Instalação autenticada.' : 'IP observado não corresponde ao IP autorizado.',
+    protocolVersion: 3, checkedAt: stamp, authorizationExpiresAt: expiresAt,
+    authentication: { authenticated: true, connected: true },
+    account: { displayName: owner.name, state: 'active' },
+    installation: { id: installation.installationId, name: installation.name, state: 'active', observedIp,
+      authorizedIps: ips, ipMatches, platform: req.body?.platform || installation.platform, coreVersion: req.body?.coreVersion || installation.coreVersion, lastSyncISO: stamp },
+    licensing: { acquiredProducts: purchasedIds.length, assignedProducts: assigned.size, authorizedProducts: allowed.length },
+    products, allowedProductIds, allowedPlugins: allowed.map(item => item.name), updates: {}
+  });
+});
+
+app.get('/v3/installations/releases/:id/download', (req, res) => {
+  const installation = installationFromRequest(req);
+  if (!installation) return res.status(401).json({ code: 'INSTALLATION_UNAUTHENTICATED' });
+  const owner = findUserById(String(installation.userId));
+  if (!owner || owner.banned) return res.status(403).json({ code: 'ACCOUNT_SUSPENDED' });
+  const release = findPluginRelease(req.params.id);
+  if (!release || !release.published) return res.status(404).json({ code: 'RELEASE_NOT_FOUND' });
+  const quantity = productEntitlements(owner.id, release.pluginId);
+  const ips = JSON.parse(String(installation.ips || '[]')) as string[];
+  const observedIp = getObservedRequestIp(req);
+  if (ips.length && !ips.map(normalizeIp).includes(observedIp)) return res.status(403).json({ code: 'IP_MISMATCH' });
+  if (!installationHasSeat(owner.id, String(installation.id), release.pluginId, quantity.limit))
+    return res.status(403).json({ code: 'PRODUCT_UNAUTHORIZED' });
+  const filePath = path.join(privateReleasesDir, release.fileName);
+  if (!fs.existsSync(filePath) || createHash('sha256').update(fs.readFileSync(filePath)).digest('hex') !== release.sha256)
+    return res.status(503).json({ code: 'RELEASE_INTEGRITY_FAILED' });
+  res.setHeader('X-Content-SHA256', release.sha256);
+  res.download(filePath, release.originalName);
+});
+
 app.all('/v1/license/check', (req, res, next) => {
   const observedIp = getObservedRequestIp(req) || req.ip;
   console.log(`[License Check] [${req.method}] from ${observedIp}`);
@@ -638,11 +746,8 @@ app.post('/v1/license/check', (req, res) => {
     }
     const storedUserHwid = normalizeHwid(user.licenseHwid || '');
     if (!storedUserHwid) {
-      const bound = bindUserLicenseHwid(user.id, normalizedHwid);
-      if (normalizeHwid(bound?.licenseHwid || '') !== normalizedHwid) {
-        return res.status(200).json({ valid: false, ok: false, reason: 'HWID nao autorizado.' });
-      }
-      console.log(`${auditPrefix} Global HWID bound on first activation. user=${user.id} hwid=${normalizedHwid} ip=${incomingIp}`);
+      return res.status(200).json({ valid: false, ok: false, code: 'ACTIVATION_REQUIRED',
+        reason: 'Ative esta instalação pelo código temporário no painel StarfinPlugins.' });
     } else if (storedUserHwid !== normalizedHwid) {
       console.warn(`${auditPrefix} Global HWID mismatch. user=${user.id} expected=${storedUserHwid} received=${normalizedHwid} ip=${incomingIp}`);
       addNotification(
@@ -737,40 +842,8 @@ app.post('/v1/license/check', (req, res) => {
   // 2. Fallback to Server-Specific License Key
   const server = findServerByLicenseKey(licenseKey);
   if (server) {
-    const owner = findUserById(server.userId);
-    if (!owner) return res.status(200).json({ valid: false, ok: false, reason: 'Dono do servidor nao encontrado.' });
-    if (owner.banned) return res.status(200).json({ valid: false, ok: false, reason: 'Dono do servidor esta banido.' });
-
-    const serverIps = server.ips.map(normalizeIp);
-    if (serverIps.length > 0 && !serverIps.includes(incomingIp)) {
-      return res.status(200).json({ valid: false, ok: false, reason: `IP ${incomingIp} nao autorizado para este servidor.` });
-    }
-
-    const assignedPluginIds = listPluginsForServer(server.id);
-    const activeOwnerProducts = new Set(getLicensesForUser(owner.id)
-      .filter(p => p.status === 'Ativo').map(p => p.pluginId));
-    const ownerPlan = listPlans().find(p => p.name === owner.plan && p.active);
-    const planActive = Boolean(owner.planExpiresAt && new Date(owner.planExpiresAt).getTime() > Date.now());
-    const ownerGlobalAccess = owner.role === 'admin' || (planActive && Boolean(ownerPlan?.grantsAllPlugins));
-    const allowedPlugins = withBootstrapPlugin(pluginSummaries
-      .filter(p => assignedPluginIds.includes(p.id) && (ownerGlobalAccess || activeOwnerProducts.has(p.id)))
-      .map(p => p.name));
-    if (!isRequestedPluginAllowed(allowedPlugins)) {
-      return res.status(200).json({ valid: false, ok: false, reason: 'Plugin solicitado nao autorizado para esta licenca de servidor.' });
-    }
-
-    return res.status(200).json({
-      valid: true,
-      ok: true,
-      reason: 'Licenca de servidor validada!',
-      licenseOwner: owner.name,
-      plan: owner.plan,
-      allowedPlugins,
-      allowedProductIds: authorizationProductIds(allowedPlugins),
-      authorizationExpiresAt: licenseAuthorizationLease(),
-      protocolVersion: 2,
-      updates: buildUpdates(allowedPlugins)
-    });
+    return res.status(200).json({ valid: false, ok: false, code: 'ACTIVATION_REQUIRED',
+      reason: 'Chaves legadas de servidor devem ser migradas pelo código temporário no painel.' });
   }
 
   // 3. Fallback to Legacy Purchase Key
@@ -793,19 +866,8 @@ app.post('/v1/license/check', (req, res) => {
     }
     const storedPurchaseHwid = normalizeHwid(purchase.hwid || '');
     if (!storedPurchaseHwid) {
-      const bound = updatePurchaseTelemetry(purchase.id, {
-        hwid: normalizedHwid,
-        allowedIp: incomingIp,
-        ip: incomingIp,
-        port: normalizedServerPort,
-        serverName: normalizedServerName,
-        platform: normalizedPlatform,
-        performance: normalizedPerformance
-      });
-      if (normalizeHwid(bound?.hwid || '') !== normalizedHwid) {
-        return res.status(200).json({ valid: false, ok: false, reason: 'HWID nao autorizado.' });
-      }
-      console.log(`${auditPrefix} Purchase HWID bound on first activation. purchase=${purchase.id} hwid=${normalizedHwid} ip=${incomingIp}`);
+      return res.status(200).json({ valid: false, ok: false, code: 'ACTIVATION_REQUIRED',
+        reason: 'Ative esta instalação pelo código temporário no painel StarfinPlugins.' });
     } else if (storedPurchaseHwid !== normalizedHwid) {
       console.warn(`${auditPrefix} Purchase HWID mismatch. purchase=${purchase.id} expected=${storedPurchaseHwid} received=${normalizedHwid} ip=${incomingIp}`);
       addNotification(
@@ -1180,7 +1242,10 @@ app.get('/api/users/me/releases/:id/download', (req, res) => {
   }
   const filePath = path.join(privateReleasesDir, release.fileName);
   if (!fs.existsSync(filePath)) return res.status(503).json({ error: 'arquivo temporariamente indisponível' });
+  if (createHash('sha256').update(fs.readFileSync(filePath)).digest('hex') !== release.sha256)
+    return res.status(503).json({ code: 'RELEASE_INTEGRITY_FAILED', error: 'Integridade do arquivo comprometida.' });
   res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-SHA256', release.sha256);
   res.download(filePath, release.originalName);
 });
 
@@ -2704,9 +2769,12 @@ app.post('/api/admin/plugins/:id/releases', (req, res, next) => {
   if (!Number.isSafeInteger(pluginId) || !getPluginDetail(pluginId)) return res.status(404).json({ error: 'produto não encontrado' });
   const version = typeof req.body?.version === 'string' ? req.body.version.trim() : '';
   const mcVersion = typeof req.body?.mcVersion === 'string' ? req.body.mcVersion.trim() : '';
+  const platform = typeof req.body?.platform === 'string' ? req.body.platform.trim() : 'Bukkit';
+  const javaVersion = Number(req.body?.javaVersion ?? 8);
   const notes = typeof req.body?.notes === 'string' ? req.body.notes.trim() : '';
   const file = req.file;
-  if (!/^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$/.test(version) || !/^[0-9A-Za-z.,+ _-]{1,64}$/.test(mcVersion) || notes.length > 4000 ||
+  if (!/^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$/.test(version) || !/^[0-9A-Za-z.,+ _-]{1,64}$/.test(mcVersion) ||
+      !/^[0-9A-Za-z _.-]{1,64}$/.test(platform) || !Number.isInteger(javaVersion) || javaVersion < 8 || javaVersion > 30 || notes.length > 4000 ||
       !file || !/\.jar$/i.test(file.originalname) || file.originalname.length > 180 ||
       file.buffer.length < 22 || file.buffer.subarray(0, 4).toString('hex') !== '504b0304' ||
       file.buffer.lastIndexOf(Buffer.from('504b0506', 'hex')) < file.buffer.length - 65_557) {
@@ -2722,7 +2790,7 @@ app.post('/api/admin/plugins/:id/releases', (req, res, next) => {
     fs.mkdirSync(privateReleasesDir, { recursive: true, mode: 0o700 });
     fs.writeFileSync(filePath, file.buffer, { flag: 'wx', mode: 0o600 });
     const item = createPluginRelease({
-      id, pluginId, version, mcVersion, notes: notes || null, fileName,
+      id, pluginId, version, mcVersion, platform, javaVersion, notes: notes || null, fileName,
       originalName: path.basename(file.originalname).replace(/[^0-9A-Za-z._-]/g, '_'),
       sha256: createHash('sha256').update(file.buffer).digest('hex'),
       sizeBytes: file.buffer.length, published: false
@@ -3138,24 +3206,38 @@ app.put('/api/admin/support/tickets/:id', async (req, res) => {
 });
 
 // Server Management
+function parseAuthorizedIps(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length > 3) return null;
+  const ips = value.map(item => typeof item === 'string' ? normalizeIp(item) : '');
+  return ips.every(Boolean) && new Set(ips).size === ips.length ? ips : null;
+}
 app.get('/api/users/me/servers', (req, res) => {
   if (!hasValidAuthHeader(req)) return res.status(401).json({ error: 'não autorizado' });
   const ctx = getAuthContext(req)!;
   const servers = listServersForUser(ctx.userId);
+  const owner = findUserById(ctx.userId)!;
+  const plan = listPlans().find(item => item.name === owner.plan && item.active);
+  const globalAccess = owner.role === 'admin' || (Boolean(plan?.grantsAllPlugins) && (!owner.planExpiresAt || owner.planExpiresAt > new Date().toISOString()));
+  const purchasedIds = new Set(getLicensesForUser(ctx.userId).filter(item => item.status === 'Ativo').map(item => item.pluginId));
+  const availableProducts = pluginSummaries.filter(plugin => purchasedIds.has(plugin.id) || globalAccess)
+    .map(plugin => ({ pluginId: plugin.id, name: plugin.name, source: purchasedIds.has(plugin.id) ? 'purchase' : 'plan' }));
   const serversWithPlugins = servers.map(s => ({
-    ...s,
-    plugins: listPluginsForServer(s.id)
+    ...publicServer(s),
+    plugins: listPluginsForServer(s.id),
+    entitlements: availableProducts.map(item => item.pluginId)
+      .map(pluginId => ({ pluginId, ...productEntitlements(ctx.userId, pluginId) }))
   }));
-  res.json({ items: serversWithPlugins });
+  res.json({ items: serversWithPlugins, availableProducts });
 });
 
 app.post('/api/users/me/servers', (req, res) => {
   if (!hasValidAuthHeader(req)) return res.status(401).json({ error: 'não autorizado' });
   const ctx = getAuthContext(req)!;
-  const { name, ips } = req.body;
-  if (!name) return res.status(400).json({ error: 'nome do servidor é obrigatório' });
-  const server = createServer(ctx.userId, name, ips || []);
-  res.status(201).json(server);
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const ips = parseAuthorizedIps(req.body?.ips ?? []);
+  if (!name || name.length > 100 || !ips) return res.status(400).json({ error: 'Nome ou IPs inválidos (máximo de três IPv4/IPv6).' });
+  const server = createServer(ctx.userId, name, ips);
+  res.status(201).json(publicServer(server));
 });
 
 app.patch('/api/users/me/servers/:id', (req, res) => {
@@ -3163,8 +3245,14 @@ app.patch('/api/users/me/servers/:id', (req, res) => {
   const ctx = getAuthContext(req)!;
   const server = findServerById(req.params.id);
   if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
-  const updated = updateServer(server.id, req.body);
-  res.json(updated);
+  const name = req.body?.name === undefined ? undefined : typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  const ips = req.body?.ips === undefined ? undefined : parseAuthorizedIps(req.body.ips);
+  if (name !== undefined && (!name || name.length > 100) || ips === null)
+    return res.status(400).json({ error: 'Nome ou IPs inválidos (máximo de três IPv4/IPv6).' });
+  const updated = updateServer(server.id, { name, ips });
+  if (ips !== undefined && JSON.stringify(server.ips) !== JSON.stringify(ips))
+    logInstallationEvent(server.id, 'network.update', ctx.userId, 'Alteração do IP autorizado', { previous: server.ips, current: ips });
+  res.json(publicServer(updated));
 });
 
 app.delete('/api/users/me/servers/:id', (req, res) => {
@@ -3172,6 +3260,7 @@ app.delete('/api/users/me/servers/:id', (req, res) => {
   const ctx = getAuthContext(req)!;
   const server = findServerById(req.params.id);
   if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
+  if (server.installationId) return res.status(409).json({ error: 'Desvincule a instalação antes de excluir o cadastro.' });
   deleteServer(server.id);
   res.json({ ok: true });
 });
@@ -3181,14 +3270,19 @@ app.post('/api/users/me/servers/:id/plugins', (req, res) => {
   const ctx = getAuthContext(req)!;
   const server = findServerById(req.params.id);
   if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
-  const { pluginId } = req.body;
-  if (!pluginId) return res.status(400).json({ error: 'pluginId é obrigatório' });
+  const pluginId = Number(req.body?.pluginId);
+  if (!Number.isInteger(pluginId) || pluginId <= 0) return res.status(400).json({ error: 'pluginId inválido' });
   
   // Check if user owns the plugin
-  const ownsPlugin = getLicensesForUser(ctx.userId).some(p => p.pluginId === pluginId && p.status === 'Ativo');
+  const owner = findUserById(ctx.userId);
+  const plan = listPlans().find(item => item.name === owner?.plan && item.active);
+  const globalAccess = owner?.role === 'admin' || (Boolean(plan?.grantsAllPlugins) && (!owner?.planExpiresAt || owner.planExpiresAt > new Date().toISOString()));
+  const ownsPlugin = globalAccess || getLicensesForUser(ctx.userId).some(p => p.pluginId === pluginId && p.status === 'Ativo');
   if (!ownsPlugin) return res.status(403).json({ error: 'você não possui este plugin' });
 
-  assignPluginToServer(server.id, pluginId);
+  if (!listPluginsForServer(server.id).includes(pluginId) && !assignProductWithLimit(ctx.userId, server.id, pluginId))
+    return res.status(409).json({ code: 'ACTIVATION_LIMIT', error: 'Todas as ativações adquiridas deste produto estão em uso.' });
+  logInstallationEvent(server.id, 'product.assign', ctx.userId, 'Atribuição pelo proprietário', { pluginId });
   res.json({ ok: true });
 });
 
@@ -3198,7 +3292,54 @@ app.delete('/api/users/me/servers/:id/plugins/:pluginId', (req, res) => {
   const server = findServerById(req.params.id);
   if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
   unassignPluginFromServer(server.id, Number(req.params.pluginId));
+  logInstallationEvent(server.id, 'product.unassign', ctx.userId, 'Remoção pelo proprietário', { pluginId: Number(req.params.pluginId) });
   res.json({ ok: true });
+});
+
+app.post('/api/users/me/servers/:id/plugins/:pluginId/transfer', (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  const source = findServerById(req.params.id);
+  const destination = findServerById(String(req.body?.targetServerId || ''));
+  const pluginId = Number(req.params.pluginId);
+  if (!source || !destination || source.userId !== ctx.userId || destination.userId !== ctx.userId || !Number.isSafeInteger(pluginId) || pluginId <= 0)
+    return res.status(404).json({ error: 'Instalação ou produto inválido.' });
+  const moved = transferProductAssignment(ctx.userId, source.id, destination.id, pluginId, ctx.userId, 'Transferência pelo proprietário');
+  if (!moved) return res.status(409).json({ error: 'Produto não está atribuído à origem ou já está no destino.' });
+  res.json({ ok: true });
+});
+
+app.post('/api/users/me/servers/:id/claim', (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  const server = findServerById(req.params.id);
+  if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
+  const code = String(req.body?.code || '').trim().toUpperCase();
+  if (!/^[0-9A-F]{10}$/.test(code)) return res.status(400).json({ error: 'Código de ativação inválido' });
+  if (installationRateLimited(`claim:${ctx.userId}`)) return res.status(429).json({ error: 'Aguarde antes de tentar novamente' });
+  const linked = claimInstallation(code, ctx.userId, server.id, String(req.body?.reason || 'Ativação pelo proprietário').slice(0, 255));
+  if (!linked) return res.status(409).json({ code: 'ACTIVATION_REJECTED', error: 'Código expirado, usado ou instalação já vinculada.' });
+  migrateMatchingLegacyPurchases(ctx.userId, server.id, linked.installationId);
+  res.json({ item: publicServer(findServerById(server.id)) });
+});
+
+app.post('/api/users/me/servers/:id/revoke', (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  const server = findServerById(req.params.id);
+  if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
+  const reason = String(req.body?.reason || '').trim();
+  if (reason.length < 8) return res.status(400).json({ error: 'Informe o motivo do desvínculo (mínimo de 8 caracteres).' });
+  const changed = revokeInstallation(server.id, ctx.userId, reason.slice(0, 255));
+  res.json({ ok: changed });
+});
+
+app.get('/api/users/me/servers/:id/history', (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  const server = findServerById(req.params.id);
+  if (!server || server.userId !== ctx.userId) return res.status(404).json({ error: 'servidor não encontrado' });
+  res.json({ items: listInstallationEvents(server.id) });
 });
 
 app.post('/api/users/me/notifications/read-all', (req, res) => {
@@ -3418,6 +3559,80 @@ app.get('/api/admin/users/:id/plugins', (req, res) => {
     .filter((p) => p.userId === user.id && p.status === 'approved')
     .map(mapAdminUserPluginAssignment);
   res.json({ items });
+});
+
+app.get('/api/admin/users/:id/installations', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const user = findUserById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'usuário não encontrado' });
+  const items = listServersForUser(user.id).map(server => ({
+    ...publicServer(server),
+    plugins: listPluginsForServer(server.id),
+    entitlements: [...new Set(getLicensesForUser(user.id).filter(item => item.status === 'Ativo').map(item => item.pluginId))]
+      .map(pluginId => ({ pluginId, ...productEntitlements(user.id, pluginId) }))
+  }));
+  res.json({ items });
+});
+
+app.get('/api/admin/installations/:id/history', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const server = findServerById(req.params.id);
+  if (!server) return res.status(404).json({ error: 'instalação não encontrada' });
+  res.json({ items: listInstallationEvents(server.id) });
+});
+
+app.post('/api/admin/installations/:id/revoke', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const server = findServerById(req.params.id);
+  if (!server) return res.status(404).json({ error: 'instalação não encontrada' });
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length < 10 || reason.length > 500) return res.status(400).json({ error: 'Informe motivo de 10 a 500 caracteres.' });
+  const changed = revokeInstallation(server.id, getAuthContext(req)!.userId, reason);
+  auditAdmin(req, 'installation.revoke', 'server', server.id, { reason, changed });
+  res.json({ ok: changed });
+});
+
+app.post('/api/admin/installations/:id/transfer', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const server = findServerById(req.params.id);
+  if (!server) return res.status(404).json({ error: 'instalação não encontrada' });
+  const targetUserId = typeof req.body?.targetUserId === 'string' ? req.body.targetUserId : '';
+  const target = findUserById(targetUserId);
+  if (!target || target.banned || target.id === server.userId) return res.status(400).json({ error: 'Conta de destino inválida.' });
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length < 10 || reason.length > 500) return res.status(400).json({ error: 'Informe motivo de 10 a 500 caracteres.' });
+  const changed = transferInstallation(server.id, target.id, getAuthContext(req)!.userId, reason);
+  auditAdmin(req, 'installation.transfer', 'server', server.id, { reason, fromUserId: server.userId, toUserId: target.id, changed });
+  res.json({ ok: changed, item: publicServer(findServerById(server.id)) });
+});
+
+app.post('/api/admin/installations/:id/plugins/:pluginId/transfer', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const source = findServerById(req.params.id);
+  const destination = findServerById(String(req.body?.targetServerId || ''));
+  const pluginId = Number(req.params.pluginId);
+  if (!source || !destination || source.userId !== destination.userId || !Number.isSafeInteger(pluginId) || pluginId <= 0)
+    return res.status(404).json({ error: 'Instalações ou produto inválidos.' });
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length < 10 || reason.length > 500) return res.status(400).json({ error: 'Informe motivo de 10 a 500 caracteres.' });
+  const moved = transferProductAssignment(source.userId, source.id, destination.id, pluginId, getAuthContext(req)!.userId, reason);
+  if (!moved) return res.status(409).json({ error: 'Atribuição não disponível para transferência.' });
+  auditAdmin(req, 'product.transfer', 'server', source.id, { pluginId, toServerId: destination.id, reason });
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/installations/:id/plugins/:pluginId', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const server = findServerById(req.params.id);
+  const pluginId = Number(req.params.pluginId);
+  if (!server || !Number.isSafeInteger(pluginId) || pluginId <= 0) return res.status(404).json({ error: 'Instalação ou produto inválido.' });
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length < 10 || reason.length > 500) return res.status(400).json({ error: 'Informe motivo de 10 a 500 caracteres.' });
+  if (!listPluginsForServer(server.id).includes(pluginId)) return res.status(409).json({ error: 'Produto não atribuído.' });
+  unassignPluginFromServer(server.id, pluginId);
+  logInstallationEvent(server.id, 'product.admin_revoke', getAuthContext(req)!.userId, reason, { pluginId });
+  auditAdmin(req, 'product.revoke', 'server', server.id, { pluginId, reason });
+  res.json({ ok: true });
 });
 
 app.post('/api/admin/users/:id/plugins', (req, res) => {

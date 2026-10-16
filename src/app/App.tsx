@@ -45,6 +45,7 @@ import { AdminStatusPage } from './pages/admin/AdminStatusPage';
 import { AdminChangelogPage } from './pages/admin/AdminChangelogPage';
 import { AdminDocsPage } from './pages/admin/AdminDocsPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { AdminInstallationsPage } from './pages/admin/AdminInstallationsPage';
 import { AdminNotificationsPage } from './pages/admin/AdminNotificationsPage';
 import { AdminCouponsPage } from './pages/admin/AdminCouponsPage';
 import { AdminNewsletterPage } from './pages/admin/AdminNewsletterPage';
@@ -122,6 +123,7 @@ export default function App({ homeContent, institutionalContent, faqItems, about
                 <Route path="users" element={<AdminUsersPage />} />
                 <Route path="support" element={<AdminSupportPage />} />
                 <Route path="purchases" element={<AdminPurchasesPage />} />
+                <Route path="installations" element={<AdminInstallationsPage />} />
                 <Route path="orders" element={<AdminOrdersPage />} />
                 <Route path="smtp" element={<AdminSmtpPage />} />
                 <Route path="integrations" element={<AdminIntegrationsPage />} />

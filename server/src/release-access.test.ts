@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { randomBytes, randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -9,7 +10,7 @@ process.env.STARFIN_PRIVATE_RELEASES_DIR = releaseDir;
 
 test('releases require active ownership, publication and authenticated download; notifications stay private', async () => {
   const { app } = await import('./index.js');
-  const { createPlugin, createPurchase, createSession, createUser, createUserAdmin, updatePurchaseStatus, listUserNotifications } = await import('./data.js');
+  const { createPlugin, createPurchase, createSession, createUser, createUserAdmin, updatePurchaseStatus, listUserNotifications, findPluginRelease } = await import('./data.js');
   const product = createPlugin({ name: 'Plugin CI', description: 'Teste', category: 'Administração', tags: [], mcVersion: '1.21', imageUrl: 'https://example.invalid/image.png', priceDisplay: 'R$ 29,90' });
   const owner = createUser({ name: 'Dono CI', email: `release-owner-${Date.now()}@example.invalid`, password: 'test-only-password' });
   const stranger = createUser({ name: 'Outro CI', email: `release-stranger-${Date.now()}@example.invalid`, password: 'test-only-password' });
@@ -50,6 +51,27 @@ test('releases require active ownership, publication and authenticated download;
     assert.equal(download.status, 200);
     assert.equal(download.headers.get('cache-control'), 'private, no-store');
     assert.deepEqual(Buffer.from(await download.arrayBuffer()), archive);
+
+    const install = await fetch(`${base}/api/users/me/servers`, { method: 'POST', headers: { ...auth(ownerToken), 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Lobby', ips: [] }) });
+    assert.equal(install.status, 201);
+    const installId = (await install.json() as { id: string }).id;
+    assert.equal((await fetch(`${base}/api/users/me/servers/${installId}/plugins`, { method: 'POST', headers: { ...auth(ownerToken), 'content-type': 'application/json' }, body: JSON.stringify({ pluginId: product.id }) })).status, 200);
+    const installationId = randomUUID();
+    const credential = randomBytes(32).toString('base64url');
+    const challenge = await fetch(`${base}/v3/installations/challenge`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ installationId, credential, name: 'Lobby', platform: 'Bukkit', coreVersion: 'test' }) });
+    assert.equal(challenge.status, 201);
+    const code = (await challenge.json() as { code: string }).code;
+    assert.equal((await fetch(`${base}/api/users/me/servers/${installId}/claim`, { method: 'POST', headers: { ...auth(ownerToken), 'content-type': 'application/json' }, body: JSON.stringify({ code, reason: 'Teste de download pelo Core' }) })).status, 200);
+    const coreHeaders = { authorization: `Installation ${credential}`, 'x-installation-id': installationId };
+    const coreDownload = await fetch(`${base}/v3/installations/releases/${release.id}/download`, { headers: coreHeaders });
+    assert.equal(coreDownload.status, 200);
+    assert.equal(coreDownload.headers.get('x-content-sha256'), release.sha256);
+    assert.deepEqual(Buffer.from(await coreDownload.arrayBuffer()), archive);
+    assert.equal((await fetch(`${base}/v3/installations/releases/${release.id}/download`, { headers: { ...coreHeaders, authorization: `Installation ${randomBytes(32).toString('base64url')}` } })).status, 401);
+    const stored = findPluginRelease(release.id);
+    assert.ok(stored);
+    writeFileSync(path.join(releaseDir, stored.fileName), Buffer.from('tampered'));
+    assert.equal((await fetch(`${base}/v3/installations/releases/${release.id}/download`, { headers: coreHeaders })).status, 503);
 
     const send = await fetch(`${base}/api/admin/users/${owner.id}/notifications`, { method: 'POST', headers: { ...auth(adminToken), 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Sua versão', message: 'Disponível para download.' }) });
     assert.equal(send.status, 201);

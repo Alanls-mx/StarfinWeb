@@ -156,6 +156,8 @@ sqlite.exec(`
     pluginId INTEGER NOT NULL,
     version VARCHAR(64) NOT NULL,
     mcVersion VARCHAR(64) NOT NULL,
+    platform VARCHAR(64) DEFAULT 'Bukkit',
+    javaVersion INTEGER DEFAULT 8,
     notes LONGTEXT,
     fileName VARCHAR(191) NOT NULL,
     originalName VARCHAR(255) NOT NULL,
@@ -297,6 +299,8 @@ sqlite.exec(`
     CONSTRAINT uniq_raffle_user UNIQUE (raffleId, userId)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `);
+
+sqlite.exec('ALTER TABLE plugin_releases ADD COLUMN IF NOT EXISTS platform VARCHAR(64) DEFAULT \'Bukkit\'; ALTER TABLE plugin_releases ADD COLUMN IF NOT EXISTS javaVersion INTEGER DEFAULT 8;');
 
 // Migration: ensure new columns exist in purchases table
 const purchaseTableInfo = sqlite.prepare("PRAGMA table_info(purchases)").all() as any[];
@@ -2727,6 +2731,13 @@ export interface ServerRecord {
   licenseKey: string;
   ips: string[];
   createdISO: string;
+  installationId?: string | null;
+  activationISO?: string | null;
+  revokedISO?: string | null;
+  observedIp?: string | null;
+  platform?: string | null;
+  coreVersion?: string | null;
+  lastSyncISO?: string | null;
 }
 
 export function createServer(userId: string, name: string, ips: string[] = []) {
@@ -2743,8 +2754,9 @@ export function createServer(userId: string, name: string, ips: string[] = []) {
 export function findServerById(id: string): ServerRecord | null {
   const row = sqlite.prepare('SELECT * FROM servers WHERE id = ?').get(id) as any;
   if (!row) return null;
+  const { credentialHash: _credentialHash, ...safe } = row;
   return {
-    ...row,
+    ...safe,
     ips: JSON.parse(row.ips || '[]')
   };
 }
@@ -2757,10 +2769,10 @@ export function findServerByLicenseKey(licenseKey: string): ServerRecord | null 
 
 export function listServersForUser(userId: string): ServerRecord[] {
   const rows = sqlite.prepare('SELECT * FROM servers WHERE userId = ? ORDER BY createdISO DESC').all(userId) as any[];
-  return rows.map(row => ({
-    ...row,
-    ips: JSON.parse(row.ips || '[]')
-  }));
+  return rows.map(row => {
+    const { credentialHash: _credentialHash, ...safe } = row;
+    return { ...safe, ips: JSON.parse(row.ips || '[]') };
+  });
 }
 
 export function updateServer(id: string, data: { name?: string, ips?: string[] }) {
@@ -2823,6 +2835,8 @@ export interface PluginRelease {
   pluginId: number;
   version: string;
   mcVersion: string;
+  platform: string;
+  javaVersion: number;
   notes: string | null;
   fileName: string;
   originalName: string;
@@ -2851,8 +2865,8 @@ export function findPluginRelease(id: string): PluginRelease | null {
 
 export function createPluginRelease(input: Omit<PluginRelease, 'createdISO'>): PluginRelease {
   const createdISO = new Date().toISOString();
-  sqlite.prepare('INSERT INTO plugin_releases (id, pluginId, version, mcVersion, notes, fileName, originalName, sha256, sizeBytes, published, createdISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
-    input.id, input.pluginId, input.version, input.mcVersion, input.notes, input.fileName,
+  sqlite.prepare('INSERT INTO plugin_releases (id, pluginId, version, mcVersion, platform, javaVersion, notes, fileName, originalName, sha256, sizeBytes, published, createdISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    input.id, input.pluginId, input.version, input.mcVersion, input.platform, input.javaVersion, input.notes, input.fileName,
     input.originalName, input.sha256, input.sizeBytes, input.published ? 1 : 0, createdISO
   );
   return { ...input, createdISO };

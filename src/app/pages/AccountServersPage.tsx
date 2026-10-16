@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { AccountNav } from '../components/AccountNav';
-import { assignPluginToServer, createServer, deleteServer, getMyLicenses, listMyServers, unassignPluginFromServer, updateServer, type PurchasedPlugin, type ServerRecord } from '../lib/api';
+import { assignPluginToServer, claimInstallation, createServer, deleteServer, getInstallationHistory, getMyLicenses, listMyServers, revokeInstallation, transferPluginBetweenServers, unassignPluginFromServer, updateServer, type InstallationEvent, type PurchasedPlugin, type ServerRecord } from '../lib/api';
 import { useAuth } from '../lib/auth';
 
 export function AccountServersPage() {
@@ -10,9 +10,13 @@ export function AccountServersPage() {
   const token = state.status === 'authenticated' ? state.token : null;
   const [servers, setServers] = useState<ServerRecord[]>([]);
   const [licenses, setLicenses] = useState<PurchasedPlugin[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<Array<{ pluginId: number; name: string; source: 'purchase' | 'plan' }>>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [ips, setIps] = useState('');
+  const [codes, setCodes] = useState<Record<string, string>>({});
+  const [transferTargets, setTransferTargets] = useState<Record<string, string>>({});
+  const [history, setHistory] = useState<Record<string, InstallationEvent[]>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -20,9 +24,10 @@ export function AccountServersPage() {
   async function refresh(authToken: string) {
     const [serverResult, licenseResult] = await Promise.all([listMyServers(authToken), getMyLicenses(authToken)]);
     setServers(serverResult.items);
+    setAvailableProducts(serverResult.availableProducts || []);
     setLicenses(licenseResult.items.filter(item => item.status === 'Ativo'));
   }
-  useEffect(() => { if (!token) return; let active = true; Promise.all([listMyServers(token), getMyLicenses(token)]).then(([serverResult, licenseResult]) => { if (active) { setServers(serverResult.items); setLicenses(licenseResult.items.filter(item => item.status === 'Ativo')); } }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Falha ao carregar servidores.'); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [token]);
+  useEffect(() => { if (!token) return; let active = true; Promise.all([listMyServers(token), getMyLicenses(token)]).then(([serverResult, licenseResult]) => { if (active) { setServers(serverResult.items); setAvailableProducts(serverResult.availableProducts || []); setLicenses(licenseResult.items.filter(item => item.status === 'Ativo')); } }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Falha ao carregar servidores.'); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [token]);
 
   function open(server?: ServerRecord) { setEditing(server?.id || 'new'); setName(server?.name || ''); setIps(server?.ips.join(', ') || ''); setError(''); }
   async function save() {
@@ -48,13 +53,65 @@ export function AccountServersPage() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao atualizar instalação.'); }
     finally { setBusy(false); }
   }
+  async function transferProduct(server: ServerRecord, pluginId: number) {
+    const key = `${server.id}:${pluginId}`;
+    const targetId = transferTargets[key];
+    if (!token || busy || !targetId) return;
+    setBusy(true); setError('');
+    try { await transferPluginBetweenServers(token, server.id, pluginId, targetId); await refresh(token); toast.success('Produto transferido para outra instalação.'); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao transferir produto.'); }
+    finally { setBusy(false); }
+  }
+  async function activate(server: ServerRecord) {
+    if (!token || busy) return;
+    setBusy(true); setError('');
+    try { await claimInstallation(token, server.id, codes[server.id] || '', server.revokedISO ? 'Recuperação autorizada pelo proprietário' : 'Ativação pelo proprietário'); setCodes(current => ({ ...current, [server.id]: '' })); await refresh(token); toast.success('StarfinCore vinculado.'); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao vincular instalação.'); }
+    finally { setBusy(false); }
+  }
+  async function revoke(server: ServerRecord) {
+    if (!token || busy) return;
+    const reason = window.prompt(`Motivo para desvincular ${server.name}:`);
+    if (!reason) return;
+    setBusy(true); setError('');
+    try { await revokeInstallation(token, server.id, reason); await refresh(token); toast.success('Credencial revogada.'); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao revogar vínculo.'); }
+    finally { setBusy(false); }
+  }
+  async function showHistory(server: ServerRecord) {
+    if (!token) return;
+    try {
+      if (history[server.id]) { setHistory(current => { const next = { ...current }; delete next[server.id]; return next; }); return; }
+      const response = await getInstallationHistory(token, server.id);
+      setHistory(current => ({ ...current, [server.id]: response.items }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao consultar histórico.'); }
+  }
 
   if (state.status === 'loading') return <main className="min-h-screen pt-32 text-center text-[#bdd2c5]">Verificando sessão...</main>;
   if (!token) return <main className="min-h-screen px-5 pt-32 text-white"><Link to="/login?next=%2Faccount%2Fservers" className="text-[#a9f58e]">Entrar para gerenciar servidores →</Link></main>;
-  const uniqueLicenses = [...new Map(licenses.map(item => [item.pluginId, item])).values()];
-  return <main className="min-h-screen bg-[#0b1715] px-5 pb-20 pt-32 text-white"><div className="mx-auto max-w-6xl space-y-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-bold">Servidores</h1><p className="mt-2 text-sm text-[#bdd2c5]">Organize IPs e produtos autorizados em cada instalação.</p></div><button type="button" onClick={() => open()} className="sf-button-primary">Adicionar servidor</button></div><AccountNav />
+  const uniqueLicenses = availableProducts.length ? availableProducts : [...new Map(licenses.map(item => [item.pluginId, item])).values()];
+  return <main className="min-h-screen bg-[#0b1715] px-5 pb-20 pt-32 text-white"><div className="mx-auto max-w-6xl space-y-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-bold">Servidores</h1><p className="mt-2 text-sm text-[#bdd2c5]">Gerencie IPs, ativações e produtos. Para vincular o Core, execute /starfincore ativar no Minecraft e confirme o código abaixo.</p></div><button type="button" onClick={() => open()} className="sf-button-primary">Adicionar servidor</button></div><AccountNav />
     {error && <p role="alert" className="border border-red-400/30 p-4 text-sm text-red-200">{error}</p>}
     {editing && <section className="rounded-lg border border-[#85ed65]/40 bg-[#14251e] p-6"><h2 className="text-lg font-semibold">{editing === 'new' ? 'Novo servidor' : 'Editar servidor'}</h2><div className="mt-4 grid gap-4 sm:grid-cols-2"><label className="text-sm">Nome<input value={name} maxLength={100} onChange={event => setName(event.target.value)} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3" /></label><label className="text-sm">IPs autorizados, separados por vírgula<input value={ips} onChange={event => setIps(event.target.value)} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 font-mono" /></label></div><div className="mt-5 flex gap-3"><button type="button" disabled={busy} onClick={() => void save()} className="sf-button-primary">{busy ? 'Salvando...' : 'Salvar servidor'}</button><button type="button" onClick={() => setEditing(null)} className="rounded-md border border-white/20 px-4 py-2 text-sm">Cancelar</button></div></section>}
-    {loading ? <p role="status">Carregando servidores...</p> : servers.length === 0 ? <div className="border-l-2 border-[#85ed65] bg-[#14251e] p-7"><h2 className="text-xl font-semibold">Nenhum servidor cadastrado</h2><p className="mt-2 text-sm text-[#bdd2c5]">Cadastre um servidor para associar suas licenças a uma instalação.</p><button type="button" onClick={() => open()} className="mt-5 text-sm font-bold text-[#a9f58e]">Criar servidor →</button></div> : <div className="grid gap-4 md:grid-cols-2">{servers.map(server => <article key={server.id} className="rounded-lg border border-white/15 bg-[#14251e] p-6"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{server.name}</h2><p className="mt-1 font-mono text-xs text-[#9cb8a6]">Cadastrado · plataforma não informada</p></div><div className="flex gap-3 text-sm"><button type="button" onClick={() => open(server)} className="text-[#a9f58e]">Editar</button><button type="button" onClick={() => void remove(server)} className="text-red-200">Excluir</button></div></div><p className="mt-5 text-xs font-semibold uppercase text-[#9cb8a6]">IPs autorizados</p><p className="mt-2 break-all font-mono text-sm">{server.ips.length ? server.ips.join(' · ') : 'Nenhum IP configurado'}</p><div className="mt-5 border-t border-white/10 pt-5"><h3 className="text-sm font-semibold">Produtos associados ({server.plugins.length})</h3>{uniqueLicenses.length ? <div className="mt-3 flex flex-wrap gap-2">{uniqueLicenses.map(item => <button key={item.pluginId} type="button" disabled={busy} onClick={() => void toggle(server, item.pluginId)} aria-pressed={server.plugins.includes(item.pluginId)} className={`rounded-md border px-3 py-2 text-xs ${server.plugins.includes(item.pluginId) ? 'border-[#85ed65] bg-[#85ed65]/10 text-[#a9f58e]' : 'border-white/20 text-[#bdd2c5]'}`}>{item.name} {server.plugins.includes(item.pluginId) ? '✓' : '+'}</button>)}</div> : <p className="mt-2 text-sm text-[#bdd2c5]">Nenhuma licença ativa para associar.</p>}</div></article>)}</div>}
+    {loading ? <p role="status">Carregando servidores...</p> : servers.length === 0 ? <div className="border-l-2 border-[#85ed65] bg-[#14251e] p-7"><h2 className="text-xl font-semibold">Nenhum servidor cadastrado</h2><p className="mt-2 text-sm text-[#bdd2c5]">Cadastre um servidor para associar suas licenças a uma instalação.</p><button type="button" onClick={() => open()} className="mt-5 text-sm font-bold text-[#a9f58e]">Criar servidor →</button></div> : <div className="grid gap-4 md:grid-cols-2">{servers.map(server => <article key={server.id} className="rounded-lg border border-white/15 bg-[#14251e] p-6"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{server.name}</h2><p className="mt-1 font-mono text-xs text-[#9cb8a6]">{server.linked ? 'Core vinculado' : 'Aguardando Core'} · {server.platform || 'plataforma não informada'}</p></div><div className="flex gap-3 text-sm"><button type="button" onClick={() => open(server)} className="text-[#a9f58e]">Editar</button>{!server.linked && !server.revokedISO && <button type="button" onClick={() => void remove(server)} className="text-red-200">Excluir</button>}</div></div><p className="mt-5 text-xs font-semibold uppercase text-[#9cb8a6]">IPs autorizados</p><p className="mt-2 break-all font-mono text-sm">{server.ips.length ? server.ips.join(' · ') : 'Nenhum IP configurado'}</p><div className="mt-5 border-t border-white/10 pt-5"><h3 className="text-sm font-semibold">Produtos associados ({server.plugins.length})</h3>{uniqueLicenses.length ? <div className="mt-3 flex flex-wrap gap-2">{uniqueLicenses.map(item => <button key={item.pluginId} type="button" disabled={busy} onClick={() => void toggle(server, item.pluginId)} aria-pressed={server.plugins.includes(item.pluginId)} className={`rounded-md border px-3 py-2 text-xs ${server.plugins.includes(item.pluginId) ? 'border-[#85ed65] bg-[#85ed65]/10 text-[#a9f58e]' : 'border-white/20 text-[#bdd2c5]'}`}>{item.name} {server.plugins.includes(item.pluginId) ? '✓' : '+'}</button>)}</div> : <p className="mt-2 text-sm text-[#bdd2c5]">Nenhuma licença ativa para associar.</p>}</div></article>)}</div>}
+    {servers.map(server => {
+      const active = Boolean(server.linked);
+      const mismatch = Boolean(server.observedIp && server.ips.length && !server.ips.includes(server.observedIp));
+      return <section key={`core-${server.id}`} className="rounded-lg border border-[#85ed65]/30 bg-[#14251e] p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">StarfinCore · {server.name}</h2><span className={active ? 'text-[#a9f58e]' : 'text-amber-200'}>{active ? 'Vinculado' : server.revokedISO ? 'Revogado' : 'Aguardando ativação'}</span></div>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div><dt className="text-[#9cb8a6]">Identidade</dt><dd className="font-mono">{server.installationIdMasked || 'Ainda não vinculada'}</dd></div>
+          <div><dt className="text-[#9cb8a6]">Plataforma / Core</dt><dd>{server.platform || 'Desconhecida'} · {server.coreVersion || '—'}</dd></div>
+          <div><dt className="text-[#9cb8a6]">IP observado pela API</dt><dd className="break-all font-mono">{server.observedIp || 'Ainda não observado'}</dd></div>
+          <div><dt className="text-[#9cb8a6]">Última sincronização</dt><dd>{server.lastSyncISO ? new Date(server.lastSyncISO).toLocaleString('pt-BR') : 'Nunca'}</dd></div>
+        </dl>
+        {mismatch && <p role="status" className="mt-4 border-l-2 border-amber-400 bg-amber-400/10 p-3 text-sm text-amber-100">IP divergente. Use Editar no cadastro acima para incluir o IP observado; não é necessário excluir a instalação.</p>}
+        {!active && <div className="mt-5 border-t border-white/10 pt-4"><p className="text-sm">Execute <code>/starfincore ativar</code> no servidor e confirme o código temporário de 10 caracteres aqui.</p><div className="mt-3 flex flex-wrap gap-2"><input aria-label={`Código de ativação de ${server.name}`} value={codes[server.id] || ''} onChange={event => setCodes(current => ({ ...current, [server.id]: event.target.value.toUpperCase() }))} maxLength={10} placeholder="Código de ativação" className="min-w-0 flex-1 rounded-md border border-white/20 bg-[#0b1715] px-3 py-2 font-mono text-sm" /><button type="button" disabled={busy || !/^[0-9A-F]{10}$/.test(codes[server.id] || '')} onClick={() => void activate(server)} className="sf-button-primary">Vincular Core</button></div></div>}
+        <div className="mt-5 border-t border-white/10 pt-4"><h3 className="text-sm font-semibold">Ativações por produto</h3><div className="mt-2 flex flex-wrap gap-2">{server.entitlements?.map(item => <span key={item.pluginId} className="rounded border border-white/15 px-3 py-2 text-xs">{uniqueLicenses.find(license => license.pluginId === item.pluginId)?.name || `Produto ${item.pluginId}`}: {item.used}/{item.limit} em uso · {item.available} disponível</span>)}</div></div>
+        {server.plugins.length > 0 && servers.length > 1 && <div className="mt-5 border-t border-white/10 pt-4"><h3 className="text-sm font-semibold">Transferir produto</h3><div className="mt-3 space-y-2">{server.plugins.map(pluginId => { const key = `${server.id}:${pluginId}`; return <div key={pluginId} className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-32">{uniqueLicenses.find(item => item.pluginId === pluginId)?.name || `Produto ${pluginId}`}</span><select aria-label={`Destino para produto ${pluginId} de ${server.name}`} value={transferTargets[key] || ''} onChange={event => setTransferTargets(current => ({ ...current, [key]: event.target.value }))} className="rounded border border-white/20 bg-[#0b1715] px-3 py-2"><option value="">Selecione o destino</option>{servers.filter(item => item.id !== server.id && !item.plugins.includes(pluginId)).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button type="button" disabled={busy || !transferTargets[key]} onClick={() => void transferProduct(server, pluginId)} className="text-[#a9f58e]">Transferir</button></div>; })}</div></div>}
+        <div className="mt-5 flex flex-wrap gap-4 border-t border-white/10 pt-4 text-sm"><button type="button" onClick={() => void showHistory(server)} className="text-[#a9f58e]">{history[server.id] ? 'Ocultar histórico' : 'Ver histórico'}</button>{active && <button type="button" onClick={() => void revoke(server)} className="text-red-200">Revogar vínculo</button>}</div>
+        {history[server.id] && <ol className="mt-4 space-y-2 text-xs text-[#bdd2c5]">{history[server.id].length ? history[server.id].map(event => <li key={event.id} className="border-l border-white/20 pl-3">{new Date(event.createdISO).toLocaleString('pt-BR')} · {event.action} · {event.reason}</li>) : <li>Nenhum evento registrado.</li>}</ol>}
+      </section>;
+    })}
   </div></main>;
 }
