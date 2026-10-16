@@ -456,7 +456,7 @@ export const defaultFaqItems: FaqItem[] = [
   { id: 'payment', category: 'Pagamentos', question: 'Quais as formas de pagamento aceitas?', answer: 'As opções disponíveis são apresentadas pelo Mercado Pago durante o checkout. Consulte o status do pedido na sua conta após retornar do provedor.' },
   { id: 'license', category: 'Licença', question: 'Posso usar um plugin em mais de um servidor?', answer: 'A autorização depende das licenças da conta e das atribuições configuradas para cada servidor. Cadastre os servidores e confira as regras de IP na sua conta.' },
   { id: 'support', category: 'Suporte', question: 'Como entro em contato com o suporte?', answer: 'Abra um chamado na área de suporte do site e acompanhe as respostas pela sua conta.' },
-  { id: 'plans', category: 'Planos', question: 'Como funcionam os planos?', answer: 'Spawn libera plugins Free. Craft inclui uma instalação por plugin após os 60 dias de lançamento. Nexus inclui os lançamentos e duas instalações por plugin. Craft e Nexus são assinaturas mensais pelo Mercado Pago.' }
+  { id: 'plans', category: 'Planos', question: 'Como funcionam os planos?', answer: 'Plugins Free têm instalações ilimitadas no Spawn, Craft e Nexus. Craft inclui uma instalação por plugin pago após os 60 dias de lançamento. Nexus inclui lançamentos e duas instalações por plugin pago. Craft e Nexus são assinaturas mensais pelo Mercado Pago.' }
 ];
 
 export interface HomeContent {

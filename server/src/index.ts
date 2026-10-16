@@ -615,7 +615,7 @@ app.post('/v3/installations/check', (req, res) => {
   const purchased = getLicensesForUser(owner.id).filter(item => item.status === 'Ativo');
   const purchasedIds = [...new Set(purchased.map(item => item.pluginId))];
   const assigned = new Set(listPluginsForServer(String(installation.id)));
-  const planIds = pluginSummaries.filter(plugin => owner.role === 'admin' || planSeats(owner.plan, owner.planExpiresAt, plugin.tags, isLaunch(plugin.firstPublishedISO, plugin.launchOverride), stamp) > 0).map(plugin => plugin.id);
+  const planIds = pluginSummaries.filter(plugin => owner.role === 'admin' || planSeats(owner.plan, owner.planExpiresAt, plugin.tags, isLaunch(plugin.firstPublishedISO, plugin.launchOverride), stamp) !== 0).map(plugin => plugin.id);
   const catalogIds = [...new Set([...purchasedIds, ...planIds, ...assigned])];
   const products = catalogIds.map(id => {
     const detail = getPluginDetail(id);
@@ -630,7 +630,7 @@ app.post('/v3/installations/check', (req, res) => {
   const allowed = products.filter(item => item.authorized);
   const allowedProductIds = allowed.map(item => item.productId).filter(id => /^[a-z0-9_]{2,64}$/.test(id));
   const regularExpiry = new Date(Date.now() + 45 * 60_000).toISOString();
-  const expiresAt = owner.planExpiresAt && owner.planExpiresAt > stamp && planIds.length
+  const expiresAt = owner.planExpiresAt && owner.planExpiresAt > stamp && planIds.some(id => !getPluginDetail(id)?.tags.includes('Free'))
     ? (owner.planExpiresAt < regularExpiry ? owner.planExpiresAt : regularExpiry) : regularExpiry;
   const code = !ipMatches ? 'IP_MISMATCH' : 'AUTHORIZED';
   res.json({
@@ -2823,7 +2823,7 @@ app.get('/api/users/me/servers', (req, res) => {
   const ctx = getAuthContext(req)!;
   const servers = listServersForUser(ctx.userId);
   const owner = findUserById(ctx.userId)!;
-  const availableByPlan = (plugin: typeof pluginSummaries[number]) => owner.role === 'admin' || planSeats(owner.plan, owner.planExpiresAt, plugin.tags, isLaunch(plugin.firstPublishedISO, plugin.launchOverride)) > 0;
+  const availableByPlan = (plugin: typeof pluginSummaries[number]) => owner.role === 'admin' || planSeats(owner.plan, owner.planExpiresAt, plugin.tags, isLaunch(plugin.firstPublishedISO, plugin.launchOverride)) !== 0;
   const purchasedIds = new Set(getLicensesForUser(ctx.userId).filter(item => item.status === 'Ativo').map(item => item.pluginId));
   const availableProducts = pluginSummaries.filter(plugin => purchasedIds.has(plugin.id) || availableByPlan(plugin))
     .map(plugin => ({ pluginId: plugin.id, name: plugin.name, source: purchasedIds.has(plugin.id) ? 'purchase' : 'plan' }));

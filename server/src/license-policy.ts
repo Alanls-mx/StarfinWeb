@@ -15,8 +15,10 @@ export function isLaunch(firstPublishedISO: string | null | undefined, override:
 }
 
 export function planSeats(plan: string, expiresISO: string | null | undefined, tags: string[], launch: boolean, at = new Date().toISOString()): number {
+  // -1 is the API's explicit unlimited marker for a Free-tagged plugin.
+  if (tags.includes('Free')) return -1;
   const name = normalizedPlan(plan);
-  if (name === 'Spawn') return tags.includes('Free') ? 1 : 0;
+  if (name === 'Spawn') return 0;
   if (!expiresISO || expiresISO <= at) return 0;
   if (name === 'Craft') return launch ? 0 : 1;
   return 2;

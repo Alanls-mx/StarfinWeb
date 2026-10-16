@@ -15,6 +15,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { SupportPage } from './pages/SupportPage';
 import { TicketDetailPage } from './pages/TicketDetailPage';
 import { PremiumPage } from './pages/PremiumPage';
+import { PlanDetailPage } from './pages/PlanDetailPage';
 import { StatusPage } from './pages/StatusPage';
 import { TermsPage } from './pages/TermsPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -85,6 +86,7 @@ export default function App({ homeContent, institutionalContent, faqItems, about
               <Route path="/plugins" element={<Store />} />
               <Route path="/plugins/:id" element={<PluginDetail />} />
               <Route path="/premium" element={<PremiumPage />} />
+              <Route path="/premium/:planId" element={<PlanDetailPage />} />
               <Route path="/docs" element={<DocsPage />} />
               <Route path="/docs/:slug" element={<DocsPage />} />
               <Route path="/support" element={<SupportPage />} />

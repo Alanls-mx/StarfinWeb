@@ -46,8 +46,7 @@ db.prepare(`
   BEGIN
     PERFORM pg_advisory_xact_lock(hashtext(p_user), p_plugin);
     SELECT COALESCE((SELECT COUNT(*)::integer FROM purchases p WHERE p.userId = p_user AND p.pluginId = p_plugin AND p.status = 'approved'), 0),
-      CASE WHEN u.role = 'admin' THEN 1000000
-        WHEN u.plan IN ('Spawn', 'Free') AND pl.tags LIKE '%%"Free"%%' THEN 1
+      CASE WHEN pl.tags LIKE '%%"Free"%%' OR u.role = 'admin' THEN 1000000
         WHEN u.plan = 'Craft' AND u.planExpiresAt::timestamptz > clock_timestamp()
           AND (pl.launchOverride = 'standard' OR pl.launchOverride = 'auto'
             AND (pl.firstPublishedISO IS NULL OR pl.firstPublishedISO::timestamptz + INTERVAL '60 days' <= clock_timestamp())) THEN 1
@@ -56,6 +55,11 @@ db.prepare(`
       INTO purchases, subscription_seats FROM users u CROSS JOIN plugins pl WHERE u.id = p_user AND pl.id = p_plugin;
     IF purchases IS NULL OR NOT EXISTS (SELECT 1 FROM servers WHERE id = p_server AND userId = p_user AND revokedISO IS NULL) THEN RETURN FALSE; END IF;
     IF EXISTS (SELECT 1 FROM server_plugins WHERE serverId = p_server AND pluginId = p_plugin) THEN RETURN FALSE; END IF;
+    IF EXISTS (SELECT 1 FROM plugins WHERE id = p_plugin AND tags LIKE '%%"Free"%%') THEN
+      INSERT INTO server_plugins (serverId, pluginId) VALUES (p_server, p_plugin) ON CONFLICT DO NOTHING;
+      GET DIAGNOSTICS inserted = ROW_COUNT;
+      RETURN inserted > 0;
+    END IF;
     SELECT COALESCE(NULLIF(observedIp, ''), NULLIF(ips::jsonb ->> 0, ''), 'unlinked:' || id)
       INTO target_ip FROM servers WHERE id = p_server;
     WITH assigned AS (
@@ -206,13 +210,16 @@ export function productEntitlements(userId: string, pluginId: number) {
   const used = db.prepare('SELECT COUNT(*)::integer AS used FROM server_plugins sp JOIN servers s ON s.id = sp.serverId WHERE s.userId = ? AND sp.pluginId = ? AND s.revokedISO IS NULL').get(userId, pluginId) as { used: number };
   const owner = findUserById(userId);
   const plugin = getPluginDetail(pluginId);
-  const subscription = owner?.role === 'admin' ? 1000000 : planSeats(owner?.plan || 'Spawn', owner?.planExpiresAt, plugin?.tags || [], isLaunch(plugin?.firstPublishedISO, plugin?.launchOverride));
+  const subscription = plugin?.tags.includes('Free') ? -1 : owner?.role === 'admin' ? 1000000 : planSeats(owner?.plan || 'Spawn', owner?.planExpiresAt, plugin?.tags || [], isLaunch(plugin?.firstPublishedISO, plugin?.launchOverride));
   const purchased = Number(row.purchased);
-  const limit = purchased * 2 + subscription;
-  return { purchased, subscription, limit, used: Number(used.used), available: Math.max(0, limit - Number(used.used)) };
+  const unlimited = subscription === -1;
+  const limit = unlimited ? -1 : purchased * 2 + subscription;
+  return { purchased, subscription, limit, used: Number(used.used), available: unlimited ? -1 : Math.max(0, limit - Number(used.used)) };
 }
 
 export function installationHasSeat(userId: string, serverId: string, pluginId: number, limit: number) {
+  if (limit === -1) return Boolean(db.prepare(`SELECT 1 FROM server_plugins sp JOIN servers s ON s.id = sp.serverId
+    WHERE s.id = ? AND s.userId = ? AND s.revokedISO IS NULL AND sp.pluginId = ?`).get(serverId, userId, pluginId));
   if (limit < 1) return false;
   const quantity = productEntitlements(userId, pluginId);
   const assignments = db.prepare(`

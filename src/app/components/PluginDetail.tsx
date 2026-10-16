@@ -1,4 +1,4 @@
-import { ArrowLeft, Box, Check, ShoppingBag, Star } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Box, Check, ShoppingBag, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
@@ -79,10 +79,10 @@ export function PluginDetail() {
           </div>
         </div>
         <aside className="lg:pt-3"><div className="sticky top-28 space-y-6 rounded-lg border border-white/15 bg-[#14251e] p-6 text-white sm:p-8">
-          <div><p className="font-mono text-xs text-[#a9f58e]">LICENÇA DO PRODUTO</p><p className="mt-2 text-3xl font-extrabold">{product.priceDisplay}</p></div>
-          <button type="button" onClick={() => { addItem({ id: String(product.id), name: product.name, price: product.priceCents, slug: String(product.id), imageUrl: product.imageUrl }); toast.success('Adicionado ao carrinho'); }} className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17}/> Adicionar ao carrinho</button>
+          <div><p className="font-mono text-xs text-[#a9f58e]">{product.tags.includes('Free') ? 'PLUGIN FREE' : 'LICENÇA DO PRODUTO'}</p><p className="mt-2 text-3xl font-extrabold">{product.tags.includes('Free') ? 'Grátis' : product.priceDisplay}</p></div>
+          {product.tags.includes('Free') ? <Link to={state.status === 'authenticated' ? '/account/servers' : '/login?next=/account/servers'} className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground">Usar plugin Free <ArrowRight size={17}/></Link> : <button type="button" onClick={() => { addItem({ id: String(product.id), name: product.name, price: product.priceCents, slug: String(product.id), imageUrl: product.imageUrl }); toast.success('Adicionado ao carrinho'); }} className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17}/> Adicionar ao carrinho</button>}
           <dl className="divide-y divide-white/10 border-t border-white/10 text-sm"><div className="flex justify-between gap-3 py-3"><dt className="text-[#bdd2c5]">Versão</dt><dd>{product.version || 'Não informada'}</dd></div><div className="flex justify-between gap-3 py-3"><dt className="text-[#bdd2c5]">Minecraft</dt><dd>{product.mcVersion || 'Consultar suporte'}</dd></div><div className="flex justify-between gap-3 py-3"><dt className="text-[#bdd2c5]">Desenvolvedor</dt><dd>{product.author || 'StarfinPlugins'}</dd></div>{product.reviewsCount > 0 && <div className="flex justify-between gap-3 py-3"><dt className="text-[#bdd2c5]">Avaliação</dt><dd>{product.rating}/5</dd></div>}</dl>
-          <p className="text-xs leading-6 text-[#bdd2c5]">Após a confirmação do pagamento, consulte sua licença e a disponibilidade de arquivos na área da conta.</p>
+          <p className="text-xs leading-6 text-[#bdd2c5]">{product.tags.includes('Free') ? 'Instale em quantos servidores quiser após vincular o StarfinCore à sua conta.' : 'Após a confirmação do pagamento, consulte sua licença e a disponibilidade de arquivos na área da conta.'}</p>
         </div></aside>
       </div>
     </>}

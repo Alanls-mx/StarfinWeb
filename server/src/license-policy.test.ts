@@ -12,7 +12,9 @@ test('60-day launch window and manual override', () => {
 
 test('Spawn, Craft and Nexus require the expected seats and paid expiry', () => {
   const now = '2026-10-16T00:00:00.000Z';
-  assert.equal(planSeats('Spawn', null, ['Free'], false, now), 1);
+  assert.equal(planSeats('Spawn', null, ['Free'], false, now), -1);
+  assert.equal(planSeats('Craft', '2026-11-16T00:00:00.000Z', ['Free'], true, now), -1);
+  assert.equal(planSeats('Nexus', '2026-10-15T00:00:00.000Z', ['Free'], false, now), -1);
   assert.equal(planSeats('Spawn', null, [], false, now), 0);
   assert.equal(planSeats('Craft', '2026-11-16T00:00:00.000Z', [], true, now), 0);
   assert.equal(planSeats('Craft', '2026-11-16T00:00:00.000Z', [], false, now), 1);
