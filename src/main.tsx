@@ -1,7 +1,7 @@
 
   import { createRoot } from "react-dom/client";
   import App from "./app/App.tsx";
-  import { defaultHomeContent, getPublicSettings, type PublicSettings } from "./app/lib/api.ts";
+  import { defaultFaqItems, defaultHomeContent, defaultInstitutionalContent, getPublicSettings, type PublicSettings } from "./app/lib/api.ts";
   import "./styles/index.css";
   import { BrowserRouter } from "react-router";
   import { AuthProvider } from "./app/lib/auth.tsx";
@@ -17,11 +17,13 @@
       new Promise<null>(resolve => setTimeout(() => resolve(null), 1500))
     ]);
     const homeContent = { ...defaultHomeContent, ...settings?.homeContent };
+    const institutionalContent = { ...defaultInstitutionalContent, ...settings?.institutionalContent };
+    const faqItems = settings?.faqItems || defaultFaqItems;
     const branding = { siteName: settings?.siteName || 'StarfinPlugins', logoUrl: settings?.logoUrl || null, footerText: settings?.footerText || '' };
     createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <AuthProvider>
-          <App homeContent={homeContent} branding={branding} />
+          <App homeContent={homeContent} institutionalContent={institutionalContent} faqItems={faqItems} aboutTeam={settings?.aboutTeam || []} careersJobs={settings?.careersJobs || []} branding={branding} />
         </AuthProvider>
       </BrowserRouter>,
     );

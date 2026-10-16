@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { MapPin, DollarSign, ArrowRight, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { applyCareer, getPublicSettings, type CareerJob } from '../lib/api';
+import { applyCareer, type CareerJob } from '../lib/api';
 
 type CareerFormState = {
   name: string;
@@ -30,25 +30,14 @@ function buildInitialForm(role: string): CareerFormState {
   };
 }
 
-export function CareersPage() {
-  const [jobs, setJobs] = useState<CareerJob[]>([]);
-  const [hasLoadedRemoteJobs, setHasLoadedRemoteJobs] = useState(false);
+export function CareersPage({ initialJobs }: { initialJobs: CareerJob[] }) {
+  const jobs = initialJobs.filter(job => job.enabled);
+  const hasLoadedRemoteJobs = true;
   const talentPoolRole = 'Banco de Talentos';
   const availableRoles = useMemo(() => [talentPoolRole, ...jobs.map((job) => job.title)], [jobs]);
   const [isApplying, setIsApplying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<CareerFormState>(buildInitialForm(talentPoolRole));
-
-  useEffect(() => {
-    getPublicSettings()
-      .then((settings) => {
-        if (!Array.isArray(settings.careersJobs)) return;
-        const nextJobs = settings.careersJobs.filter((job) => job.enabled);
-        setJobs(nextJobs);
-        setHasLoadedRemoteJobs(true);
-      })
-      .catch(() => null);
-  }, []);
 
   const handleFieldChange = (field: keyof CareerFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));

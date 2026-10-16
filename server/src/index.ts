@@ -2466,6 +2466,8 @@ app.get('/api/public/settings', (_req, res) => {
     homeStatsRating: s.homeStatsRating,
     homeStatsSupport: s.homeStatsSupport,
     homeContent: s.homeContent,
+    institutionalContent: s.institutionalContent,
+    faqItems: s.faqItems,
     careersJobs: s.careersJobs.filter((job) => job.enabled),
     aboutTeam: s.aboutTeam
   });
@@ -2994,6 +2996,25 @@ app.post('/api/admin/settings', (req, res) => {
       return res.status(400).json({ error: 'conteúdo da homepage inválido' });
     }
     body.homeContent = Object.fromEntries([...fields, ...images, ...labels, ...links].filter(key => body.homeContent[key] !== undefined).map(key => [key, body.homeContent[key].trim()]));
+  }
+  if (body.institutionalContent !== undefined) {
+    const fields = ['aboutTitle', 'aboutDescription', 'aboutMissionTitle', 'aboutMissionDescription', 'aboutMissionSecondary', 'contactTitle', 'contactDescription', 'faqTitle', 'faqDescription'];
+    if (!body.institutionalContent || typeof body.institutionalContent !== 'object' || Array.isArray(body.institutionalContent) ||
+        Object.keys(body.institutionalContent).some(key => !fields.includes(key)) ||
+        fields.some(key => typeof body.institutionalContent[key] !== 'string' || !body.institutionalContent[key].trim() || body.institutionalContent[key].length > (key.endsWith('Title') ? 100 : 500))) {
+      return res.status(400).json({ error: 'conteúdo institucional inválido' });
+    }
+    body.institutionalContent = Object.fromEntries(fields.map(key => [key, body.institutionalContent[key].trim()]));
+  }
+  if (body.faqItems !== undefined) {
+    if (!Array.isArray(body.faqItems) || body.faqItems.length > 30 || body.faqItems.some((item: unknown) => !item || typeof item !== 'object' ||
+      Object.keys(item).some(key => !['id', 'category', 'question', 'answer'].includes(key)) ||
+      !/^[a-zA-Z0-9_-]{1,64}$/.test((item as any).id) ||
+      ['category', 'question', 'answer'].some(key => typeof (item as any)[key] !== 'string' || !(item as any)[key].trim() || (item as any)[key].length > (key === 'answer' ? 1000 : 200))) ||
+      new Set(body.faqItems.map((item: any) => item.id)).size !== body.faqItems.length) {
+      return res.status(400).json({ error: 'perguntas frequentes inválidas' });
+    }
+    body.faqItems = body.faqItems.map((item: any) => ({ id: item.id, category: item.category.trim(), question: item.question.trim(), answer: item.answer.trim() }));
   }
   // An empty or masked field leaves the stored credential untouched.
   if (typeof body.mercadopagoAccessToken !== 'string' ||
@@ -3972,7 +3993,11 @@ if (isProdRuntime) {
       logoUrl: managedImage(settings.logoUrl),
       faviconUrl: managedImage(settings.faviconUrl),
       footerText: typeof settings.footerText === 'string' ? settings.footerText.slice(0, 200) : '',
-      homeContent: settings.homeContent
+      homeContent: settings.homeContent,
+      institutionalContent: settings.institutionalContent,
+      faqItems: settings.faqItems,
+      aboutTeam: settings.aboutTeam,
+      careersJobs: settings.careersJobs.filter(job => job.enabled)
     };
     const faviconType = publicConfig.faviconUrl.endsWith('.png') ? 'image/png' : publicConfig.faviconUrl.endsWith('.jpg') ? 'image/jpeg' : publicConfig.faviconUrl.endsWith('.webp') ? 'image/webp' : publicConfig.faviconUrl.endsWith('.gif') ? 'image/gif' : 'image/svg+xml';
     const description = typeof settings.siteDescription === 'string' && settings.siteDescription.trim() ? settings.siteDescription.trim().slice(0, 300) : 'Plugins e ferramentas para servidores Minecraft.';

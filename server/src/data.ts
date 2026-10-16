@@ -1552,6 +1552,40 @@ export const defaultHomeContent: HomeContentSetting = {
   accountDescription: 'A área da conta reúne suas licenças, plugins, servidores e pedidos. Encontre o que precisa sem procurar em mensagens antigas.'
 };
 
+export interface InstitutionalContentSetting {
+  aboutTitle: string;
+  aboutDescription: string;
+  aboutMissionTitle: string;
+  aboutMissionDescription: string;
+  aboutMissionSecondary: string;
+  contactTitle: string;
+  contactDescription: string;
+  faqTitle: string;
+  faqDescription: string;
+}
+
+export interface FaqItemSetting { id: string; category: string; question: string; answer: string }
+
+export const defaultInstitutionalContent: InstitutionalContentSetting = {
+  aboutTitle: 'Nossa História',
+  aboutDescription: 'Desenvolvemos ferramentas para servidores Minecraft e mantemos a documentação, o licenciamento e o suporte em um só lugar.',
+  aboutMissionTitle: 'Nossa Missão',
+  aboutMissionDescription: 'Nossa missão é fornecer ferramentas poderosas e intuitivas que permitam aos donos de servidores focarem no que realmente importa: criar diversão para seus jogadores.',
+  aboutMissionSecondary: 'Acreditamos que a tecnologia não deve ser um obstáculo, mas sim uma ponte para a criatividade. Por isso, cada linha de código é pensada na facilidade de uso e na performance.',
+  contactTitle: 'Vamos resolver sua dúvida',
+  contactDescription: 'Abra um chamado para questões de compra, licença, instalação ou uso dos plugins. A conversa fica registrada na sua conta para acompanhamento.',
+  faqTitle: 'Perguntas Frequentes',
+  faqDescription: 'Tire suas dúvidas rápidas sobre nossos serviços.'
+};
+
+export const defaultFaqItems: FaqItemSetting[] = [
+  { id: 'purchase', category: 'Geral', question: 'Quando a licença aparece após a compra?', answer: 'A licença aparece na sua conta depois que o provedor confirma o pagamento. Um pedido pendente não libera o produto. O download do arquivo ainda não está disponível nesta plataforma.' },
+  { id: 'payment', category: 'Pagamentos', question: 'Quais as formas de pagamento aceitas?', answer: 'As opções disponíveis são apresentadas pelo Mercado Pago durante o checkout. Consulte o status do pedido na sua conta após retornar do provedor.' },
+  { id: 'license', category: 'Licença', question: 'Posso usar um plugin em mais de um servidor?', answer: 'A autorização depende das licenças da conta e das atribuições configuradas para cada servidor. Cadastre os servidores e confira as regras de IP na sua conta.' },
+  { id: 'support', category: 'Suporte', question: 'Como entro em contato com o suporte?', answer: 'Abra um chamado na área de suporte do site e acompanhe as respostas pela sua conta.' },
+  { id: 'premium', category: 'Premium', question: 'Posso assinar o plano Premium agora?', answer: 'A contratação de planos está indisponível até a homologação financeira. Os produtos disponíveis podem ser consultados individualmente no catálogo.' }
+];
+
 export type AdminSettings = {
   siteName: string;
   logoUrl: string;
@@ -1575,6 +1609,8 @@ export type AdminSettings = {
   careersJobs: CareerJobSetting[];
   aboutTeam: TeamMemberSetting[];
   homeContent: HomeContentSetting;
+  institutionalContent: InstitutionalContentSetting;
+  faqItems: FaqItemSetting[];
 };
 
 const defaultAdminSettings: AdminSettings = {
@@ -1599,7 +1635,9 @@ const defaultAdminSettings: AdminSettings = {
   mercadopagoWebhookUrl: '',
   careersJobs: [],
   aboutTeam: [],
-  homeContent: defaultHomeContent
+  homeContent: defaultHomeContent,
+  institutionalContent: defaultInstitutionalContent,
+  faqItems: defaultFaqItems
 };
 
 export function getAdminSettings() {
@@ -1607,7 +1645,7 @@ export function getAdminSettings() {
   if (!row?.value) return { ...defaultAdminSettings };
   try {
     const parsed = JSON.parse(row.value);
-    return { ...defaultAdminSettings, ...parsed, homeContent: { ...defaultHomeContent, ...(parsed.homeContent || {}) } } as AdminSettings;
+    return { ...defaultAdminSettings, ...parsed, homeContent: { ...defaultHomeContent, ...(parsed.homeContent || {}) }, institutionalContent: { ...defaultInstitutionalContent, ...(parsed.institutionalContent || {}) }, faqItems: Array.isArray(parsed.faqItems) ? parsed.faqItems : defaultFaqItems } as AdminSettings;
   } catch {
     return { ...defaultAdminSettings };
   }

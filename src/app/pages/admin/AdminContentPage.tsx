@@ -1,7 +1,7 @@
 import { Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminGetSettings, adminSaveSettings, defaultHomeContent, type HomeContent, type CareerJob, type TeamMemberProfile } from '../../lib/api';
+import { adminGetSettings, adminSaveSettings, defaultFaqItems, defaultHomeContent, defaultInstitutionalContent, type HomeContent, type InstitutionalContent, type FaqItem, type CareerJob, type TeamMemberProfile } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { MediaPicker } from '../../components/admin/MediaPicker';
 
@@ -43,6 +43,8 @@ export function AdminContentPage() {
   const [jobs, setJobs] = useState<CareerJob[]>([]);
   const [team, setTeam] = useState<TeamMemberProfile[]>([]);
   const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
+  const [institutionalContent, setInstitutionalContent] = useState<InstitutionalContent>(defaultInstitutionalContent);
+  const [faqItems, setFaqItems] = useState<FaqItem[]>(defaultFaqItems);
 
   useEffect(() => {
     if (!token) return;
@@ -52,6 +54,8 @@ export function AdminContentPage() {
         setJobs(settings.careersJobs ?? []);
         setTeam(settings.aboutTeam ?? []);
         setHomeContent({ ...defaultHomeContent, ...settings.homeContent });
+        setInstitutionalContent({ ...defaultInstitutionalContent, ...settings.institutionalContent });
+        setFaqItems(settings.faqItems ?? defaultFaqItems);
       })
       .catch((error) => {
         console.error(error);
@@ -92,6 +96,8 @@ export function AdminContentPage() {
   const handleSave = async () => {
     if (!token) return;
     if ((['heroEyebrow', 'heroTitle', 'heroAccent', 'heroDescription', 'accountTitle', 'accountDescription'] as const).some(key => !homeContent[key].trim())) { toast.error('Preencha todos os textos da página inicial.'); return; }
+    if (Object.values(institutionalContent).some(value => !value.trim())) { toast.error('Preencha os textos institucionais.'); return; }
+    if (faqItems.some(item => !item.category.trim() || !item.question.trim() || !item.answer.trim())) { toast.error('Preencha as perguntas frequentes.'); return; }
     setSaving(true);
     try {
       const nextJobs = normalizeJobs(jobs);
@@ -99,7 +105,9 @@ export function AdminContentPage() {
       await adminSaveSettings(token, {
         careersJobs: nextJobs,
         aboutTeam: nextTeam,
-        homeContent
+        homeContent,
+        institutionalContent,
+        faqItems
       });
       setJobs(nextJobs);
       setTeam(nextTeam);
@@ -141,6 +149,18 @@ export function AdminContentPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {([['heroPrimaryLabel', 'Texto do botão principal'], ['heroPrimaryHref', 'Destino do botão principal'], ['heroSecondaryLabel', 'Texto do botão secundário'], ['heroSecondaryHref', 'Destino do botão secundário']] as const).map(([key, label]) => <label key={key} className="text-sm text-white">{label}<input value={homeContent[key] || ''} placeholder={key.includes('Href') ? '/plugins' : undefined} maxLength={100} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" /></label>)}
         </div>
+      </section>
+
+      <section className="space-y-5 rounded-lg border border-white/15 bg-[#14251e] p-6">
+        <div><h2 className="text-xl font-bold text-white">Páginas institucionais</h2><p className="mt-1 text-sm text-[#bdd2c5]">Textos públicos de Sobre, Contato e Perguntas Frequentes.</p></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {([['aboutTitle', 'Título de Sobre'], ['aboutDescription', 'Introdução de Sobre'], ['aboutMissionTitle', 'Título da missão'], ['aboutMissionDescription', 'Descrição da missão'], ['aboutMissionSecondary', 'Complemento da missão'], ['contactTitle', 'Título de Contato'], ['contactDescription', 'Descrição de Contato'], ['faqTitle', 'Título do FAQ'], ['faqDescription', 'Descrição do FAQ']] as const).map(([key, label]) => <label key={key} className={`text-sm text-white ${key.endsWith('Description') || key.endsWith('Secondary') ? 'md:col-span-2' : ''}`}>{label}{key.endsWith('Description') || key.endsWith('Secondary') ? <textarea value={institutionalContent[key]} maxLength={500} onChange={event => setInstitutionalContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 min-h-24 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" /> : <input value={institutionalContent[key]} maxLength={100} onChange={event => setInstitutionalContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" />}</label>)}
+        </div>
+      </section>
+
+      <section className="space-y-5 rounded-lg border border-white/15 bg-[#14251e] p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold text-white">Perguntas frequentes</h2><p className="mt-1 text-sm text-[#bdd2c5]">As perguntas publicadas aparecem na página FAQ.</p></div><button type="button" onClick={() => setFaqItems(current => [...current, { id: createId('faq'), category: 'Geral', question: '', answer: '' }])} className="inline-flex items-center gap-2 rounded-md border border-[#85ed65]/50 px-4 py-2 text-sm text-[#a9f58e]"><Plus size={16} /> Nova pergunta</button></div>
+        {faqItems.map((item, index) => <div key={item.id} className="space-y-3 rounded-md border border-white/15 bg-[#0b1715] p-4"><div className="flex items-center justify-between"><strong className="text-sm text-white">Pergunta {index + 1}</strong><button type="button" aria-label={`Remover pergunta ${index + 1}`} onClick={() => setFaqItems(current => current.filter((_, i) => i !== index))} className="text-red-200"><Trash2 size={17}/></button></div><div className="grid gap-3 md:grid-cols-[.35fr_1fr]"><label className="text-sm text-white">Categoria<input value={item.category} maxLength={200} onChange={event => setFaqItems(current => current.map((entry, i) => i === index ? { ...entry, category: event.target.value } : entry))} className="mt-2 w-full rounded-md border border-white/20 bg-[#14251e] p-3" /></label><label className="text-sm text-white">Pergunta<input value={item.question} maxLength={200} onChange={event => setFaqItems(current => current.map((entry, i) => i === index ? { ...entry, question: event.target.value } : entry))} className="mt-2 w-full rounded-md border border-white/20 bg-[#14251e] p-3" /></label></div><label className="block text-sm text-white">Resposta<textarea value={item.answer} maxLength={1000} onChange={event => setFaqItems(current => current.map((entry, i) => i === index ? { ...entry, answer: event.target.value } : entry))} className="mt-2 min-h-24 w-full rounded-md border border-white/20 bg-[#14251e] p-3" /></label></div>)}
       </section>
 
       <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">

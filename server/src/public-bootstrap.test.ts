@@ -5,7 +5,7 @@ process.env.RAILWAY_PROJECT_ID = 'starfin-ci-html';
 
 test('published CMS and identity are present in initial HTML without a later visual replacement', async () => {
   const { app } = await import('./index.js');
-  const { createSession, createUser, createUserAdmin } = await import('./data.js');
+  const { createSession, createUser, createUserAdmin, defaultInstitutionalContent } = await import('./data.js');
   const admin = createUserAdmin({ name: 'CMS Admin', email: `cms-admin-${Date.now()}@example.invalid`, password: 'test-only-password', role: 'admin' });
   const customer = createUser({ name: 'CMS Customer', email: `cms-customer-${Date.now()}@example.invalid`, password: 'test-only-password' });
   assert.ok(admin && customer);
@@ -17,7 +17,7 @@ test('published CMS and identity are present in initial HTML without a later vis
     const address = server.address();
     assert.ok(address && typeof address !== 'string');
     const base = `http://127.0.0.1:${address.port}`;
-    const body = { siteName: 'Starfin Teste', siteDescription: 'Metadados publicados com segurança.', homeContent: {
+    const body = { siteName: 'Starfin Teste', siteDescription: 'Metadados publicados com segurança.', institutionalContent: { ...defaultInstitutionalContent, aboutTitle: 'Sobre a equipe de teste' }, faqItems: [{ id: 'ci-question', category: 'Teste', question: 'Pergunta de teste?', answer: 'Resposta persistida no banco.' }], homeContent: {
       heroEyebrow: 'Minecraft', heroTitle: 'Mundo de teste.', heroAccent: 'Painel de teste.',
       heroDescription: 'Conteúdo persistido no CMS.', accountTitle: 'Sua conta de teste.', accountDescription: 'Licenças e servidores.'
     } };
@@ -31,6 +31,11 @@ test('published CMS and identity are present in initial HTML without a later vis
     assert.match(home, /Mundo de teste/);
     assert.doesNotMatch(home, /__STARFIN_PUBLIC_CONFIG__/);
     assert.match(docs, /Mundo de teste/);
+    assert.match(home, /Sobre a equipe de teste/);
+    assert.match(home, /Pergunta de teste/);
+    const publicSettings = await (await fetch(base + '/api/public/settings')).json() as any;
+    assert.equal(publicSettings.institutionalContent.aboutTitle, 'Sobre a equipe de teste');
+    assert.equal(publicSettings.faqItems[0].answer, 'Resposta persistida no banco.');
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     delete process.env.RAILWAY_PROJECT_ID;

@@ -57,9 +57,9 @@ import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 
 import { CartProvider } from './lib/cart';
 import { Toaster } from 'sonner';
-import type { HomeContent } from './lib/api';
+import type { CareerJob, FaqItem, HomeContent, InstitutionalContent, TeamMemberProfile } from './lib/api';
 
-export default function App({ homeContent, branding }: { homeContent: HomeContent; branding: { siteName: string; logoUrl: string | null; footerText: string } }) {
+export default function App({ homeContent, institutionalContent, faqItems, aboutTeam, careersJobs, branding }: { homeContent: HomeContent; institutionalContent: InstitutionalContent; faqItems: FaqItem[]; aboutTeam: TeamMemberProfile[]; careersJobs: CareerJob[]; branding: { siteName: string; logoUrl: string | null; footerText: string } }) {
   const location = useLocation();
 
   useEffect(() => {
@@ -107,11 +107,11 @@ export default function App({ homeContent, branding }: { homeContent: HomeConten
               <Route path="/changelog" element={<ChangelogPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/faq" element={<FaqPage />} />
-              <Route path="/careers" element={<CareersPage />} />
+              <Route path="/about" element={<AboutPage content={institutionalContent} teamMembers={aboutTeam} />} />
+              <Route path="/faq" element={<FaqPage content={institutionalContent} faqs={faqItems} />} />
+              <Route path="/careers" element={<CareersPage initialJobs={careersJobs} />} />
               <Route path="/blog" element={<BlogPage />} />
-              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/contact" element={<ContactPage content={institutionalContent} />} />
               
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminLayout />}>

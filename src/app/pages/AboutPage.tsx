@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
 import { Users, Target, Rocket, Shield, Heart, Zap } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
-import { getPublicSettings, type TeamMemberProfile } from '../lib/api';
+import { type InstitutionalContent, type TeamMemberProfile } from '../lib/api';
 
-export function AboutPage() {
+export function AboutPage({ content, teamMembers }: { content: InstitutionalContent; teamMembers: TeamMemberProfile[] }) {
   const values = [
     {
       title: 'Inovacao',
@@ -23,18 +23,6 @@ export function AboutPage() {
     }
   ];
 
-  const [teamMembers, setTeamMembers] = useState<TeamMemberProfile[]>([]);
-
-  useEffect(() => {
-    getPublicSettings()
-      .then((settings) => {
-        if (Array.isArray(settings.aboutTeam)) {
-          setTeamMembers(settings.aboutTeam);
-        }
-      })
-      .catch(() => null);
-  }, []);
-
   return (
     <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
       <div className="text-center mb-20">
@@ -43,7 +31,7 @@ export function AboutPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl sm:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500"
         >
-          Nossa Historia
+          {content.aboutTitle}
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
@@ -51,22 +39,19 @@ export function AboutPage() {
           transition={{ delay: 0.1 }}
           className="text-gray-400 text-lg max-w-3xl mx-auto leading-relaxed"
         >
-          Desenvolvemos ferramentas para servidores Minecraft e mantemos a documentação,
-          o licenciamento e o suporte em um só lugar.
+          {content.aboutDescription}
         </motion.p>
       </div>
 
 
       <div className="grid lg:grid-cols-2 gap-16 items-center mb-24">
         <div>
-          <h2 className="text-3xl font-bold mb-6">Nossa Missao</h2>
+          <h2 className="text-3xl font-bold mb-6">{content.aboutMissionTitle}</h2>
           <p className="text-gray-400 leading-relaxed mb-6">
-            Nossa missao e fornecer ferramentas poderosas e intuitivas que permitam aos donos de servidores focarem no
-            que realmente importa: criar diversao para seus jogadores.
+            {content.aboutMissionDescription}
           </p>
           <p className="text-gray-400 leading-relaxed">
-            Acreditamos que a tecnologia nao deve ser um obstaculo, mas sim uma ponte para a criatividade. Por isso,
-            cada linha de codigo e pensada na facilidade de uso e na performance.
+            {content.aboutMissionSecondary}
           </p>
         </div>
         <div className="grid gap-6">
