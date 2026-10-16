@@ -44,6 +44,7 @@ jobs:
       - run: node --import tsx --test server/src/subscription-webhook.test.ts
       - run: node --import tsx --test server/src/license-contract.test.ts
       - run: node --import tsx --test server/src/installation-contract.test.ts
+      - run: node --import tsx --test server/src/signed-grants.test.ts
       - run: node --import tsx --test server/src/plan-contract.test.ts
       - run: node --import tsx --test server/src/release-access.test.ts
       - run: node --import tsx --test server/src/media-access.test.ts

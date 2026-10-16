@@ -3,6 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import net from 'net';
 import { createHash, randomUUID } from 'node:crypto';
+import { signedProductGrants } from './signed-grants.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -639,6 +640,17 @@ app.post('/v3/installations/check', (req, res) => {
   const regularExpiry = new Date(Date.now() + 45 * 60_000).toISOString();
   const expiresAt = owner.planExpiresAt && owner.planExpiresAt > stamp && planIds.some(id => !getPluginDetail(id)?.tags.includes('Free'))
     ? (owner.planExpiresAt < regularExpiry ? owner.planExpiresAt : regularExpiry) : regularExpiry;
+  let signedGrants: Record<string, string>;
+  try {
+    signedGrants = signedProductGrants({ productIds: allowedProductIds,
+      installationId: String(installation.installationId), observedIp,
+      serverPort: reportedPort, expiresAt });
+  } catch (error) {
+    console.error('Falha ao assinar autorizacoes de produtos:', error);
+    return res.status(503).json({ valid: false, code: 'SIGNING_UNAVAILABLE' });
+  }
+  if (allowedProductIds.length) logInstallationEvent(String(installation.id), 'grant.issue', null,
+    'Autorizacoes assinadas emitidas', { products: allowedProductIds, expiresAt });
   const code = !ipMatches ? 'IP_MISMATCH' : !portMatches ? 'PORT_MISMATCH' : 'AUTHORIZED';
   res.json({
     valid: ipMatches && portMatches, ok: ipMatches && portMatches, code,
@@ -650,7 +662,7 @@ app.post('/v3/installations/check', (req, res) => {
       authorizedIps: ips, ipMatches, authorizedPort, reportedPort, portMatches,
       platform: req.body?.platform || installation.platform, coreVersion: req.body?.coreVersion || installation.coreVersion, lastSyncISO: stamp },
     licensing: { acquiredProducts: purchasedIds.length, assignedProducts: assigned.size, authorizedProducts: allowed.length },
-    products, allowedProductIds, allowedPlugins: allowed.map(item => item.name), updates: {}
+    products, allowedProductIds, signedGrants, allowedPlugins: allowed.map(item => item.name), updates: {}
   });
 });
 
