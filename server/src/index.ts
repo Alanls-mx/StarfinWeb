@@ -200,6 +200,11 @@ function safeUser<T extends { passwordHash?: string; settings?: unknown }>(user:
   return publicFields;
 }
 
+function safeAdminUser<T extends { passwordHash?: string; settings?: unknown; licenseKey?: string | null }>(user: T) {
+  const result = safeUser(user);
+  return { ...result, licenseKey: user.licenseKey ? `••••${user.licenseKey.slice(-4)}` : null };
+}
+
 function normalizeIp(ip: string | undefined | null): string {
   if (!ip) return '';
 
@@ -3084,7 +3089,7 @@ app.get('/api/admin/users', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  res.json({ items: listAllUsers().map(safeUser) });
+  res.json({ items: listAllUsers().map(safeAdminUser) });
 });
 
 app.post('/api/admin/users', (req, res) => {
@@ -3095,7 +3100,7 @@ app.post('/api/admin/users', (req, res) => {
   const user = createUserAdmin(req.body ?? {});
   if (!user) return res.status(400).json({ error: 'Não foi possível criar o usuário. Confira os dados e o e-mail.' });
   auditAdmin(req, 'user.create', 'user', user.id);
-  res.status(201).json(safeUser(user));
+  res.status(201).json(safeAdminUser(user));
 });
 
 app.get('/api/admin/users/:id', (req, res) => {
@@ -3108,7 +3113,7 @@ app.get('/api/admin/users/:id', (req, res) => {
     res.status(404).json({ error: 'usuário não encontrado' });
     return;
   }
-  res.json(safeUser(user));
+  res.json(safeAdminUser(user));
 });
 
 app.post('/api/admin/users/:id/license/hwid/reset', (req, res) => {
@@ -3305,7 +3310,7 @@ app.put('/api/admin/users/:id', (req, res) => {
     return;
   }
   auditAdmin(req, 'user.update', 'user', req.params.id, { fields: Object.keys(changes) });
-  res.json(safeUser(next));
+  res.json(safeAdminUser(next));
 });
 
 app.delete('/api/admin/users/:id', (req, res) => {

@@ -61,6 +61,14 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
     const admin = createUserAdmin({ name: 'Admin CI', email: `admin-${Date.now()}@example.invalid`, password: 'test-only-password', role: 'admin' });
     assert.ok(admin);
     const session = createSession(admin.id, 'admin');
+    const adminUsersResponse = await fetch(`http://127.0.0.1:${address.port}/api/admin/users`, {
+      headers: { authorization: `Bearer ${session.token}` }
+    });
+    assert.equal(adminUsersResponse.status, 200);
+    const adminUsers = await adminUsersResponse.json() as { items: Array<{ id: string; licenseKey: string | null }> };
+    const ownerInAdminList = adminUsers.items.find(item => item.id === owner.id);
+    assert.ok(ownerInAdminList);
+    if (owner.licenseKey) assert.equal(ownerInAdminList.licenseKey, `••••${owner.licenseKey.slice(-4)}`);
     const forgedApproval = await fetch(`http://127.0.0.1:${address.port}/api/admin/purchases/${pending.id}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
