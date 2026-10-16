@@ -46,6 +46,7 @@ sqlite.exec(`
     userId VARCHAR(191),
     pluginId INTEGER,
     status VARCHAR(32),
+    grantSource VARCHAR(32) DEFAULT 'payment',
     licenseKey VARCHAR(191),
     hwid VARCHAR(255),
     allowedIp VARCHAR(255),
@@ -166,6 +167,16 @@ sqlite.exec(`
     body LONGTEXT,
     createdISO VARCHAR(64)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CREATE TABLE IF NOT EXISTS admin_audit (
+    id VARCHAR(191) PRIMARY KEY,
+    actorUserId VARCHAR(191) NOT NULL,
+    action VARCHAR(128) NOT NULL,
+    resourceType VARCHAR(64) NOT NULL,
+    resourceId VARCHAR(191) NOT NULL,
+    outcome VARCHAR(32) NOT NULL,
+    details LONGTEXT,
+    createdISO VARCHAR(64) NOT NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS notifications (
     id VARCHAR(191) PRIMARY KEY,
     title VARCHAR(255),
@@ -267,10 +278,10 @@ sqlite.exec(`
 
 // Migration: ensure new columns exist in purchases table
 const purchaseTableInfo = sqlite.prepare("PRAGMA table_info(purchases)").all() as any[];
-const newPurchaseCols = ['hwid', 'allowedIp', 'lastIp', 'lastPort', 'lastServerName', 'lastPlatform', 'lastPerformance'];
+const newPurchaseCols = ['hwid', 'allowedIp', 'lastIp', 'lastPort', 'lastServerName', 'lastPlatform', 'lastPerformance', 'grantSource'];
 for (const col of newPurchaseCols) {
   if (!purchaseTableInfo.some(c => c.name === col)) {
-    sqlite.exec(`ALTER TABLE purchases ADD COLUMN ${col} ${col === 'lastPort' ? 'INTEGER' : 'TEXT'}`);
+    sqlite.exec(`ALTER TABLE purchases ADD COLUMN ${col} ${col === 'lastPort' ? 'INTEGER' : col === 'grantSource' ? "TEXT DEFAULT 'payment'" : 'TEXT'}`);
   }
 }
 
@@ -1718,6 +1729,7 @@ export interface Purchase {
   userId: string;
   pluginId: number;
   status: PurchaseStatus;
+  grantSource?: 'payment' | 'admin_grant';
   licenseKey: string | null;
   hwid: string | null;
   allowedIp: string | null;
@@ -1927,6 +1939,49 @@ export function updateStatusComponent(id: string, status: StatusComponent['statu
 }
 
 export const changelog: ChangelogEntry[] = [];
+export function createChangelogEntry(input: { version: string; title: string; body: string }): ChangelogEntry {
+  const entry = { id: `cl_${crypto.randomUUID()}`, ...input, createdISO: new Date().toISOString() };
+  sqlite.prepare('INSERT INTO changelog (id, version, title, body, createdISO) VALUES (?, ?, ?, ?, ?)')
+    .run(entry.id, entry.version, entry.title, entry.body, entry.createdISO);
+  syncChangelog();
+  return entry;
+}
+
+export function updateChangelogEntry(id: string, input: { version: string; title: string; body: string }): ChangelogEntry | null {
+  const result = sqlite.prepare('UPDATE changelog SET version = ?, title = ?, body = ? WHERE id = ?')
+    .run(input.version, input.title, input.body, id);
+  if (!result.changes) return null;
+  syncChangelog();
+  return changelog.find(entry => entry.id === id) || null;
+}
+
+export function deleteChangelogEntry(id: string): boolean {
+  const result = sqlite.prepare('DELETE FROM changelog WHERE id = ?').run(id);
+  if (result.changes) syncChangelog();
+  return Boolean(result.changes);
+}
+
+export interface AdminAuditEntry {
+  id: string;
+  actorUserId: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  outcome: string;
+  details: Record<string, unknown> | null;
+  createdISO: string;
+}
+
+export function recordAdminAudit(input: Omit<AdminAuditEntry, 'id' | 'createdISO'>): void {
+  sqlite.prepare('INSERT INTO admin_audit (id, actorUserId, action, resourceType, resourceId, outcome, details, createdISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(`audit_${crypto.randomUUID()}`, input.actorUserId, input.action, input.resourceType, input.resourceId,
+      input.outcome, input.details ? JSON.stringify(input.details) : null, new Date().toISOString());
+}
+
+export function listAdminAudit(limit = 100): AdminAuditEntry[] {
+  const rows = sqlite.prepare('SELECT * FROM admin_audit ORDER BY createdISO DESC LIMIT ?').all(Math.max(1, Math.min(limit, 500))) as Array<Record<string, any>>;
+  return rows.map(row => ({ ...row, details: row.details ? JSON.parse(row.details) as Record<string, unknown> : null })) as AdminAuditEntry[];
+}
 export function syncChangelog() {
   const rows = sqlite.prepare('SELECT * FROM changelog ORDER BY createdISO DESC').all() as any[];
   changelog.length = 0;
@@ -2451,24 +2506,26 @@ export function consumePasswordResetToken(token: string) {
   return findUserById(row.userId);
 }
 
-export function createPurchase(userId: string, pluginId: number) {
+export function createPurchase(userId: string, pluginId: number, grantSource: 'payment' | 'admin_grant' = 'payment') {
   const now = new Date().toISOString();
   const purchase: Purchase = {
     id: `pur_${crypto.randomUUID()}`,
     userId,
     pluginId,
     status: 'pending',
+    grantSource,
     licenseKey: null,
     hwid: null,
     allowedIp: null,
     createdISO: now,
     updatedISO: now
   };
-  sqlite.prepare('INSERT INTO purchases (id, userId, pluginId, status, licenseKey, createdISO, updatedISO) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+  sqlite.prepare('INSERT INTO purchases (id, userId, pluginId, status, grantSource, licenseKey, createdISO, updatedISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
     purchase.id,
     purchase.userId,
     purchase.pluginId,
     purchase.status,
+    purchase.grantSource,
     purchase.licenseKey,
     purchase.createdISO,
     purchase.updatedISO

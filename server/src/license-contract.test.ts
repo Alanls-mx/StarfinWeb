@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { app } from './index.js';
-import { addNotification, createPlugin, createPurchase, createSession, createUser, createUserAdmin, findPurchaseById, updatePurchaseStatus } from './data.js';
+import { addNotification, createPlugin, createPurchase, createSession, createUser, createUserAdmin, findPurchaseById, listAdminAudit, syncChangelog, updatePurchaseStatus } from './data.js';
 
 test('StarfinCore v2 contract authorizes only a paid product and binds the installation', async () => {
   const product = createPlugin({
@@ -68,6 +68,52 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
     });
     assert.equal(forgedApproval.status, 400);
     assert.equal(findPurchaseById(pending.id)?.status, 'pending');
+
+    const revokePaid = await fetch(`http://127.0.0.1:${address.port}/api/admin/users/${owner.id}/plugins/${product.id}`, {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ reason: 'Solicitação de teste administrativo' })
+    });
+    assert.equal(revokePaid.status, 409);
+    assert.equal(findPurchaseById(approved.id)?.status, 'approved');
+
+    const secondOwner = createUser({ name: 'Cortesia CI', email: `grant-${Date.now()}@example.invalid`, password: 'test-only-password' });
+    assert.ok(secondOwner);
+    const grant = await fetch(`http://127.0.0.1:${address.port}/api/admin/users/${secondOwner.id}/plugins`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ pluginId: product.id, reason: 'Cortesia de integração para teste CI' })
+    });
+    assert.equal(grant.status, 201);
+    const grantBody = await grant.json() as { item: { purchaseId: string; grantSource: string; licenseKey: string } };
+    assert.equal(grantBody.item.grantSource, 'admin_grant');
+    assert.match(grantBody.item.licenseKey, /^••••[\w]{4}$/);
+    assert.equal(findPurchaseById(grantBody.item.purchaseId)?.status, 'approved');
+    assert.ok(listAdminAudit().some(entry => entry.action === 'license.manual_grant' && entry.resourceId === grantBody.item.purchaseId));
+
+    const revokeGrant = await fetch(`http://127.0.0.1:${address.port}/api/admin/users/${secondOwner.id}/plugins/${product.id}`, {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ reason: 'Encerramento da cortesia de teste CI' })
+    });
+    assert.equal(revokeGrant.status, 200);
+    assert.equal(findPurchaseById(grantBody.item.purchaseId)?.status, 'cancelled');
+
+    const newChangelog = await fetch(`http://127.0.0.1:${address.port}/api/admin/changelog`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ version: 'ci-1', title: 'Teste persistido', body: 'Conteúdo de teste' })
+    });
+    assert.equal(newChangelog.status, 201);
+    const entry = await newChangelog.json() as { id: string };
+    syncChangelog();
+    const publicChangelog = await fetch(`http://127.0.0.1:${address.port}/api/changelog`);
+    const publicBody = await publicChangelog.json() as { items: Array<{ id: string }> };
+    assert.ok(publicBody.items.some(item => item.id === entry.id));
+    const removeChangelog = await fetch(`http://127.0.0.1:${address.port}/api/admin/changelog/${entry.id}`, {
+      method: 'DELETE', headers: { authorization: `Bearer ${session.token}` }
+    });
+    assert.equal(removeChangelog.status, 200);
 
     const customerSession = createSession(owner.id, 'user');
     const missingCurrentPassword = await fetch(`http://127.0.0.1:${address.port}/api/users/me/password`, {

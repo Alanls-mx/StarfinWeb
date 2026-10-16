@@ -1,4 +1,4 @@
-import { Edit2, PackagePlus, Search, User, X, Trash2, Plus } from 'lucide-react';
+import { Edit2, PackagePlus, Search, User, X, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
 import {
@@ -8,7 +8,6 @@ import {
   adminListUserPlugins,
   adminRemovePluginFromUser,
   createAdminUser,
-  deleteAdminUser,
   getAdminUsers,
   updateAdminUser,
   type AdminUserPluginAssignment,
@@ -55,6 +54,7 @@ export function AdminUsersPage() {
   const [userPlugins, setUserPlugins] = useState<AdminUserPluginAssignment[]>([]);
   const [pluginsLoading, setPluginsLoading] = useState(false);
   const [assignPluginId, setAssignPluginId] = useState('');
+  const [grantReason, setGrantReason] = useState('');
   const [assigningPlugin, setAssigningPlugin] = useState(false);
 
   useEffect(() => {
@@ -139,22 +139,11 @@ export function AdminUsersPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!token || !window.confirm('Tem certeza que deseja excluir este usuário?')) return;
-    try {
-      await deleteAdminUser(token, id);
-      setUsers(prev => prev.filter(u => u.id !== id));
-      toast.success('Usuário excluído com sucesso!');
-    } catch (e) {
-      console.error(e);
-      toast.error('Erro ao excluir usuário.');
-    }
-  };
-
   const openPluginManager = async (user: UserProfile) => {
     if (!token) return;
     setManagingUser(user);
     setAssignPluginId('');
+    setGrantReason('');
     setPluginsLoading(true);
     try {
       const payload = await adminListUserPlugins(token, user.id);
@@ -175,14 +164,16 @@ export function AdminUsersPage() {
       return;
     }
 
+    if (grantReason.trim().length < 10) { toast.error('Descreva a justificativa da concessão manual.'); return; }
     setAssigningPlugin(true);
     try {
-      const payload = await adminAssignPluginToUser(token, managingUser.id, pluginId);
+      const payload = await adminAssignPluginToUser(token, managingUser.id, pluginId, grantReason.trim());
       setUserPlugins((prev) => {
         const exists = prev.some((p) => p.pluginId === payload.item.pluginId);
         return exists ? prev.map((p) => (p.pluginId === payload.item.pluginId ? payload.item : p)) : [payload.item, ...prev];
       });
       setAssignPluginId('');
+      setGrantReason('');
       toast.success('Plugin atribuído com sucesso!');
     } catch (error) {
       console.error(error);
@@ -194,9 +185,11 @@ export function AdminUsersPage() {
 
   const handleRemovePlugin = async (pluginId: number) => {
     if (!token || !managingUser) return;
-    if (!window.confirm('Remover este plugin do usuário?')) return;
+    const reason = window.prompt('Justificativa para revogar a concessão manual (mínimo 10 caracteres):');
+    if (!reason) return;
+    if (reason.trim().length < 10) { toast.error('A justificativa precisa ter pelo menos 10 caracteres.'); return; }
     try {
-      await adminRemovePluginFromUser(token, managingUser.id, pluginId);
+      await adminRemovePluginFromUser(token, managingUser.id, pluginId, reason.trim());
       setUserPlugins((prev) => prev.filter((p) => p.pluginId !== pluginId));
       toast.success('Plugin removido com sucesso!');
     } catch (error) {
@@ -319,12 +312,6 @@ export function AdminUsersPage() {
                           className="p-2 text-gray-400 hover:text-[#A6F3C8] hover:bg-[#177F58]/10 rounded-lg transition-all"
                         >
                           <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(user.id)}
-                          className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -583,6 +570,9 @@ export function AdminUsersPage() {
                     {assigningPlugin ? 'Atribuindo...' : 'Atribuir plugin'}
                   </button>
                 </div>
+                <label className="block text-sm text-gray-300">Justificativa da concessão manual
+                  <textarea value={grantReason} onChange={(event) => setGrantReason(event.target.value)} minLength={10} maxLength={500} placeholder="Explique a cortesia ou correção autorizada" className="mt-2 w-full rounded-xl border border-[#177F58]/30 bg-[#0B1715] p-3 text-white" />
+                </label>
 
                 <div className="bg-[#0B1715]/60 border border-[#177F58]/10 rounded-xl overflow-hidden">
                   <div className="px-4 py-3 border-b border-[#177F58]/10 text-sm text-gray-400">
@@ -599,16 +589,16 @@ export function AdminUsersPage() {
                           <div>
                             <div className="text-sm text-white font-medium">{item.pluginName}</div>
                             <div className="text-[11px] text-gray-500">
-                              Licença: {item.licenseKey || 'Pendente'} • Status: {item.status}
+                              Licença: {item.licenseKey || 'Pendente'} • {item.grantSource === 'admin_grant' ? 'Concessão manual' : 'Compra'} • Status: {item.status}
                             </div>
                           </div>
-                          <button
+                          {item.grantSource === 'admin_grant' && <button
                             type="button"
                             onClick={() => handleRemovePlugin(item.pluginId)}
                             className="px-3 py-2 text-xs bg-red-500/10 border border-red-500/20 text-red-300 rounded-lg hover:bg-red-500/20 transition-all"
                           >
                             Remover
-                          </button>
+                          </button>}
                         </div>
                       ))}
                     </div>

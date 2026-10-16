@@ -4,6 +4,15 @@
 
 A identidade gamer em preto, verde e ciano foi aplicada à home, ao catálogo, à página de produto, ao acesso, à conta, às licenças e aos pedidos. A skin fornecida pelo proprietário entrou como personagem nas ilustrações e a textura original foi guardada em `public/voxel/`. Tokens, componentes e regras de uso estão em `docs/DESIGN_SYSTEM.md`. As demais páginas públicas e administrativas receberam a paleta revisada; seus fluxos profundos continuam sujeitos à revisão descrita nas próximas fases. Esta atualização foi preparada na `main` sem nova implantação na VPS.
 
+## Operação administrativa e publicação autorizada em 15/10/2026
+
+- Changelog administrativo agora grava criação, alteração e remoção no PostgreSQL.
+- Auditoria administrativa persistida e consultável registra responsável, operação, recurso, data e justificativa das concessões manuais sem expor a chave completa.
+- Concessão manual recebe origem própria (`admin_grant`) e justificativa; sua revogação não alcança compras pagas. Registros anteriores sem origem explícita são tratados conservadoramente como pagamentos e não podem ser revogados por esta ação.
+- O endpoint administrativo de licenças mascara as chaves. A exclusão definitiva de usuários foi bloqueada para preservar histórico de pedidos; suspensão e reativação permanecem na edição da conta.
+- Newsletter retorna contagem real de entregas e falhas do SMTP em vez de anunciar sucesso antes do envio. Rotas administrativas que retornavam sucesso sem executar ação foram removidas.
+- A verificação de integração deve ocorrer em base PostgreSQL isolada antes do deploy. SMTP e Mercado Pago continuam dependentes da configuração manual do proprietário; não declarar compra ou e-mail real homologado sem credenciais e ensaio apropriado.
+
 Atualizado em 15/10/2026. A implementação descrita abaixo foi publicada na `main` e implantada na VPS no commit `0ffda33`.
 
 ## Mapa auditado

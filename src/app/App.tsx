@@ -49,6 +49,7 @@ import { AdminSettingsPage } from './pages/admin/AdminSettingsPage';
 import { AdminReviewsPage } from './pages/admin/AdminReviewsPage';
 import { AdminContentPage } from './pages/admin/AdminContentPage';
 import { AdminRafflesPage } from './pages/admin/AdminRafflesPage';
+import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 
 import { getPublicSettings } from './lib/api';
 import { CartProvider } from './lib/cart';
@@ -145,6 +146,7 @@ export default function App() {
                 <Route path="reviews" element={<AdminReviewsPage />} />
                 <Route path="content" element={<AdminContentPage />} />
                 <Route path="settings" element={<AdminSettingsPage />} />
+                <Route path="audit" element={<AdminAuditPage />} />
               </Route>
 
               <Route path="*" element={<HomePage />} />

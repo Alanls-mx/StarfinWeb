@@ -30,7 +30,8 @@ const groups = [
     { to: '/admin/integrations', label: 'Integrações', icon: Link2 },
     { to: '/admin/smtp', label: 'E-mail', icon: Mail },
     { to: '/admin/status', label: 'Status', icon: Activity },
-    { to: '/admin/settings', label: 'Configurações', icon: Settings }
+    { to: '/admin/settings', label: 'Configurações', icon: Settings },
+    { to: '/admin/audit', label: 'Auditoria', icon: ScrollText }
   ] }
 ];
 

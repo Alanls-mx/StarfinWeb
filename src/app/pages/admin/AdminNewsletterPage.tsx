@@ -35,10 +35,10 @@ export function AdminNewsletterPage() {
 
     setSending(true);
     try {
-      await adminSendNewsletter(token, { subject, body });
-      toast.success('Newsletter enviada com sucesso!');
-      setSubject('');
-      setBody('');
+      const result = await adminSendNewsletter(token, { subject, body });
+      if (result.delivered > 0) toast.success(`${result.delivered} mensagem(ns) entregue(s) ao servidor SMTP.`);
+      if (result.failed > 0) toast.error(`${result.failed} mensagem(ns) não enviada(s). Confira SMTP e a caixa de saída.`);
+      if (result.ok) { setSubject(''); setBody(''); }
     } catch (e) {
       console.error(e);
       toast.error('Erro ao enviar newsletter.');

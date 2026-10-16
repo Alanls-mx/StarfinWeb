@@ -109,7 +109,7 @@ export function AdminPurchasesPage() {
                       <div className="text-xs text-[#A6F3C8]">Plugin #{item.pluginId}</div>
                     </td>
                     <td className="p-4">
-                      <code className="text-xs text-gray-400 bg-[#0B1715] px-2 py-1 rounded">{item.licenseKey ? `•••• ${item.licenseKey.slice(-4)}` : '---'}</code>
+                      <code className="text-xs text-gray-400 bg-[#0B1715] px-2 py-1 rounded">{item.licenseKey || '---'}</code>
                     </td>
                     <td className="p-4">
                       <div className="text-xs text-gray-400">{item.allowedIp || 'Não vinculado'}</div>

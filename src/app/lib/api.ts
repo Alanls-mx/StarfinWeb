@@ -698,6 +698,7 @@ export interface AdminUserPluginAssignment {
   pluginName: string;
   status: 'pending' | 'approved' | 'cancelled' | 'rejected';
   licenseKey: string | null;
+  grantSource: 'payment' | 'admin_grant';
   createdISO: string;
   updatedISO: string;
 }
@@ -706,18 +707,19 @@ export function adminListUserPlugins(token: string, userId: string) {
   return apiFetch<{ items: AdminUserPluginAssignment[] }>(`/api/admin/users/${encodeURIComponent(userId)}/plugins`, { token });
 }
 
-export function adminAssignPluginToUser(token: string, userId: string, pluginId: number) {
+export function adminAssignPluginToUser(token: string, userId: string, pluginId: number, reason: string) {
   return apiFetch<{ item: AdminUserPluginAssignment }>(`/api/admin/users/${encodeURIComponent(userId)}/plugins`, {
     method: 'POST',
     token,
-    body: JSON.stringify({ pluginId })
+    body: JSON.stringify({ pluginId, reason })
   });
 }
 
-export function adminRemovePluginFromUser(token: string, userId: string, pluginId: number) {
+export function adminRemovePluginFromUser(token: string, userId: string, pluginId: number, reason: string) {
   return apiFetch<{ ok: true; revokedCount: number }>(`/api/admin/users/${encodeURIComponent(userId)}/plugins/${encodeURIComponent(String(pluginId))}`, {
     method: 'DELETE',
-    token
+    token,
+    body: JSON.stringify({ reason })
   });
 }
 
@@ -764,6 +766,21 @@ export interface AdminPurchase extends Purchase {
 
 export function adminListPurchases(token: string) {
   return apiFetch<{ items: AdminPurchase[] }>('/api/admin/purchases', { token });
+}
+
+export interface AdminAuditEntry {
+  id: string;
+  actorUserId: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  outcome: string;
+  details: Record<string, unknown> | null;
+  createdISO: string;
+}
+
+export function adminListAudit(token: string) {
+  return apiFetch<{ items: AdminAuditEntry[] }>('/api/admin/audit?limit=200', { token });
 }
 
 export interface AdminOrder {
@@ -829,7 +846,7 @@ export function adminListNewsletterSubscribers(token: string) {
 }
 
 export function adminSendNewsletter(token: string, data: { subject: string; body: string }) {
-  return apiFetch<{ ok: true }>('/api/admin/newsletter/send', {
+  return apiFetch<{ ok: boolean; delivered: number; failed: number }>('/api/admin/newsletter/send', {
     method: 'POST',
     token,
     body: JSON.stringify(data)

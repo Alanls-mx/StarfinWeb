@@ -34,6 +34,11 @@ import {
   statusComponents,
   updateStatusComponent,
   changelog,
+  createChangelogEntry,
+  updateChangelogEntry,
+  deleteChangelogEntry,
+  recordAdminAudit,
+  listAdminAudit,
   clearNotifications,
   deleteNotification,
   addNotification,
@@ -317,6 +322,12 @@ function hasValidAuthHeader(req: express.Request): boolean {
 const isAdmin = (req: express.Request): boolean => {
   return getAuthContext(req)?.role === 'admin';
 };
+
+function auditAdmin(req: express.Request, action: string, resourceType: string, resourceId: string, details: Record<string, unknown> | null = null) {
+  const actorUserId = getAuthContext(req)?.userId;
+  if (!actorUserId) return;
+  recordAdminAudit({ actorUserId, action, resourceType, resourceId, outcome: 'success', details });
+}
 
 // Multer config for file uploads
 const __filename = fileURLToPath(import.meta.url);
@@ -2609,6 +2620,7 @@ app.post('/api/admin/plugins', (req, res) => {
     rating: 0,
     downloadsDisplay: '0'
   });
+  auditAdmin(req, 'plugin.create', 'plugin', String(detail.id));
 
   // Notify newsletter subscribers about the new plugin
   const settings = getAdminSettings();
@@ -2672,6 +2684,7 @@ app.put('/api/admin/plugins/:id', (req, res) => {
     res.status(404).json({ error: 'plugin não encontrado' });
     return;
   }
+  auditAdmin(req, 'plugin.update', 'plugin', String(id), { fields: Object.keys(body) });
   res.json(next);
 });
 
@@ -2690,6 +2703,7 @@ app.delete('/api/admin/plugins/:id', (req, res) => {
     res.status(404).json({ error: 'plugin não encontrado' });
     return;
   }
+  auditAdmin(req, 'plugin.delete', 'plugin', String(id));
   res.json({ ok: true });
 });
 
@@ -2874,22 +2888,6 @@ app.put('/api/admin/support/tickets/:id', async (req, res) => {
   res.json({ ok: true, ticket });
 });
 
-app.patch('/api/admin/reviews', (req, res) => {
-  if (!isAdmin(req)) {
-    res.status(403).json({ error: 'admin token requerido' });
-    return;
-  }
-  res.json({ success: true });
-});
-
-app.delete('/api/admin/reviews', (req, res) => {
-  if (!isAdmin(req)) {
-    res.status(403).json({ error: 'admin token requerido' });
-    return;
-  }
-  res.json({ success: true });
-});
-
 // Server Management
 app.get('/api/users/me/servers', (req, res) => {
   if (!hasValidAuthHeader(req)) return res.status(401).json({ error: 'não autorizado' });
@@ -2974,19 +2972,6 @@ app.get('/api/docs', (_req, res) => {
   res.json({ items: docsSections, integration: integrationConfig });
 });
 
-app.post('/api/auth/resend-verification', (req, res) => {
-  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  if (!email) return res.status(400).json({ error: 'email requerido' });
-  
-  const user = findUserByEmail(email);
-  if (!user) return res.status(404).json({ error: 'usuário não encontrado' });
-  
-  if (user.verified) return res.status(400).json({ error: 'usuário já verificado' });
-  
-  // Simulation: just return ok
-  res.json({ ok: true, message: 'email de verificação reenviado' });
-});
-
 app.get('/api/admin/stats', (req, res) => {
   if (!isAdmin(req)) {
     res.status(403).json({ error: 'admin token requerido' });
@@ -3026,7 +3011,7 @@ app.get('/api/admin/stats', (req, res) => {
 
   const salesByPlugin = new Map<number, number>();
   for (const purchase of allPurchases) {
-    if (normalizeStatus(purchase.status) !== 'approved') continue;
+    if (normalizeStatus(purchase.status) !== 'approved' || purchase.grantSource === 'admin_grant') continue;
     salesByPlugin.set(purchase.pluginId, (salesByPlugin.get(purchase.pluginId) || 0) + 1);
   }
 
@@ -3069,7 +3054,7 @@ app.get('/api/admin/stats', (req, res) => {
     closed: allTickets.filter((t) => t.status === 'closed').length
   };
 
-  const pluginsWithSales = new Set(allPurchases.filter((p) => normalizeStatus(p.status) === 'approved').map((p) => p.pluginId)).size;
+  const pluginsWithSales = new Set(allPurchases.filter((p) => normalizeStatus(p.status) === 'approved' && p.grantSource !== 'admin_grant').map((p) => p.pluginId)).size;
 
   res.json({
     topPlugins,
@@ -3088,6 +3073,12 @@ app.get('/api/admin/stats', (req, res) => {
   });
 });
 
+app.get('/api/admin/audit', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const limit = Number(req.query.limit) || 100;
+  res.json({ items: listAdminAudit(limit) });
+});
+
 app.get('/api/admin/users', (req, res) => {
   if (!isAdmin(req)) {
     res.status(403).json({ error: 'admin token requerido' });
@@ -3102,7 +3093,9 @@ app.post('/api/admin/users', (req, res) => {
     return;
   }
   const user = createUserAdmin(req.body ?? {});
-  res.status(201).json(user ? safeUser(user) : null);
+  if (!user) return res.status(400).json({ error: 'Não foi possível criar o usuário. Confira os dados e o e-mail.' });
+  auditAdmin(req, 'user.create', 'user', user.id);
+  res.status(201).json(safeUser(user));
 });
 
 app.get('/api/admin/users/:id', (req, res) => {
@@ -3133,6 +3126,7 @@ app.post('/api/admin/users/:id/license/hwid/reset', (req, res) => {
     res.status(500).json({ error: 'falha ao resetar HWID' });
     return;
   }
+  auditAdmin(req, 'license.global_hwid_reset', 'user', user.id);
   addNotification(
     'HWID global resetado por admin',
     `HWID global do usuÃ¡rio ${user.email} foi resetado.`,
@@ -3153,7 +3147,8 @@ function mapAdminUserPluginAssignment(purchase: any) {
     pluginId: Number(purchase.pluginId),
     pluginName: plugin?.name || `Plugin #${purchase.pluginId}`,
     status: purchase.status,
-    licenseKey: purchase.licenseKey || null,
+    licenseKey: purchase.licenseKey ? `••••${String(purchase.licenseKey).slice(-4)}` : null,
+    grantSource: purchase.grantSource || 'payment',
     createdISO: purchase.createdISO,
     updatedISO: purchase.updatedISO
   };
@@ -3206,8 +3201,12 @@ app.post('/api/admin/users/:id/plugins', (req, res) => {
     return;
   }
 
-  const reusablePurchase = userPurchases.find((p) => p.status !== 'approved');
-  const basePurchase = reusablePurchase || createPurchase(user.id, pluginId);
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length < 10 || reason.length > 500) {
+    res.status(400).json({ error: 'Informe uma justificativa de 10 a 500 caracteres para a concessão manual.' });
+    return;
+  }
+  const basePurchase = createPurchase(user.id, pluginId, 'admin_grant');
   const approved = updatePurchaseStatus(basePurchase.id, 'approved');
   if (!approved) {
     res.status(500).json({ error: 'falha ao aprovar licença' });
@@ -3224,6 +3223,8 @@ app.post('/api/admin/users/:id/plugins', (req, res) => {
       metadata: { userId: user.id, pluginId, purchaseId: approved.id }
     }
   );
+
+  auditAdmin(req, 'license.manual_grant', 'purchase', approved.id, { userId: user.id, pluginId, reason });
 
   res.status(201).json({ item: mapAdminUserPluginAssignment(approved) });
 });
@@ -3252,10 +3253,16 @@ app.delete('/api/admin/users/:id/plugins/:pluginId', (req, res) => {
   }
 
   const approvedPurchases = listAllPurchases().filter(
-    (p) => p.userId === user.id && Number(p.pluginId) === pluginId && p.status === 'approved'
+    (p) => p.userId === user.id && Number(p.pluginId) === pluginId && p.status === 'approved' && p.grantSource === 'admin_grant'
   );
   if (approvedPurchases.length === 0) {
-    res.status(404).json({ error: 'usuário não possui este plugin' });
+    res.status(409).json({ error: 'Não há concessão manual ativa para revogar. Compras pagas exigem conciliação financeira.' });
+    return;
+  }
+
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length < 10 || reason.length > 500) {
+    res.status(400).json({ error: 'Informe uma justificativa de 10 a 500 caracteres para a revogação.' });
     return;
   }
 
@@ -3276,6 +3283,8 @@ app.delete('/api/admin/users/:id/plugins/:pluginId', (req, res) => {
     }
   );
 
+  auditAdmin(req, 'license.manual_revoke', 'user', user.id, { pluginId, revokedCount, reason });
+
   res.json({ ok: true, revokedCount });
 });
 
@@ -3284,11 +3293,18 @@ app.put('/api/admin/users/:id', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  const next = updateUserAdmin(req.params.id, req.body ?? {});
+  const body = req.body ?? {};
+  const allowed = ['name', 'email', 'plan', 'planExpiresAt', 'planDurationDays', 'role', 'phone', 'banned', 'permissions', 'avatarUrl', 'bio', 'discordId', 'githubUrl', 'twitterUrl'];
+  const changes = Object.fromEntries(allowed.filter(key => Object.hasOwn(body, key)).map(key => [key, body[key]]));
+  if (req.params.id === getAuthContext(req)?.userId && (changes.banned === true || (changes.role && changes.role !== 'admin'))) {
+    return res.status(400).json({ error: 'Não é possível suspender ou rebaixar a própria conta administrativa.' });
+  }
+  const next = updateUserAdmin(req.params.id, changes);
   if (!next) {
     res.status(404).json({ error: 'usuário não encontrado' });
     return;
   }
+  auditAdmin(req, 'user.update', 'user', req.params.id, { fields: Object.keys(changes) });
   res.json(safeUser(next));
 });
 
@@ -3297,12 +3313,7 @@ app.delete('/api/admin/users/:id', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  const success = deleteUserAdmin(req.params.id);
-  if (!success) {
-    res.status(404).json({ error: 'usuário não encontrado' });
-    return;
-  }
-  res.json({ ok: true });
+  res.status(409).json({ error: 'Exclusão definitiva desabilitada para preservar pedidos e histórico. Suspenda a conta na edição do usuário.' });
 });
 
 app.get('/api/admin/smtp', (req, res) => {
@@ -3455,19 +3466,20 @@ app.post('/api/admin/newsletter/send', async (req, res) => {
     return;
   }
 
-  // Send emails in background
-  (async () => {
-    const html = EMAIL_LAYOUT(body);
-    for (const to of subscribers) {
-      try {
-        await sendEmail({ to, subject, html });
-      } catch (e) {
-        console.error(`Failed to send newsletter to ${to}:`, e);
-      }
+  const html = EMAIL_LAYOUT(body);
+  let delivered = 0;
+  let failed = 0;
+  for (const to of subscribers) {
+    try {
+      const result = await sendEmail({ to, subject, html });
+      if (result.delivered) delivered += 1;
+      else failed += 1;
+    } catch {
+      failed += 1;
     }
-  })().catch(console.error);
-
-  res.json({ ok: true });
+  }
+  auditAdmin(req, 'newsletter.send', 'newsletter', 'campaign', { delivered, failed });
+  res.json({ ok: failed === 0, delivered, failed });
 });
 
 app.get('/api/admin/integrations', (req, res) => {
@@ -3490,6 +3502,7 @@ app.put('/api/admin/integrations', (req, res) => {
   if (typeof body.docsBaseUrl === 'string') newConfig.docsBaseUrl = body.docsBaseUrl.trim();
   
   saveIntegrationConfig(newConfig);
+  auditAdmin(req, 'integration.update', 'integration', 'public_urls', { fields: Object.keys(body) });
   res.json({ ok: true });
 });
 
@@ -3498,7 +3511,10 @@ app.get('/api/admin/purchases', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  res.json({ items: listAllPurchases() });
+  res.json({ items: listAllPurchases().map(purchase => ({
+    ...purchase,
+    licenseKey: purchase.licenseKey ? `••••${purchase.licenseKey.slice(-4)}` : null
+  })) });
 });
 
 app.get('/api/admin/orders', (req, res) => {
@@ -3557,7 +3573,10 @@ app.put('/api/admin/purchases/:id', async (req, res) => {
         metadata: { purchaseId: purchase.id, userId: purchase.userId, resetHwid: body.resetHwid === true }
       });
   }
-  res.json({ ok: true, purchase });
+  auditAdmin(req, 'license.installation_update', 'purchase', purchase.id, {
+    allowedIpChanged: body.allowedIp !== undefined, resetHwid: body.resetHwid === true
+  });
+  res.json({ ok: true, purchase: { ...purchase, licenseKey: purchase.licenseKey ? `••••${purchase.licenseKey.slice(-4)}` : null } });
 });
 
 app.put('/api/admin/status/:id', (req, res) => {
@@ -3589,8 +3608,8 @@ app.post('/api/admin/changelog', (req, res) => {
     res.status(400).json({ error: 'version, title e body são obrigatórios' });
     return;
   }
-  const item = { id: `cl_${Date.now()}`, version, title, body, createdISO: new Date().toISOString() };
-  changelog.unshift(item);
+  const item = createChangelogEntry({ version, title, body });
+  auditAdmin(req, 'changelog.create', 'changelog', item.id);
   res.status(201).json(item);
 });
 
@@ -3599,16 +3618,16 @@ app.put('/api/admin/changelog/:id', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  const id = req.params.id;
-  const idx = changelog.findIndex((c) => c.id === id);
-  if (idx === -1) {
-    res.status(404).json({ error: 'changelog não encontrado' });
-    return;
-  }
-  if (typeof req.body?.version === 'string') changelog[idx].version = req.body.version.trim();
-  if (typeof req.body?.title === 'string') changelog[idx].title = req.body.title.trim();
-  if (typeof req.body?.body === 'string') changelog[idx].body = req.body.body.trim();
-  res.json({ ok: true, item: changelog[idx] });
+  const current = changelog.find(entry => entry.id === req.params.id);
+  if (!current) return res.status(404).json({ error: 'changelog não encontrado' });
+  const version = typeof req.body?.version === 'string' ? req.body.version.trim() : current.version;
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : current.title;
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : current.body;
+  if (!version || !title || !body) return res.status(400).json({ error: 'version, title e body são obrigatórios' });
+  const item = updateChangelogEntry(req.params.id, { version, title, body });
+  if (!item) return res.status(404).json({ error: 'changelog não encontrado' });
+  auditAdmin(req, 'changelog.update', 'changelog', item.id);
+  res.json({ ok: true, item });
 });
 
 app.delete('/api/admin/changelog/:id', (req, res) => {
@@ -3616,13 +3635,8 @@ app.delete('/api/admin/changelog/:id', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  const id = req.params.id;
-  const idx = changelog.findIndex((c) => c.id === id);
-  if (idx === -1) {
-    res.status(404).json({ error: 'changelog não encontrado' });
-    return;
-  }
-  changelog.splice(idx, 1);
+  if (!deleteChangelogEntry(req.params.id)) return res.status(404).json({ error: 'changelog não encontrado' });
+  auditAdmin(req, 'changelog.delete', 'changelog', req.params.id);
   res.json({ ok: true });
 });
 
