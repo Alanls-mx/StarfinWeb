@@ -20,7 +20,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>(() => {
     const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-    return { status: 'loading', token, user: null };
+    return token
+      ? { status: 'loading', token, user: null }
+      : { status: 'anonymous', token: null, user: null };
   });
 
   const refresh = useCallback(async () => {

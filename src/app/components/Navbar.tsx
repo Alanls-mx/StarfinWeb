@@ -45,15 +45,19 @@ export function Navbar() {
             <ShoppingBag size={19} />
             {count > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#85ed65] px-1 text-[10px] font-semibold text-[#102014]">{count}</span>}
           </button>
-          {state.status === 'authenticated' ? (
-            <div className="hidden items-center gap-3 sm:flex">
+          {state.status === 'loading' ? (
+            <div role="status" aria-label="Verificando sessão" className="hidden w-[210px] items-center justify-end sm:flex">
+              <span className="h-10 w-36 animate-pulse rounded-lg border border-white/15 bg-white/[.08]" />
+            </div>
+          ) : state.status === 'authenticated' ? (
+            <div className="hidden w-[210px] items-center justify-end gap-3 sm:flex">
               <Link to="/account" className="inline-flex items-center gap-2 rounded-lg border border-[#75b69a] px-3 py-2.5 text-xs font-semibold text-white hover:bg-white/[.1]">
                 <UserRound size={15}/><span className="max-w-28 truncate">{state.user.name}</span>
               </Link>
               <button type="button" onClick={logout} className="text-xs text-[#bed2c6] hover:text-white">Sair</button>
             </div>
           ) : (
-            <Link to="/login" className="hidden items-center gap-2 rounded-lg bg-[#85ed65] px-4 py-2.5 text-xs font-extrabold text-[#112516] hover:bg-[#aaf394] sm:inline-flex">Entrar <ArrowRight size={14}/></Link>
+            <div className="hidden w-[210px] justify-end sm:flex"><Link to="/login" className="inline-flex items-center gap-2 rounded-lg bg-[#85ed65] px-4 py-2.5 text-xs font-extrabold text-[#112516] hover:bg-[#aaf394]">Entrar <ArrowRight size={14}/></Link></div>
           )}
           <button type="button" onClick={() => setMobileOpen((open) => !open)} aria-expanded={mobileOpen} aria-controls="starfin-mobile-nav" aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'} className="rounded-lg p-2.5 text-white hover:bg-white/[.07] lg:hidden">
             {mobileOpen ? <X size={20}/> : <Menu size={20}/>}
@@ -66,9 +70,13 @@ export function Navbar() {
             {links.map((item) => (
               <NavLink key={item.href} to={item.href} onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-3 text-sm text-[#d0e7d8] hover:bg-white/[.08]">{item.label}</NavLink>
             ))}
-            <Link to={state.status === 'authenticated' ? '/account' : '/login'} onClick={() => setMobileOpen(false)} className="mt-2 rounded-lg bg-[#85ed65] px-3 py-3 text-sm font-extrabold text-[#112516]">
-              {state.status === 'authenticated' ? 'Minha conta' : 'Entrar ou criar conta'}
-            </Link>
+            {state.status === 'loading' ? (
+              <span role="status" className="mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-3 text-sm text-[#bed2c6]">Verificando sessão...</span>
+            ) : (
+              <Link to={state.status === 'authenticated' ? '/account' : '/login'} onClick={() => setMobileOpen(false)} className="mt-2 rounded-lg bg-[#85ed65] px-3 py-3 text-sm font-extrabold text-[#112516]">
+                {state.status === 'authenticated' ? 'Minha conta' : 'Entrar ou criar conta'}
+              </Link>
+            )}
             {state.status === 'authenticated' && <button type="button" className="px-3 py-2 text-left text-sm text-[#aeb6c4]" onClick={() => { logout(); setMobileOpen(false); }}>Sair</button>}
           </div>
         </nav>
