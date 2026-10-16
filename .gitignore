@@ -12,4 +12,5 @@ Thumbs.db
 server.db
 prisma/dev.db
 public/uploads/
+private/
 pnpm-lock.yaml

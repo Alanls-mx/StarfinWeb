@@ -1,7 +1,8 @@
 import { Bell, Plus, Search, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { adminCreateNotification, adminDeleteNotification, adminListNotifications, type AdminNotification } from '../../lib/api';
+import { adminCreateNotification, adminDeleteNotification, adminListNotifications, adminSendUserNotification, type AdminNotification } from '../../lib/api';
+import { toast } from 'sonner';
 import { useAuth } from '../../lib/auth';
 
 const typeLabel: Record<AdminNotification['type'], string> = {
@@ -37,6 +38,7 @@ export function AdminNotificationsPage() {
     message: ''
   });
   const [saving, setSaving] = useState(false);
+  const [recipientId, setRecipientId] = useState('');
 
   useEffect(() => {
     if (!token) return;
@@ -57,6 +59,14 @@ export function AdminNotificationsPage() {
     if (!token) return;
     setSaving(true);
     try {
+      if (recipientId.trim()) {
+        await adminSendUserNotification(token, recipientId.trim(), newNotification.title, newNotification.message);
+        toast.success('Notificação enviada à caixa pessoal.');
+        setIsCreating(false);
+        setNewNotification({ title: '', message: '' });
+        setRecipientId('');
+        return;
+      }
       const created = await adminCreateNotification(token, {
         title: newNotification.title,
         message: newNotification.message,
@@ -67,7 +77,7 @@ export function AdminNotificationsPage() {
       setIsCreating(false);
       setNewNotification({ title: '', message: '' });
     } catch (err) {
-      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Falha ao salvar notificação.');
     } finally {
       setSaving(false);
     }
@@ -189,6 +199,7 @@ export function AdminNotificationsPage() {
               </div>
 
               <form onSubmit={handleCreate} className="p-6 space-y-4">
+                <div><label className="block text-sm text-gray-400 mb-2">ID do destinatário (opcional)</label><input value={recipientId} onChange={e => setRecipientId(e.target.value)} className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white" placeholder="Informe para enviar à caixa pessoal" /><p className="mt-1 text-xs text-gray-500">Sem destinatário, o registro fica apenas no painel administrativo.</p></div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Título</label>
                   <input

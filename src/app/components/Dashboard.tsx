@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { getMyLicenses, resendVerification, getMySettings, updateMyProfile, updateMyPassword, getMyNotifications, getPluginConfig, listMyServers, createServer, updateServer, deleteServer, assignPluginToServer, unassignPluginFromServer, getPlans, type PurchasedPlugin, type ServerRecord } from '../lib/api';
+import { getMyLicenses, resendVerification, getMySettings, updateMyProfile, updateMyPassword, getMyNotifications, readAllNotifications, getPluginConfig, listMyServers, createServer, updateServer, deleteServer, assignPluginToServer, unassignPluginFromServer, getPlans, type PurchasedPlugin, type ServerRecord } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { AccountPluginFiles } from './AccountPluginFiles';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -494,10 +495,7 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-card p-6">
-              <h2 className="text-xl font-semibold">Arquivos dos plugins</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Os arquivos ainda não estão disponíveis para download nesta plataforma. As licenças compradas aparecem acima.</p>
-            </div>
+            {token && <AccountPluginFiles token={token} licenses={licenses} />}
           </div>
 
           {/* Sidebar */}
@@ -802,10 +800,11 @@ export function Dashboard() {
 
                     {activeModal === 'notifications' && modalData && (
                       <div className="space-y-3">
+                        {modalData.some((n: any) => !n.readISO) && <button type="button" onClick={async () => { if (!token) return; try { await readAllNotifications(token); setModalData(await getMyNotifications(token)); } catch { toast.error('Falha ao marcar notificações como lidas.'); } }} className="text-sm font-semibold text-[#A6F3C8] hover:underline">Marcar todas como lidas</button>}
                         {modalData.map((n: any) => (
                           <div key={n.id} className="p-4 bg-[#0B1715] rounded-xl border border-[#177F58]/10">
                             <div className="flex items-center gap-3 mb-1">
-                              <div className="w-2 h-2 rounded-full bg-[#177F58]"></div>
+                              <div className={`w-2 h-2 rounded-full ${n.readISO ? 'bg-gray-600' : 'bg-[#177F58]'}`}></div>
                               <div className="text-white font-medium">{n.title}</div>
                             </div>
                             <div className="text-sm text-gray-400 ml-5">{n.message}</div>

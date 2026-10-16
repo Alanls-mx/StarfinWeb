@@ -1,5 +1,13 @@
 # Reformulação StarfinWeb — acompanhamento
 
+## Versões privadas e notificações pessoais — 15/10/2026
+
+- O painel de plugins permite enviar JAR de até 50 MB como rascunho, publicar, retirar e excluir rascunhos. O PostgreSQL guarda versão, compatibilidade, tamanho, SHA-256 e histórico; os arquivos ficam em `STARFIN_PRIVATE_RELEASES_DIR` fora de `public` e `dist`.
+- A conta lista apenas versões publicadas dos produtos com licença ativa. Cada download exige sessão e verifica a licença novamente; não há URL pública permanente. Nenhum JAR real foi fornecido, então nenhum lançamento foi criado.
+- A caixa pessoal agora persiste mensagens por destinatário, permite marcar como lidas e separa esses dados das notificações globais do painel. O administrador pode enviar uma mensagem ao ID de um cliente e a ação fica na auditoria.
+- Um teste HTTP novo cobre ausência de sessão, ausência/revogação de licença, rascunho, publicação, bytes do download e isolamento das notificações.
+- SMTP e Mercado Pago continuam aguardando configuração manual do proprietário. Pagamentos e e-mails reais seguem sem homologação.
+
 ## Atualização visual de 15/10/2026
 
 A identidade gamer em preto, verde e ciano foi aplicada à home, ao catálogo, à página de produto, ao acesso, à conta, às licenças e aos pedidos. A skin fornecida pelo proprietário entrou como personagem nas ilustrações e a textura original foi guardada em `public/voxel/`. Tokens, componentes e regras de uso estão em `docs/DESIGN_SYSTEM.md`. As demais páginas públicas e administrativas receberam a paleta revisada; seus fluxos profundos continuam sujeitos à revisão descrita nas próximas fases. Esta atualização foi preparada na `main` sem nova implantação na VPS.

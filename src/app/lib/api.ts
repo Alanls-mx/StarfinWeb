@@ -170,7 +170,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const headers = new Headers(init?.headers);
   headers.set('Accept', 'application/json');
-  if (!headers.has('Content-Type') && init?.body) {
+  if (!headers.has('Content-Type') && init?.body && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
   if (init?.token) {
@@ -479,6 +479,56 @@ export function adminUpdatePlugin(token: string, id: number, input: Partial<Plug
 
 export function adminDeletePlugin(token: string, id: number) {
   return apiFetch<{ ok: true }>(`/api/admin/plugins/${id}`, { method: 'DELETE', token });
+}
+
+export interface PluginRelease {
+  id: string;
+  pluginId: number;
+  version: string;
+  mcVersion: string;
+  notes: string | null;
+  originalName: string;
+  sha256: string;
+  sizeBytes: number;
+  published: boolean;
+  createdISO: string;
+}
+
+export function adminListPluginReleases(token: string, pluginId: number) {
+  return apiFetch<{ items: PluginRelease[] }>(`/api/admin/plugins/${pluginId}/releases`, { token });
+}
+
+export function adminUploadPluginRelease(token: string, pluginId: number, input: { version: string; mcVersion: string; notes: string; file: File }) {
+  const body = new FormData();
+  body.set('version', input.version);
+  body.set('mcVersion', input.mcVersion);
+  body.set('notes', input.notes);
+  body.set('file', input.file);
+  return apiFetch<{ item: PluginRelease }>(`/api/admin/plugins/${pluginId}/releases`, { method: 'POST', token, body });
+}
+
+export function adminPublishPluginRelease(token: string, id: string, published: boolean) {
+  return apiFetch<{ item: PluginRelease }>(`/api/admin/releases/${encodeURIComponent(id)}`, { method: 'PATCH', token, body: JSON.stringify({ published }) });
+}
+
+export function adminDeletePluginRelease(token: string, id: string) {
+  return apiFetch<{ ok: true }>(`/api/admin/releases/${encodeURIComponent(id)}`, { method: 'DELETE', token });
+}
+
+export function getMyPluginReleases(token: string, pluginId: number) {
+  return apiFetch<{ items: PluginRelease[] }>(`/api/users/me/plugins/${pluginId}/releases`, { token });
+}
+
+export async function downloadMyPluginRelease(token: string, release: PluginRelease) {
+  const response = await fetch(`/api/users/me/releases/${encodeURIComponent(release.id)}/download`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+  if (!response.ok) throw new Error(response.status === 403 ? 'Licença ativa necessária.' : 'Arquivo indisponível.');
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = release.originalName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export function adminListCategories(token: string) {
@@ -1110,7 +1160,21 @@ export function updateMyPassword(token: string, data: { currentPassword?: string
 }
 
 export function getMyNotifications(token: string) {
-  return apiFetch<any[]>('/api/users/me/notifications', { token });
+  return apiFetch<UserNotification[]>('/api/users/me/notifications', { token });
+}
+
+export interface UserNotification {
+  id: string;
+  title: string;
+  message: string;
+  createdISO: string;
+  readISO: string | null;
+}
+
+export function adminSendUserNotification(token: string, userId: string, title: string, message: string) {
+  return apiFetch<{ item: UserNotification }>(`/api/admin/users/${encodeURIComponent(userId)}/notifications`, {
+    method: 'POST', token, body: JSON.stringify({ title, message })
+  });
 }
 
 export function readAllNotifications(token: string) {

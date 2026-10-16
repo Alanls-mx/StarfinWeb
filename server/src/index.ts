@@ -2,7 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
 import net from 'net';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -24,8 +24,17 @@ import {
   findUserById,
   getPluginDetail,
   getLicensesForUser,
+  listPluginReleases,
+  findPluginRelease,
+  createPluginRelease,
+  setPluginReleasePublished,
+  deletePluginRelease,
+  userOwnsPlugin,
   integrationConfig,
   notifications,
+  listUserNotifications,
+  createUserNotification,
+  readAllUserNotifications,
   outbox,
   randomToken,
   saveSmtpConfig,
@@ -338,6 +347,14 @@ function auditAdmin(req: express.Request, action: string, resourceType: string, 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadsDir = path.join(__dirname, '..', '..', 'public', 'uploads');
+const privateReleasesDir = process.env.STARFIN_PRIVATE_RELEASES_DIR || path.join(process.cwd(), 'private', 'releases');
+const releaseUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+function publicRelease(release: ReturnType<typeof findPluginRelease>) {
+  if (!release) return null;
+  const { fileName: _fileName, ...metadata } = release;
+  return metadata;
+}
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -1094,6 +1111,31 @@ app.get('/api/users/me/licenses', (req, res) => {
   });
 });
 
+app.get('/api/users/me/plugins/:id/releases', (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  const pluginId = Number(req.params.id);
+  if (!Number.isSafeInteger(pluginId) || !userOwnsPlugin(ctx.userId, pluginId)) {
+    return res.status(403).json({ error: 'licença ativa necessária' });
+  }
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ items: listPluginReleases(pluginId).map(publicRelease) });
+});
+
+app.get('/api/users/me/releases/:id/download', (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  const release = findPluginRelease(req.params.id);
+  if (!release || !release.published) return res.status(404).json({ error: 'versão não encontrada' });
+  if (!userOwnsPlugin(ctx.userId, release.pluginId)) {
+    return res.status(403).json({ error: 'licença ativa necessária' });
+  }
+  const filePath = path.join(privateReleasesDir, release.fileName);
+  if (!fs.existsSync(filePath)) return res.status(503).json({ error: 'arquivo temporariamente indisponível' });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.download(filePath, release.originalName);
+});
+
 app.get('/api/users/me/settings', (req, res) => {
   if (!hasValidAuthHeader(req)) {
     res.status(401).json({ error: 'não autorizado' });
@@ -1173,9 +1215,8 @@ app.get('/api/users/me/notifications', (req, res) => {
     res.status(401).json({ error: 'não autorizado' });
     return;
   }
-  // Global administrative notifications have no recipient and must never be
-  // disclosed as personal inbox items.
-  res.json([]);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json(listUserNotifications(getAuthContext(req)!.userId));
 });
 
 app.get('/api/users/me/payments', (req, res) => {
@@ -1505,6 +1546,20 @@ app.post('/api/admin/notifications', (req, res) => {
       : 'normal';
   const source = typeof req.body?.source === 'string' ? req.body.source.trim() : null;
   const item = addNotification(title, message, { type, priority, source });
+  res.status(201).json({ item });
+});
+
+app.post('/api/admin/users/:id/notifications', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const user = findUserById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'usuário não encontrado' });
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!title || title.length > 255 || !message || message.length > 4000) {
+    return res.status(400).json({ error: 'título ou mensagem inválidos' });
+  }
+  const item = createUserNotification(user.id, title, message);
+  auditAdmin(req, 'notification.send', 'user', user.id, { notificationId: item.id });
   res.status(201).json({ item });
 });
 
@@ -2575,6 +2630,82 @@ app.post('/api/plugins/:id/reviews', (req, res) => {
 });
 
 // Admin routes
+app.get('/api/admin/plugins/:id/releases', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const pluginId = Number(req.params.id);
+  if (!Number.isSafeInteger(pluginId) || !getPluginDetail(pluginId)) return res.status(404).json({ error: 'produto não encontrado' });
+  res.json({ items: listPluginReleases(pluginId, true).map(publicRelease) });
+});
+
+app.post('/api/admin/plugins/:id/releases', (req, res, next) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  releaseUpload.single('file')(req, res, next);
+}, (req, res) => {
+  const pluginId = Number(req.params.id);
+  if (!Number.isSafeInteger(pluginId) || !getPluginDetail(pluginId)) return res.status(404).json({ error: 'produto não encontrado' });
+  const version = typeof req.body?.version === 'string' ? req.body.version.trim() : '';
+  const mcVersion = typeof req.body?.mcVersion === 'string' ? req.body.mcVersion.trim() : '';
+  const notes = typeof req.body?.notes === 'string' ? req.body.notes.trim() : '';
+  const file = req.file;
+  if (!/^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$/.test(version) || !/^[0-9A-Za-z.,+ _-]{1,64}$/.test(mcVersion) || notes.length > 4000 ||
+      !file || !/\.jar$/i.test(file.originalname) || file.originalname.length > 180 ||
+      file.buffer.length < 22 || file.buffer.subarray(0, 4).toString('hex') !== '504b0304' ||
+      file.buffer.lastIndexOf(Buffer.from('504b0506', 'hex')) < file.buffer.length - 65_557) {
+    return res.status(400).json({ error: 'Versão, Minecraft ou arquivo JAR inválido (máximo 50 MB).' });
+  }
+  if (listPluginReleases(pluginId, true).some(item => item.version === version)) {
+    return res.status(409).json({ error: 'versão já cadastrada' });
+  }
+  const id = `rel_${randomUUID()}`;
+  const fileName = `${id}.jar`;
+  const filePath = path.join(privateReleasesDir, fileName);
+  try {
+    fs.mkdirSync(privateReleasesDir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(filePath, file.buffer, { flag: 'wx', mode: 0o600 });
+    const item = createPluginRelease({
+      id, pluginId, version, mcVersion, notes: notes || null, fileName,
+      originalName: path.basename(file.originalname).replace(/[^0-9A-Za-z._-]/g, '_'),
+      sha256: createHash('sha256').update(file.buffer).digest('hex'),
+      sizeBytes: file.buffer.length, published: false
+    });
+    auditAdmin(req, 'release.create', 'plugin_release', id, { pluginId, version, sha256: item.sha256 });
+    res.status(201).json({ item: publicRelease(item) });
+  } catch (error) {
+    fs.rmSync(filePath, { force: true });
+    console.error('release upload failed', error);
+    res.status(500).json({ error: 'não foi possível gravar a versão' });
+  }
+});
+
+app.patch('/api/admin/releases/:id', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const release = findPluginRelease(req.params.id);
+  if (!release) return res.status(404).json({ error: 'versão não encontrada' });
+  if (typeof req.body?.published !== 'boolean') return res.status(400).json({ error: 'published deve ser booleano' });
+  if (req.body.published && !fs.existsSync(path.join(privateReleasesDir, release.fileName))) {
+    return res.status(503).json({ error: 'arquivo privado não encontrado' });
+  }
+  setPluginReleasePublished(release.id, req.body.published);
+  const latestPublished = listPluginReleases(release.pluginId)[0];
+  updatePlugin(release.pluginId, {
+    version: latestPublished?.version ?? '',
+    mcVersion: latestPublished?.mcVersion ?? getPluginDetail(release.pluginId)?.mcVersion ?? ''
+  });
+  auditAdmin(req, req.body.published ? 'release.publish' : 'release.unpublish', 'plugin_release', release.id);
+  res.json({ item: publicRelease(findPluginRelease(release.id)) });
+});
+
+app.delete('/api/admin/releases/:id', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  const release = findPluginRelease(req.params.id);
+  if (!release) return res.status(404).json({ error: 'versão não encontrada' });
+  if (release.published) return res.status(409).json({ error: 'retire a publicação antes de excluir' });
+  deletePluginRelease(release.id);
+  fs.rmSync(path.join(privateReleasesDir, release.fileName), { force: true });
+  auditAdmin(req, 'release.delete', 'plugin_release', release.id, { pluginId: release.pluginId, version: release.version });
+  res.json({ ok: true });
+});
+
 app.get('/api/admin/plugins', (req, res) => {
   if (!isAdmin(req)) {
     res.status(403).json({ error: 'admin token requerido' });
@@ -2664,7 +2795,7 @@ app.put('/api/admin/plugins/:id', (req, res) => {
     return;
   }
   const body = req.body ?? {};
-  const writable = ['name', 'description', 'category', 'licenseName', 'tags', 'mcVersion', 'imageUrl', 'priceDisplay', 'tagline', 'version', 'author', 'screenshots', 'features', 'docsSections', 'dependencies', 'platform', 'featured'];
+  const writable = ['name', 'description', 'category', 'licenseName', 'tags', 'mcVersion', 'imageUrl', 'priceDisplay', 'tagline', 'author', 'screenshots', 'features', 'docsSections', 'dependencies', 'platform', 'featured'];
   if (Object.keys(body).some(key => !writable.includes(key))) {
     res.status(400).json({ error: 'campo de produto não editável nesta operação' });
     return;
@@ -2702,6 +2833,12 @@ app.delete('/api/admin/plugins/:id', (req, res) => {
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: 'id inválido' });
     return;
+  }
+  if (listPluginReleases(id, true).length > 0) {
+    return res.status(409).json({ error: 'retire e exclua as versões antes de remover o produto' });
+  }
+  if (listAllPurchases().some(purchase => purchase.pluginId === id)) {
+    return res.status(409).json({ error: 'produto com histórico de licenças não pode ser excluído' });
   }
   const ok = deletePlugin(id);
   if (!ok) {
@@ -2962,7 +3099,8 @@ app.post('/api/users/me/notifications/read-all', (req, res) => {
     res.status(401).json({ error: 'não autorizado' });
     return;
   }
-  res.status(501).json({ error: 'Notificações pessoais ainda não estão disponíveis.' });
+  const count = readAllUserNotifications(getAuthContext(req)!.userId);
+  res.json({ success: true, count });
 });
 
 app.get('/api/status', (_req, res) => {

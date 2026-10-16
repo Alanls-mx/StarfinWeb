@@ -151,6 +151,20 @@ sqlite.exec(`
     docsSections LONGTEXT,
     reviews LONGTEXT
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CREATE TABLE IF NOT EXISTS plugin_releases (
+    id VARCHAR(191) PRIMARY KEY,
+    pluginId INTEGER NOT NULL,
+    version VARCHAR(64) NOT NULL,
+    mcVersion VARCHAR(64) NOT NULL,
+    notes LONGTEXT,
+    fileName VARCHAR(191) NOT NULL,
+    originalName VARCHAR(255) NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    sizeBytes INTEGER NOT NULL,
+    published INTEGER DEFAULT 0,
+    createdISO VARCHAR(64) NOT NULL,
+    UNIQUE (pluginId, version)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS categories (
     name VARCHAR(191) PRIMARY KEY
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -186,6 +200,14 @@ sqlite.exec(`
     source VARCHAR(128),
     metadata LONGTEXT,
     createdISO VARCHAR(64)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  CREATE TABLE IF NOT EXISTS user_notifications (
+    id VARCHAR(191) PRIMARY KEY,
+    userId VARCHAR(191) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message LONGTEXT NOT NULL,
+    createdISO VARCHAR(64) NOT NULL,
+    readISO VARCHAR(64)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   CREATE TABLE IF NOT EXISTS coupons (
     id VARCHAR(191) PRIMARY KEY,
@@ -2133,6 +2155,29 @@ export function deleteNotification(id: string) {
   syncNotifications();
 }
 
+export interface UserNotification {
+  id: string;
+  title: string;
+  message: string;
+  createdISO: string;
+  readISO: string | null;
+}
+
+export function listUserNotifications(userId: string): UserNotification[] {
+  return sqlite.prepare('SELECT id, title, message, createdISO, readISO FROM user_notifications WHERE userId = ? ORDER BY createdISO DESC LIMIT 100').all(userId) as UserNotification[];
+}
+
+export function createUserNotification(userId: string, title: string, message: string): UserNotification {
+  const id = `un_${crypto.randomUUID()}`;
+  const createdISO = new Date().toISOString();
+  sqlite.prepare('INSERT INTO user_notifications (id, userId, title, message, createdISO, readISO) VALUES (?, ?, ?, ?, ?, NULL)').run(id, userId, title, message, createdISO);
+  return { id, title, message, createdISO, readISO: null };
+}
+
+export function readAllUserNotifications(userId: string): number {
+  return sqlite.prepare('UPDATE user_notifications SET readISO = ? WHERE userId = ? AND readISO IS NULL').run(new Date().toISOString(), userId).changes;
+}
+
 export function randomToken(prefix: string) {
   return `${prefix}_${crypto.randomBytes(18).toString('base64url')}`;
 }
@@ -2699,6 +2744,58 @@ export function getLicensesForUser(userId: string): PurchasedPlugin[] {
     };
   });
   return [...base, ...derived];
+}
+
+export interface PluginRelease {
+  id: string;
+  pluginId: number;
+  version: string;
+  mcVersion: string;
+  notes: string | null;
+  fileName: string;
+  originalName: string;
+  sha256: string;
+  sizeBytes: number;
+  published: boolean;
+  createdISO: string;
+}
+
+function releaseFromRow(row: any): PluginRelease {
+  return { ...row, published: Boolean(row.published) };
+}
+
+export function listPluginReleases(pluginId: number, includeDrafts = false): PluginRelease[] {
+  const rows = sqlite.prepare(includeDrafts
+    ? 'SELECT * FROM plugin_releases WHERE pluginId = ? ORDER BY createdISO DESC'
+    : 'SELECT * FROM plugin_releases WHERE pluginId = ? AND published = 1 ORDER BY createdISO DESC'
+  ).all(pluginId) as any[];
+  return rows.map(releaseFromRow);
+}
+
+export function findPluginRelease(id: string): PluginRelease | null {
+  const row = sqlite.prepare('SELECT * FROM plugin_releases WHERE id = ?').get(id) as any;
+  return row ? releaseFromRow(row) : null;
+}
+
+export function createPluginRelease(input: Omit<PluginRelease, 'createdISO'>): PluginRelease {
+  const createdISO = new Date().toISOString();
+  sqlite.prepare('INSERT INTO plugin_releases (id, pluginId, version, mcVersion, notes, fileName, originalName, sha256, sizeBytes, published, createdISO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    input.id, input.pluginId, input.version, input.mcVersion, input.notes, input.fileName,
+    input.originalName, input.sha256, input.sizeBytes, input.published ? 1 : 0, createdISO
+  );
+  return { ...input, createdISO };
+}
+
+export function setPluginReleasePublished(id: string, published: boolean): boolean {
+  return sqlite.prepare('UPDATE plugin_releases SET published = ? WHERE id = ?').run(published ? 1 : 0, id).changes > 0;
+}
+
+export function deletePluginRelease(id: string): boolean {
+  return sqlite.prepare('DELETE FROM plugin_releases WHERE id = ?').run(id).changes > 0;
+}
+
+export function userOwnsPlugin(userId: string, pluginId: number): boolean {
+  return getLicensesForUser(userId).some(license => license.pluginId === pluginId && license.status === 'Ativo');
 }
 
 export interface Plan {

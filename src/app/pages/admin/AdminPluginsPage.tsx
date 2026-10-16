@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../lib/auth';
 import { adminCreatePlugin, adminDeletePlugin, adminListCategories, adminListPlugins, adminUpdatePlugin, getPlugin, type PluginDetail, type PluginSummary } from '../../lib/api';
+import { AdminPluginReleases } from './AdminPluginReleases';
 
 const field = 'w-full rounded-lg border border-input bg-input-background px-3 py-2.5 text-sm text-white';
 const emptyDraft = { name: '', description: '', category: '', licenseName: '', mcVersion: '', imageUrl: '', priceDisplay: '', tags: [] as Array<'Popular' | 'Novo' | 'Premium'> };
@@ -79,7 +80,7 @@ export function AdminPluginsPage() {
       const changes = {
         name: editing.name, description: editing.description, category: editing.category,
         licenseName: editing.licenseName, mcVersion: editing.mcVersion,
-        priceDisplay: editing.priceDisplay, version: editing.version, imageUrl: editing.imageUrl
+        priceDisplay: editing.priceDisplay, imageUrl: editing.imageUrl
       };
       if (await update(editing.id, changes)) setEditing(null);
     }
@@ -111,10 +112,10 @@ export function AdminPluginsPage() {
       <label className="space-y-2 text-sm">Categoria<select required className={field} value={editing.category} onChange={event => setEditing({ ...editing, category: event.target.value })}>{categories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
       <label className="space-y-2 text-sm">Minecraft<input required className={field} value={editing.mcVersion} onChange={event => setEditing({ ...editing, mcVersion: event.target.value })}/></label>
       <label className="space-y-2 text-sm">Preço exibido<input required className={field} value={editing.priceDisplay} onChange={event => setEditing({ ...editing, priceDisplay: event.target.value })}/></label>
-      <label className="space-y-2 text-sm">Versão<input className={field} value={editing.version} onChange={event => setEditing({ ...editing, version: event.target.value })}/></label>
       <label className="space-y-2 text-sm md:col-span-2">URL da imagem<input required type="url" className={field} value={editing.imageUrl} onChange={event => setEditing({ ...editing, imageUrl: event.target.value })}/></label>
       <div className="flex gap-3 md:col-span-2"><button disabled={saving} className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? 'Salvando...' : 'Salvar alterações'}</button><button type="button" onClick={() => setEditing(null)} className="rounded-lg border border-white/15 px-5 py-2.5 text-sm">Cancelar</button></div>
     </form>}
+    {editing && token && <AdminPluginReleases token={token} pluginId={editing.id} />}
     {loading ? <p role="status" className="text-sm text-muted-foreground">Carregando produtos...</p> : items.length === 0 ? <p className="rounded-xl border border-dashed border-white/15 p-12 text-center text-muted-foreground">Nenhum produto cadastrado.</p> :
       <div className="overflow-x-auto rounded-xl border border-white/10 bg-card"><table className="w-full min-w-[760px] text-left text-sm"><thead className="border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="p-4">Produto</th><th className="p-4">Licença</th><th className="p-4">Categoria</th><th className="p-4">Preço</th><th className="p-4">Destaque</th><th className="p-4">Ações</th></tr></thead><tbody className="divide-y divide-white/10">{items.map(product => <tr key={product.id}>
         <td className="p-4"><span className="font-medium text-white">{product.name}</span><span className="block text-xs text-muted-foreground">#{product.id} · {product.mcVersion}</span></td><td className="p-4 font-mono text-xs">{product.licenseName || '—'}</td><td className="p-4">{product.category}</td><td className="p-4">{product.priceDisplay}</td>
