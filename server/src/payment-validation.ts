@@ -41,7 +41,7 @@ export function verifyMercadoPagoWebhook(
   dataId: string,
   secret: string
 ): boolean {
-  if (!secret || !requestId || requestId.length > 256 || !/^\d{1,32}$/.test(dataId) || !signature) return false;
+  if (!secret || !requestId || requestId.length > 256 || !/^[a-zA-Z0-9_-]{1,128}$/.test(dataId) || !signature) return false;
   const parts = new Map(signature.split(',').map((p) => {
     const index = p.indexOf('=');
     return [p.slice(0, index).trim(), p.slice(index + 1).trim()] as const;

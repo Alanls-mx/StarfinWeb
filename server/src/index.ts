@@ -146,6 +146,9 @@ import {
 import { reconcilePayment, verifyMercadoPagoWebhook, type VerifiedPayment } from './payment-validation.js';
 import { sendEmail, testSmtp, getVerificationEmailHtml, getPasswordResetEmailHtml, getOrderConfirmationHtml, EMAIL_LAYOUT } from './email.js';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
+import { isLaunch, planSeats } from './license-policy.js';
+import { attachProvider, createSubscriptionIntent, currentSubscription, monthlyPlanPrice,
+  recordPaidInvoice, revokePaidInvoice, subscriptionByProvider, subscriptionInvoiceByPayment, suspendSubscription } from './subscriptions.js';
 import {
   assignProductWithLimit, claimInstallation, createInstallationChallenge,
   findAuthenticatedInstallation, listInstallationEvents, logInstallationEvent,
@@ -494,13 +497,69 @@ app.get('/api/public/plans', (_req, res) => {
   res.json({ items: plans.filter(p => p.active) });
 });
 
-// Do not grant paid privileges from an authenticated self-service request.
-// A subscription must be created by a verified payment/reconciliation path.
-app.post('/api/users/me/plans/subscribe', (_req, res) => {
-  res.status(403).json({
-    error: 'Assinaturas são liberadas somente após confirmação do pagamento.',
-    code: 'PAYMENT_REQUIRED'
-  });
+app.get('/api/users/me/subscription', (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  res.json({ item: currentSubscription(ctx.userId) });
+});
+
+app.post('/api/users/me/plans/subscribe', async (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  if (ctx.token === auth.demoToken) return res.status(403).json({ error: 'Conta de demonstração não pode assinar.' });
+  const planId = String(req.body?.planId || '').toLowerCase();
+  if (planId !== 'craft' && planId !== 'nexus') return res.status(400).json({ error: 'Plano inválido.' });
+  const user = findUserById(ctx.userId);
+  if (!user?.verified || user.banned) return res.status(403).json({ error: 'Verifique sua conta para assinar.' });
+  const existing = currentSubscription(ctx.userId);
+  if (existing?.status === 'authorized') return res.status(409).json({ error: 'Já existe uma assinatura ativa. Cancele-a antes de trocar de plano.' });
+  if (existing?.status === 'pending' && existing.planId === planId && existing.initPoint)
+    return res.json({ checkoutUrl: existing.initPoint, subscriptionId: existing.id });
+  const settings = getAdminSettings();
+  const { accessToken } = getMpCredentials();
+  if (!settings.mercadopagoEnabled || !accessToken)
+    return res.status(503).json({ error: 'Mercado Pago ainda não foi configurado pelo administrador.' });
+  const intent = createSubscriptionIntent(ctx.userId, planId);
+  try {
+    const response = await fetch('https://api.mercadopago.com/preapproval', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json',
+        'X-Idempotency-Key': intent.id },
+      body: JSON.stringify({ reason: `StarfinPlugins ${planId === 'craft' ? 'Craft' : 'Nexus'}`,
+        external_reference: intent.id, payer_email: user.email,
+        auto_recurring: { frequency: 1, frequency_type: 'months',
+          transaction_amount: monthlyPlanPrice[planId] / 100, currency_id: 'BRL' },
+        back_url: 'https://starfinplugins.com.br/premium', status: 'pending' }),
+      signal: AbortSignal.timeout(15000)
+    });
+    const provider = await response.json() as { id?: string; init_point?: string; message?: string };
+    if (!response.ok || !provider.id || !provider.init_point ||
+      !['www.mercadopago.com.br', 'mercadopago.com.br'].includes(new URL(provider.init_point).hostname))
+      throw new Error(provider.message || `Mercado Pago: ${response.status}`);
+    if (!attachProvider(intent.id, provider.id, provider.init_point)) throw new Error('Assinatura não pôde ser registrada.');
+    res.json({ checkoutUrl: provider.init_point, subscriptionId: intent.id });
+  } catch (error) {
+    console.error('[MercadoPago] Falha ao criar assinatura', error);
+    res.status(502).json({ error: 'Não foi possível iniciar a assinatura no Mercado Pago.' });
+  }
+});
+
+app.post('/api/users/me/subscription/cancel', async (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  const sub = currentSubscription(ctx.userId);
+  if (!sub?.providerId) return res.status(404).json({ error: 'Assinatura não encontrada.' });
+  const { accessToken } = getMpCredentials();
+  if (!accessToken) return res.status(503).json({ error: 'Mercado Pago não configurado.' });
+  try {
+    const response = await fetch(`https://api.mercadopago.com/preapproval/${encodeURIComponent(sub.providerId)}`, {
+      method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'cancelled' }), signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) return res.status(502).json({ error: 'Não foi possível cancelar no Mercado Pago.' });
+    suspendSubscription(sub.providerId, 'cancelled');
+    res.json({ ok: true });
+  } catch { res.status(502).json({ error: 'Não foi possível consultar o Mercado Pago.' }); }
 });
 
 const installationAttempts = new Map<string, { count: number; until: number }>();
@@ -556,9 +615,8 @@ app.post('/v3/installations/check', (req, res) => {
   const purchased = getLicensesForUser(owner.id).filter(item => item.status === 'Ativo');
   const purchasedIds = [...new Set(purchased.map(item => item.pluginId))];
   const assigned = new Set(listPluginsForServer(String(installation.id)));
-  const ownerPlan = listPlans().find(plan => plan.name === owner.plan && plan.active);
-  const globalAccess = owner.role === 'admin' || (Boolean(ownerPlan?.grantsAllPlugins) && (!owner.planExpiresAt || owner.planExpiresAt > stamp));
-  const catalogIds = [...new Set([...purchasedIds, ...(globalAccess ? [...assigned] : [])])];
+  const planIds = pluginSummaries.filter(plugin => owner.role === 'admin' || planSeats(owner.plan, owner.planExpiresAt, plugin.tags, isLaunch(plugin.firstPublishedISO, plugin.launchOverride), stamp) > 0).map(plugin => plugin.id);
+  const catalogIds = [...new Set([...purchasedIds, ...planIds, ...assigned])];
   const products = catalogIds.map(id => {
     const detail = getPluginDetail(id);
     const quantity = productEntitlements(owner.id, id);
@@ -571,7 +629,9 @@ app.post('/v3/installations/check', (req, res) => {
   });
   const allowed = products.filter(item => item.authorized);
   const allowedProductIds = allowed.map(item => item.productId).filter(id => /^[a-z0-9_]{2,64}$/.test(id));
-  const expiresAt = new Date(Date.now() + 45 * 60_000).toISOString();
+  const regularExpiry = new Date(Date.now() + 45 * 60_000).toISOString();
+  const expiresAt = owner.planExpiresAt && owner.planExpiresAt > stamp && planIds.length
+    ? (owner.planExpiresAt < regularExpiry ? owner.planExpiresAt : regularExpiry) : regularExpiry;
   const code = !ipMatches ? 'IP_MISMATCH' : 'AUTHORIZED';
   res.json({
     valid: ipMatches, ok: ipMatches, code, reason: ipMatches ? 'Instalação autenticada.' : 'IP observado não corresponde ao IP autorizado.',
@@ -596,6 +656,7 @@ app.get('/v3/installations/releases/:id/download', (req, res) => {
   const ips = JSON.parse(String(installation.ips || '[]')) as string[];
   const observedIp = getObservedRequestIp(req);
   if (ips.length && !ips.map(normalizeIp).includes(observedIp)) return res.status(403).json({ code: 'IP_MISMATCH' });
+  updateInstallationSync(String(installation.id), observedIp, String(installation.platform || ''), String(installation.coreVersion || ''));
   if (!installationHasSeat(owner.id, String(installation.id), release.pluginId, quantity.limit))
     return res.status(403).json({ code: 'PRODUCT_UNAUTHORIZED' });
   const filePath = path.join(privateReleasesDir, release.fileName);
@@ -1742,6 +1803,59 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
   // Webhook contents are only a hint. Always retrieve the payment from MP.
   const type = String(req.body?.type || req.query?.type || '').toLowerCase();
   const paymentId = String(req.body?.data?.id ?? req.query?.['data.id'] ?? '');
+  if (type === 'subscription_preapproval' || type === 'subscription_authorized_payment') {
+    const secret = process.env.MP_WEBHOOK_SECRET || '';
+    const signedId = String(req.query?.['data.id'] || '');
+    if (signedId !== paymentId || !verifyMercadoPagoWebhook(req.get('x-signature'),
+      req.get('x-request-id'), signedId, secret))
+      return res.status(401).json({ error: 'Assinatura do webhook inválida' });
+    const { accessToken } = getMpCredentials();
+    if (!accessToken) return res.status(503).json({ error: 'Gateway não configurado' });
+    const fetchMp = async (path: string) => {
+      const response = await fetch(`https://api.mercadopago.com${path}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(10000)
+      });
+      if (!response.ok) throw new Error(`Mercado Pago ${response.status}`);
+      return response.json() as Promise<any>;
+    };
+    try {
+      if (type === 'subscription_preapproval') {
+        const provider = await fetchMp(`/preapproval/${encodeURIComponent(paymentId)}`);
+        const sub = subscriptionByProvider(String(provider.id || ''));
+        if (sub && provider.external_reference === sub.id &&
+          ['cancelled', 'paused'].includes(String(provider.status || '').toLowerCase()))
+          suspendSubscription(sub.providerId!, String(provider.status).toLowerCase());
+        return res.sendStatus(200);
+      }
+      const invoice = await fetchMp(`/authorized_payments/${encodeURIComponent(paymentId)}`);
+      const providerId = String(invoice.preapproval_id || '');
+      const sub = subscriptionByProvider(providerId);
+      if (!sub || !sub.providerId) return res.sendStatus(200);
+      const provider = await fetchMp(`/preapproval/${encodeURIComponent(providerId)}`);
+      const providerPaymentId = String(invoice.payment?.id || '');
+      if (!/^\d{1,32}$/.test(providerPaymentId)) return res.sendStatus(200);
+      const payment = await fetchMp(`/v1/payments/${providerPaymentId}`);
+      const amountCents = Math.round(Number(payment.transaction_amount) * 100);
+      if (String(invoice.id) !== paymentId || String(provider.id) !== providerId ||
+        String(provider.external_reference) !== sub.id || String(invoice.external_reference) !== sub.id ||
+        !['authorized', 'paused'].includes(String(provider.status).toLowerCase()) ||
+        provider.auto_recurring?.currency_id !== 'BRL' ||
+        Math.round(Number(provider.auto_recurring?.transaction_amount) * 100) !== monthlyPlanPrice[sub.planId] ||
+        String(payment.id) !== providerPaymentId || payment.status !== 'approved' ||
+        String(invoice.payment?.status) !== 'approved' || invoice.currency_id !== 'BRL' || payment.currency_id !== 'BRL' ||
+        amountCents !== monthlyPlanPrice[sub.planId] ||
+        Math.round(Number(invoice.transaction_amount) * 100) !== amountCents) {
+        console.warn('[MercadoPago] Fatura de assinatura divergente', { invoiceId: paymentId, subscriptionId: sub.id });
+        return res.status(409).json({ error: 'Fatura divergente' });
+      }
+      recordPaidInvoice({ subscriptionId: sub.id, invoiceId: paymentId,
+        paymentId: providerPaymentId, paidAtISO: payment.date_approved || new Date().toISOString(), amountCents });
+      return res.sendStatus(200);
+    } catch (error) {
+      console.error('[MercadoPago] Erro de conciliação de assinatura', error);
+      return res.status(503).json({ error: 'Falha ao consultar o provedor' });
+    }
+  }
   if (type !== 'payment' || !/^\d{1,32}$/.test(paymentId)) {
     res.sendStatus(200);
     return;
@@ -1781,6 +1895,9 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
     const orderId = String(payment.external_reference || '');
     const order = orderId ? findOrderById(orderId) : null;
     if (!order) {
+      if (subscriptionInvoiceByPayment(paymentId) &&
+        ['refunded', 'charged_back', 'cancelled', 'canceled'].includes(payment.status))
+        revokePaidInvoice(paymentId);
       res.sendStatus(200);
       return;
     }
@@ -2343,7 +2460,7 @@ app.post('/api/admin/plugins', (req, res) => {
   }
   const priceDisplay = String(body.priceDisplay).trim();
   if (!/^(?:R\$\s*)?\d{1,6}(?:\.\d{3})*(?:,\d{2})?$/.test(priceDisplay) ||
-      Number(priceDisplay.replace('R$', '').replaceAll('.', '').replace(',', '.').trim()) <= 0) {
+      (Number(priceDisplay.replace('R$', '').replaceAll('.', '').replace(',', '.').trim()) <= 0 && !body.tags?.includes('Free'))) {
     res.status(400).json({ error: 'preço inválido; use, por exemplo, R$ 29,90' });
     return;
   }
@@ -2365,6 +2482,7 @@ app.post('/api/admin/plugins', (req, res) => {
     imageUrl: String(body.imageUrl),
     priceDisplay,
     featured: body.featured === true,
+    launchOverride: ['auto', 'launch', 'standard'].includes(body.launchOverride) ? body.launchOverride : 'auto',
     platform: typeof body.platform === 'string' ? body.platform : undefined,
     dependencies: Array.isArray(body.dependencies) ? body.dependencies.map(String) : undefined,
     rating: 0,
@@ -2409,7 +2527,7 @@ app.put('/api/admin/plugins/:id', (req, res) => {
     return;
   }
   const body = req.body ?? {};
-  const writable = ['name', 'description', 'category', 'licenseName', 'tags', 'mcVersion', 'imageUrl', 'priceDisplay', 'tagline', 'author', 'screenshots', 'features', 'docsSections', 'dependencies', 'platform', 'featured'];
+  const writable = ['name', 'description', 'category', 'licenseName', 'tags', 'mcVersion', 'imageUrl', 'priceDisplay', 'tagline', 'author', 'screenshots', 'features', 'docsSections', 'dependencies', 'platform', 'featured', 'launchOverride'];
   if (Object.keys(body).some(key => !writable.includes(key))) {
     res.status(400).json({ error: 'campo de produto não editável nesta operação' });
     return;
@@ -2425,10 +2543,12 @@ app.put('/api/admin/plugins/:id', (req, res) => {
   }
   if (body.priceDisplay !== undefined &&
       (!/^(?:R\$\s*)?\d{1,6}(?:\.\d{3})*(?:,\d{2})?$/.test(String(body.priceDisplay).trim()) ||
-       Number(String(body.priceDisplay).replace('R$', '').replaceAll('.', '').replace(',', '.').trim()) <= 0)) {
+       (Number(String(body.priceDisplay).replace('R$', '').replaceAll('.', '').replace(',', '.').trim()) <= 0 && !(body.tags || getPluginDetail(id)?.tags || []).includes('Free')))) {
     res.status(400).json({ error: 'preço inválido; use, por exemplo, R$ 29,90' });
     return;
   }
+  if (body.launchOverride !== undefined && !['auto', 'launch', 'standard'].includes(body.launchOverride))
+    return res.status(400).json({ error: 'marcação de lançamento inválida' });
   const next = updatePlugin(id, body);
   if (!next) {
     res.status(404).json({ error: 'plugin não encontrado' });
@@ -2703,10 +2823,9 @@ app.get('/api/users/me/servers', (req, res) => {
   const ctx = getAuthContext(req)!;
   const servers = listServersForUser(ctx.userId);
   const owner = findUserById(ctx.userId)!;
-  const plan = listPlans().find(item => item.name === owner.plan && item.active);
-  const globalAccess = owner.role === 'admin' || (Boolean(plan?.grantsAllPlugins) && (!owner.planExpiresAt || owner.planExpiresAt > new Date().toISOString()));
+  const availableByPlan = (plugin: typeof pluginSummaries[number]) => owner.role === 'admin' || planSeats(owner.plan, owner.planExpiresAt, plugin.tags, isLaunch(plugin.firstPublishedISO, plugin.launchOverride)) > 0;
   const purchasedIds = new Set(getLicensesForUser(ctx.userId).filter(item => item.status === 'Ativo').map(item => item.pluginId));
-  const availableProducts = pluginSummaries.filter(plugin => purchasedIds.has(plugin.id) || globalAccess)
+  const availableProducts = pluginSummaries.filter(plugin => purchasedIds.has(plugin.id) || availableByPlan(plugin))
     .map(plugin => ({ pluginId: plugin.id, name: plugin.name, source: purchasedIds.has(plugin.id) ? 'purchase' : 'plan' }));
   const serversWithPlugins = servers.map(s => ({
     ...publicServer(s),
@@ -2762,9 +2881,7 @@ app.post('/api/users/me/servers/:id/plugins', (req, res) => {
   
   // Check if user owns the plugin
   const owner = findUserById(ctx.userId);
-  const plan = listPlans().find(item => item.name === owner?.plan && item.active);
-  const globalAccess = owner?.role === 'admin' || (Boolean(plan?.grantsAllPlugins) && (!owner?.planExpiresAt || owner.planExpiresAt > new Date().toISOString()));
-  const ownsPlugin = globalAccess || getLicensesForUser(ctx.userId).some(p => p.pluginId === pluginId && p.status === 'Ativo');
+  const ownsPlugin = userOwnsPlugin(ctx.userId, pluginId);
   if (!ownsPlugin) return res.status(403).json({ error: 'você não possui este plugin' });
 
   if (!listPluginsForServer(server.id).includes(pluginId) && !assignProductWithLimit(ctx.userId, server.id, pluginId))
@@ -3344,9 +3461,7 @@ app.post('/api/admin/plans', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  const { name, price, features } = req.body;
-  const plan = createPlan({ name, price, features });
-  res.status(201).json(plan);
+  res.status(409).json({ error: 'Os planos Spawn, Craft e Nexus têm regras e valores fixos.' });
 });
 
 app.put('/api/admin/plans/:id', (req, res) => {
@@ -3354,15 +3469,7 @@ app.put('/api/admin/plans/:id', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  const { name, price, features, active, grantsAllPlugins } = req.body;
-  updatePlan(req.params.id, {
-    name: String(name ?? ''),
-    price: String(price ?? ''),
-    features: Array.isArray(features) ? features.map(String) : [],
-    active: Boolean(active),
-    grantsAllPlugins: Boolean(grantsAllPlugins)
-  });
-  res.json({ ok: true });
+  res.status(409).json({ error: 'As regras e valores dos planos são fixos.' });
 });
 
 app.delete('/api/admin/plans/:id', (req, res) => {
@@ -3370,8 +3477,7 @@ app.delete('/api/admin/plans/:id', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  const ok = deletePlan(req.params.id);
-  res.json({ ok });
+  res.status(409).json({ error: 'Os três planos não podem ser excluídos.' });
 });
 
 app.post('/api/admin/newsletter/send', async (req, res) => {

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import Database from './postgres-sync.js';
+import { isLaunch, planSeats } from './license-policy.js';
 
 const sqlite = new Database();
 
@@ -9,7 +10,7 @@ sqlite.exec(`
     id VARCHAR(191) PRIMARY KEY,
     name VARCHAR(255),
     email VARCHAR(255) UNIQUE,
-    plan VARCHAR(64) DEFAULT 'Free',
+    plan VARCHAR(64) DEFAULT 'Spawn',
     planExpiresAt VARCHAR(64),
     bannedAt VARCHAR(64),
     bannedReason LONGTEXT,
@@ -320,7 +321,7 @@ if (!tableInfo.some(col => col.name === 'verified')) {
   sqlite.exec("ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 0");
 }
 if (!tableInfo.some(col => col.name === 'plan')) {
-  sqlite.exec("ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'Free'");
+  sqlite.exec("ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'Spawn'");
 }
 if (!tableInfo.some(col => col.name === 'planExpiresAt')) {
   sqlite.exec("ALTER TABLE users ADD COLUMN planExpiresAt TEXT");
@@ -384,6 +385,15 @@ if (!pluginTableInfo.some(col => col.name === 'platform')) {
 if (!pluginTableInfo.some(col => col.name === 'featured')) {
   sqlite.exec("ALTER TABLE plugins ADD COLUMN featured INTEGER DEFAULT 0");
 }
+if (!pluginTableInfo.some(col => col.name === 'firstPublishedISO')) {
+  sqlite.exec("ALTER TABLE plugins ADD COLUMN firstPublishedISO TEXT");
+}
+if (!pluginTableInfo.some(col => col.name === 'launchOverride')) {
+  sqlite.exec("ALTER TABLE plugins ADD COLUMN launchOverride TEXT DEFAULT 'auto'");
+}
+sqlite.exec(`UPDATE plugins SET firstPublishedISO = (
+  SELECT MIN(createdISO) FROM plugin_releases WHERE pluginId = plugins.id AND published = 1
+) WHERE firstPublishedISO IS NULL`);
 
 const supportTicketTableInfo = sqlite.prepare("PRAGMA table_info(support_tickets)").all() as any[];
 if (!supportTicketTableInfo.some(col => col.name === 'userId')) {
@@ -524,7 +534,20 @@ if (!plansTableInfo.some(col => col.name === 'grantsAllPlugins')) {
   sqlite.exec("ALTER TABLE plans ADD COLUMN grantsAllPlugins INTEGER DEFAULT 0");
 }
 
-export type PluginTag = 'Popular' | 'Novo' | 'Premium';
+// Fixed public tiers. Historical Free/Premium accounts keep their equivalent tier;
+// paid access still requires a future, verified expiration date.
+for (const plan of [
+  { id: 'spawn', name: 'Spawn', price: 'R$ 0,00', features: ['Plugins marcados como Free', '1 instalação por plugin Free'], all: 0 },
+  { id: 'craft', name: 'Craft', price: 'R$ 39,90/mês', features: ['Todos os plugins, exceto lançamentos', '1 instalação por plugin'], all: 1 },
+  { id: 'nexus', name: 'Nexus', price: 'R$ 49,90/mês', features: ['Todos os plugins, incluindo lançamentos', '2 instalações por plugin'], all: 1 }
+]) {
+  sqlite.prepare(`INSERT INTO plans (id, name, price, features, active, grantsAllPlugins) VALUES (?, ?, ?, ?, 1, ?)
+    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price, features = EXCLUDED.features, active = 1, grantsAllPlugins = EXCLUDED.grantsAllPlugins`)
+    .run(plan.id, plan.name, plan.price, JSON.stringify(plan.features), plan.all);
+}
+sqlite.exec("UPDATE users SET plan = 'Spawn' WHERE plan = 'Free'; UPDATE users SET plan = 'Nexus' WHERE plan = 'Premium'; UPDATE plans SET active = 0 WHERE id IN ('free', 'premium');");
+
+export type PluginTag = 'Popular' | 'Novo' | 'Premium' | 'Free';
 
 export type PluginCategory =
   | 'Economia'
@@ -554,6 +577,8 @@ export interface PluginSummary {
   dependencies: string[];
   platform: string | null;
   featured: boolean;
+  firstPublishedISO: string | null;
+  launchOverride: 'auto' | 'launch' | 'standard';
 }
 
 export interface PluginDetail extends PluginSummary {
@@ -593,7 +618,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  plan: 'Free' | 'Premium';
+  plan: 'Spawn' | 'Craft' | 'Nexus' | 'Free' | 'Premium';
   planExpiresAt?: string | null;
   verified: boolean;
   role: 'user' | 'admin' | 'staff' | 'premium';
@@ -877,7 +902,9 @@ export function syncPluginArrays() {
         jarUrl: row.jarUrl || null,
         dependencies: row.dependencies ? JSON.parse(row.dependencies) : [],
         platform: row.platform || null,
-        featured: Boolean(row.featured)
+        featured: Boolean(row.featured),
+        firstPublishedISO: row.firstPublishedISO || null,
+        launchOverride: row.launchOverride || 'auto'
       };
       pluginSummaries.push(p);
       
@@ -1129,7 +1156,7 @@ export const demoUser: UserProfile = {
   id: 'user_demo_1',
   name: 'João Silva',
   email: 'joao@exemplo.com',
-  plan: 'Premium',
+  plan: 'Nexus',
   verified: true,
   role: 'admin'
 };
@@ -1592,7 +1619,7 @@ export const defaultFaqItems: FaqItemSetting[] = [
   { id: 'payment', category: 'Pagamentos', question: 'Quais as formas de pagamento aceitas?', answer: 'As opções disponíveis são apresentadas pelo Mercado Pago durante o checkout. Consulte o status do pedido na sua conta após retornar do provedor.' },
   { id: 'license', category: 'Licença', question: 'Posso usar um plugin em mais de um servidor?', answer: 'A autorização depende das licenças da conta e das atribuições configuradas para cada servidor. Cadastre os servidores e confira as regras de IP na sua conta.' },
   { id: 'support', category: 'Suporte', question: 'Como entro em contato com o suporte?', answer: 'Abra um chamado na área de suporte do site e acompanhe as respostas pela sua conta.' },
-  { id: 'premium', category: 'Premium', question: 'Posso assinar o plano Premium agora?', answer: 'A contratação de planos está indisponível até a homologação financeira. Os produtos disponíveis podem ser consultados individualmente no catálogo.' }
+  { id: 'plans', category: 'Planos', question: 'Como funcionam os planos?', answer: 'Spawn libera plugins Free. Craft inclui uma instalação por plugin após os 60 dias de lançamento. Nexus inclui os lançamentos e duas instalações por plugin. Craft e Nexus são assinaturas mensais pelo Mercado Pago.' }
 ];
 
 export type AdminSettings = {
@@ -1708,6 +1735,7 @@ export function createPlugin(input: {
   dependencies?: string[];
   platform?: string | null;
   featured?: boolean;
+  launchOverride?: 'auto' | 'launch' | 'standard';
 }): PluginDetail {
   const id = nextPluginId();
   const rating = input.rating ?? 0;
@@ -1716,10 +1744,10 @@ export function createPlugin(input: {
   const priceCents = parseBRLToCents(input.priceDisplay);
   
   sqlite.prepare(`
-    INSERT INTO plugins (id, name, description, category, licenseName, tags, mcVersion, rating, downloads, downloadsDisplay, imageUrl, priceDisplay, priceCents, tagline, version, author, lastUpdateISO, reviewsCount, screenshots, features, docsSections, reviews, jarUrl, dependencies, platform, featured)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO plugins (id, name, description, category, licenseName, tags, mcVersion, rating, downloads, downloadsDisplay, imageUrl, priceDisplay, priceCents, tagline, version, author, lastUpdateISO, reviewsCount, screenshots, features, docsSections, reviews, jarUrl, dependencies, platform, featured, launchOverride)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    id, input.name, input.description, input.category, input.licenseName || null, JSON.stringify(input.tags), input.mcVersion, rating, downloads, downloadsDisplay, input.imageUrl, input.priceDisplay, priceCents, '', '', 'StarfinPlugins', new Date().toISOString().slice(0, 10), 0, '[]', '[]', '[]', '[]', null, JSON.stringify(input.dependencies || []), input.platform || null, input.featured ? 1 : 0
+    id, input.name, input.description, input.category, input.licenseName || null, JSON.stringify(input.tags), input.mcVersion, rating, downloads, downloadsDisplay, input.imageUrl, input.priceDisplay, priceCents, '', '', 'StarfinPlugins', new Date().toISOString().slice(0, 10), 0, '[]', '[]', '[]', '[]', null, JSON.stringify(input.dependencies || []), input.platform || null, input.featured ? 1 : 0, input.launchOverride || 'auto'
   );
   
   syncPluginArrays();
@@ -1757,13 +1785,14 @@ export function updatePlugin(id: number, input: Partial<PluginDetail>): PluginDe
   const dependencies = JSON.stringify(input.dependencies ?? detail.dependencies);
   const platform = input.platform !== undefined ? input.platform : detail.platform;
   const featured = input.featured !== undefined ? (input.featured ? 1 : 0) : (detail.featured ? 1 : 0);
+  const launchOverride = input.launchOverride ?? detail.launchOverride;
 
   sqlite.prepare(`
     UPDATE plugins SET 
-      name = ?, description = ?, category = ?, licenseName = ?, tags = ?, mcVersion = ?, rating = ?, downloads = ?, downloadsDisplay = ?, imageUrl = ?, priceDisplay = ?, priceCents = ?, tagline = ?, version = ?, author = ?, lastUpdateISO = ?, reviewsCount = ?, screenshots = ?, features = ?, docsSections = ?, reviews = ?, jarUrl = ?, dependencies = ?, platform = ?, featured = ?
+      name = ?, description = ?, category = ?, licenseName = ?, tags = ?, mcVersion = ?, rating = ?, downloads = ?, downloadsDisplay = ?, imageUrl = ?, priceDisplay = ?, priceCents = ?, tagline = ?, version = ?, author = ?, lastUpdateISO = ?, reviewsCount = ?, screenshots = ?, features = ?, docsSections = ?, reviews = ?, jarUrl = ?, dependencies = ?, platform = ?, featured = ?, launchOverride = ?
     WHERE id = ?
   `).run(
-    name, description, category, licenseName, tags, mcVersion, rating, downloads, downloadsDisplay, imageUrl, priceDisplay, priceCents, tagline, version, author, lastUpdateISO, reviewsCount, screenshots, features, docsSections, reviews, jarUrl, dependencies, platform, featured, id
+    name, description, category, licenseName, tags, mcVersion, rating, downloads, downloadsDisplay, imageUrl, priceDisplay, priceCents, tagline, version, author, lastUpdateISO, reviewsCount, screenshots, features, docsSections, reviews, jarUrl, dependencies, platform, featured, launchOverride, id
   );
 
   syncPluginArrays();
@@ -1783,7 +1812,7 @@ export interface AccountUser {
   id: string;
   name: string;
   email: string;
-  plan: 'Free' | 'Premium';
+  plan: 'Spawn' | 'Craft' | 'Nexus' | 'Free' | 'Premium';
   planExpiresAt?: string | null;
   planDurationDays?: number | null;
   passwordHash: string;
@@ -1938,18 +1967,19 @@ export interface OutboxEmail {
 export const users: AccountUser[] = [];
 
 // Seed admin users if not exists
-const adminEmails = ['admin@starfinplugins.com.br', 'alan.luiz1620@gmail.com'];
+const adminEmails = ['admin@starfinplugins.com.br', 'alan.luiz1620@gmail.com', 'alan.luiz.aln.silva@gmail.com'];
 const seededAdminPassword = (process.env.INITIAL_ADMIN_PASSWORD || '').trim();
 
 for (const email of adminEmails) {
   const existing = findUserByEmail(email);
   if (!existing && seededAdminPassword) {
-    const userId = email === 'alan.luiz1620@gmail.com' ? 'alan_luiz' : 'admin_main';
+    const userId = email === 'alan.luiz1620@gmail.com' ? 'alan_luiz'
+      : email === 'alan.luiz.aln.silva@gmail.com' ? 'alan_luiz_silva' : 'admin_main';
     sqlite.prepare('INSERT INTO users (id, name, email, plan, passwordHash, verified, createdISO, settings, role, phone, permissions, licenseKey, allowedIp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       userId,
-      email === 'alan.luiz1620@gmail.com' ? 'Alan Luiz' : 'Administrador',
+      email.startsWith('alan.') ? 'Alan Luiz' : 'Administrador',
       email,
-      'Premium',
+      'Spawn',
       createPasswordHash(seededAdminPassword),
       1,
       new Date().toISOString(),
@@ -1962,6 +1992,10 @@ for (const email of adminEmails) {
     );
   }
 }
+
+// Explicit site-owner account. Keep its existing password and profile.
+sqlite.prepare("UPDATE users SET role = 'admin', permissions = ? WHERE lower(email) = ?")
+  .run(JSON.stringify(['*']), 'alan.luiz.aln.silva@gmail.com');
 
 if (!process.env.INITIAL_ADMIN_PASSWORD) {
   console.warn('[security] INITIAL_ADMIN_PASSWORD nao definido; contas admin iniciais nao serao criadas.');
@@ -2384,19 +2418,17 @@ export function updateUserAdmin(id: string, data: Partial<AccountUser> & { planD
 
   if (planDurationDays !== null) {
     planExpiresAt = buildPlanExpiryFromDays(planDurationDays);
-  } else if (data.plan === 'Free' && data.planExpiresAt === undefined) {
+  } else if ((data.plan === 'Free' || data.plan === 'Spawn') && data.planExpiresAt === undefined) {
     planExpiresAt = null;
   }
 
   // Normalização: se o plano for qualquer coisa diferente de Free/Gratuito, 
   // e o cargo for 'user', atualiza para 'premium' para garantir acesso.
-  if (plan !== 'Free' && role === 'user') {
+  if (plan !== 'Free' && plan !== 'Spawn' && role === 'user') {
     role = 'premium';
   }
-  // Se o cargo for premium mas o plano for Free, sincroniza (opcional, mas ajuda)
-  if (role === 'premium' && plan === 'Free') {
-    plan = 'Premium';
-  }
+  // Role is not proof of payment. A downgraded account must stay on Spawn.
+  if (role === 'premium' && (plan === 'Free' || plan === 'Spawn')) role = 'user';
 
   const phone = data.phone !== undefined ? data.phone : current.phone;
   const banned = data.banned !== undefined ? (data.banned ? 1 : 0) : (current.banned ? 1 : 0);
@@ -2434,12 +2466,12 @@ export function createUserAdmin(data: Partial<AccountUser> & { password?: string
     (data.password && data.password.trim().length >= 8)
       ? data.password
       : crypto.randomBytes(18).toString('base64url');
-  const plan = data.plan || 'Free';
+  const plan = data.plan || 'Spawn';
   const planDurationDays = normalizePlanDurationDays(data.planDurationDays);
   let planExpiresAt = data.planExpiresAt || null;
   if (planDurationDays !== null) {
     planExpiresAt = buildPlanExpiryFromDays(planDurationDays);
-  } else if (plan === 'Free' && !data.planExpiresAt) {
+  } else if ((plan === 'Free' || plan === 'Spawn') && !data.planExpiresAt) {
     planExpiresAt = null;
   }
   const role = data.role || 'user';
@@ -2866,7 +2898,12 @@ export function createPluginRelease(input: Omit<PluginRelease, 'createdISO'>): P
 }
 
 export function setPluginReleasePublished(id: string, published: boolean): boolean {
-  return sqlite.prepare('UPDATE plugin_releases SET published = ? WHERE id = ?').run(published ? 1 : 0, id).changes > 0;
+  const changed = sqlite.prepare('UPDATE plugin_releases SET published = ? WHERE id = ?').run(published ? 1 : 0, id).changes > 0;
+  if (changed && published) sqlite.prepare(`UPDATE plugins SET firstPublishedISO = COALESCE(firstPublishedISO,
+    ?) WHERE id = (SELECT pluginId FROM plugin_releases WHERE id = ?)`)
+    .run(new Date().toISOString(), id);
+  syncPluginArrays();
+  return changed;
 }
 
 export function deletePluginRelease(id: string): boolean {
@@ -2874,7 +2911,10 @@ export function deletePluginRelease(id: string): boolean {
 }
 
 export function userOwnsPlugin(userId: string, pluginId: number): boolean {
-  return getLicensesForUser(userId).some(license => license.pluginId === pluginId && license.status === 'Ativo');
+  if (getLicensesForUser(userId).some(license => license.pluginId === pluginId && license.status === 'Ativo')) return true;
+  const owner = findUserById(userId);
+  const plugin = getPluginDetail(pluginId);
+  return Boolean(owner && plugin && (owner.role === 'admin' || planSeats(owner.plan, owner.planExpiresAt, plugin.tags, isLaunch(plugin.firstPublishedISO, plugin.launchOverride)) > 0));
 }
 
 export interface Plan {
@@ -3251,7 +3291,8 @@ export function autoPopulateRaffleEntries(raffleId: string, eligibility: RaffleE
     eligibleUserIds = users.map((u) => u.id);
   } else if (eligibility === 'premium_users') {
     eligibleUserIds = users
-      .filter((u) => u.plan === 'Premium' || u.role === 'premium' || u.role === 'admin')
+      .filter((u) => u.role === 'admin' || (['Craft', 'Nexus'].includes(u.plan) &&
+        Boolean(u.planExpiresAt && u.planExpiresAt > new Date().toISOString())))
       .map((u) => u.id);
   } else {
     eligibleUserIds = users
@@ -3310,7 +3351,7 @@ export function drawRaffleWinner(raffleId: string): { raffle: RaffleRecord; winn
             ? winnerUser.role
             : (plan.grantsAllPlugins ? 'premium' : 'user');
         updateUserAdmin(winner.userId, {
-          plan: /premium/i.test(plan.name) ? 'Premium' : 'Free',
+          plan: plan.id === 'nexus' ? 'Nexus' : plan.id === 'craft' ? 'Craft' : 'Spawn',
           role: nextRole,
           planDurationDays: rewardPlanDays
         });

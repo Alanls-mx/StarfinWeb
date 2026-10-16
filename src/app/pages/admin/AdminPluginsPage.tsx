@@ -8,7 +8,7 @@ import { AdminPluginReleases } from './AdminPluginReleases';
 import { MediaPicker } from '../../components/admin/MediaPicker';
 
 const field = 'w-full rounded-lg border border-input bg-input-background px-3 py-2.5 text-sm text-white';
-const emptyDraft = { name: '', description: '', category: '', licenseName: '', mcVersion: '', imageUrl: '', priceDisplay: '', tags: [] as Array<'Popular' | 'Novo' | 'Premium'> };
+const emptyDraft = { name: '', description: '', category: '', licenseName: '', mcVersion: '', imageUrl: '', priceDisplay: '', tags: [] as Array<'Popular' | 'Novo' | 'Premium' | 'Free'>, launchOverride: 'auto' as 'auto' | 'launch' | 'standard' };
 
 export function AdminPluginsPage() {
   const { state } = useAuth();
@@ -82,7 +82,8 @@ export function AdminPluginsPage() {
       const changes = {
         name: editing.name, description: editing.description, category: editing.category,
         licenseName: editing.licenseName, mcVersion: editing.mcVersion,
-        priceDisplay: editing.priceDisplay, imageUrl: editing.imageUrl, screenshots: editing.screenshots
+        priceDisplay: editing.priceDisplay, imageUrl: editing.imageUrl, screenshots: editing.screenshots,
+        tags: editing.tags, launchOverride: editing.launchOverride
       };
       if (await update(editing.id, changes)) setEditing(null);
     }
@@ -103,6 +104,8 @@ export function AdminPluginsPage() {
       <label className="space-y-2 text-sm">Categoria<select required className={field} value={draft.category} onChange={event => setDraft({ ...draft, category: event.target.value })}><option value="">Selecione</option>{categories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
       <label className="space-y-2 text-sm">Minecraft<input required className={field} value={draft.mcVersion} onChange={event => setDraft({ ...draft, mcVersion: event.target.value })}/></label>
       <label className="space-y-2 text-sm">Preço exibido<input required className={field} value={draft.priceDisplay} onChange={event => setDraft({ ...draft, priceDisplay: event.target.value })} placeholder="R$ 29,90"/></label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.tags.includes('Free')} onChange={event => setDraft({ ...draft, tags: event.target.checked ? [...draft.tags, 'Free'] : draft.tags.filter(tag => tag !== 'Free') })}/>Plugin Free no plano Spawn</label>
+      <label className="space-y-2 text-sm">Lançamento<select className={field} value={draft.launchOverride} onChange={event => setDraft({ ...draft, launchOverride: event.target.value as 'auto' | 'launch' | 'standard' })}><option value="auto">Automático: 60 dias após publicação</option><option value="launch">Forçar lançamento</option><option value="standard">Liberar no Craft</option></select></label>
       {token && <div className="md:col-span-2"><MediaPicker token={token} label="Imagem do produto" value={draft.imageUrl} onChange={imageUrl => setDraft(current => ({ ...current, imageUrl }))}/></div>}
       <div className="flex gap-3 md:col-span-2"><button disabled={saving} className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? 'Salvando...' : 'Cadastrar'}</button><button type="button" onClick={() => setShowForm(false)} className="rounded-lg border border-white/15 px-5 py-2.5 text-sm">Cancelar</button></div>
     </form>}
@@ -114,6 +117,8 @@ export function AdminPluginsPage() {
       <label className="space-y-2 text-sm">Categoria<select required className={field} value={editing.category} onChange={event => setEditing({ ...editing, category: event.target.value })}>{categories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
       <label className="space-y-2 text-sm">Minecraft<input required className={field} value={editing.mcVersion} onChange={event => setEditing({ ...editing, mcVersion: event.target.value })}/></label>
       <label className="space-y-2 text-sm">Preço exibido<input required className={field} value={editing.priceDisplay} onChange={event => setEditing({ ...editing, priceDisplay: event.target.value })}/></label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.tags.includes('Free')} onChange={event => setEditing({ ...editing, tags: event.target.checked ? [...editing.tags, 'Free'] : editing.tags.filter(tag => tag !== 'Free') })}/>Plugin Free no plano Spawn</label>
+      <label className="space-y-2 text-sm">Lançamento<select className={field} value={editing.launchOverride} onChange={event => setEditing({ ...editing, launchOverride: event.target.value as 'auto' | 'launch' | 'standard' })}><option value="auto">Automático: 60 dias após publicação</option><option value="launch">Forçar lançamento</option><option value="standard">Liberar no Craft</option></select></label>
       {token && <div className="md:col-span-2"><MediaPicker token={token} label="Imagem do produto" value={editing.imageUrl} onChange={imageUrl => setEditing(current => current ? { ...current, imageUrl } : current)}/></div>}
       {token && <div className="space-y-3 md:col-span-2"><MediaPicker token={token} label="Adicionar captura à galeria" value="" onChange={url => setEditing(current => current && url ? { ...current, screenshots: [...current.screenshots, url] } : current)}/><div className="flex flex-wrap gap-3">{editing.screenshots.map((url, index) => <div key={`${url}-${index}`} className="relative"><img src={url} alt={`Captura ${index + 1}`} className="h-20 w-28 rounded-md object-cover"/><button type="button" onClick={() => setEditing(current => current ? { ...current, screenshots: current.screenshots.filter((_, i) => i !== index) } : current)} className="absolute right-1 top-1 rounded bg-[#0b1715] px-2 py-1 text-xs text-white">Remover</button></div>)}</div></div>}
       <div className="flex gap-3 md:col-span-2"><button disabled={saving} className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? 'Salvando...' : 'Salvar alterações'}</button><button type="button" onClick={() => setEditing(null)} className="rounded-lg border border-white/15 px-5 py-2.5 text-sm">Cancelar</button></div>

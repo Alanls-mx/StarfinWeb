@@ -32,7 +32,7 @@ export function CheckoutPage() {
 
   async function continueToPayment() {
     if (state.status !== 'authenticated') { navigate('/login?next=/checkout'); return; }
-    if (planItem) { setError('Assinaturas estão indisponíveis até a homologação financeira. Remova o plano para continuar.'); return; }
+    if (planItem) { navigate('/premium'); return; }
     setBusy(true); setError('');
     try {
       const result = await apiFetch<{ orderId: string; checkoutUrl: string }>('/api/commerce/checkout', {
@@ -57,9 +57,9 @@ export function CheckoutPage() {
       </section>
       <aside className="h-fit rounded-xl border border-white/10 bg-card p-6 sm:p-7"><h2 className="text-xl font-semibold">Resumo do pedido</h2><dl className="mt-6 space-y-3 text-sm"><div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{money(total)}</dd></div>{coupon && <div className="flex justify-between text-emerald-300"><dt>Cupom {coupon.code}</dt><dd>− {money(coupon.discountCents)}</dd></div>}<div className="flex justify-between border-t border-white/10 pt-4 text-lg font-semibold"><dt>Total estimado</dt><dd>{money(payable)}</dd></div></dl>
         {items.length > 0 && <div className="mt-7"><label htmlFor="coupon" className="text-xs font-medium text-muted-foreground">Cupom de desconto</label><div className="mt-2 flex gap-2"><input id="coupon" value={couponInput} onChange={event => { setCouponInput(event.target.value); setCoupon(null); }} className="min-w-0 flex-1 rounded-lg border border-input bg-input-background px-3 py-2.5 text-sm" placeholder="Código"/><button type="button" onClick={validateCoupon} className="rounded-lg border border-white/20 px-3 text-sm">Aplicar</button></div></div>}
-        {planItem && <p className="mt-5 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">A contratação de planos está indisponível até a homologação financeira.</p>}
+        {planItem && <p className="mt-5 rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm">As assinaturas são renovadas mensalmente. Escolha o plano na página de planos.</p>}
         {error && <p role="alert" className="mt-5 rounded-lg border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
-        <button type="button" disabled={items.length === 0 || busy || Boolean(planItem)} onClick={continueToPayment} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Preparando pagamento...' : 'Continuar para pagamento'} <ArrowRight size={16}/></button>
+        <button type="button" disabled={items.length === 0 || busy} onClick={continueToPayment} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Preparando pagamento...' : planItem ? 'Escolher assinatura' : 'Continuar para pagamento'} <ArrowRight size={16}/></button>
         <p className="mt-4 text-xs leading-6 text-muted-foreground">O valor final é confirmado pelo servidor antes do redirecionamento. A criação do pedido não confirma o pagamento.</p>
       </aside>
     </div>

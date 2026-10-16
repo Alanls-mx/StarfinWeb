@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 import Database from './postgres-sync.js';
+import { fitsIpGroups, isLaunch, planSeats } from './license-policy.js';
+import { getPluginDetail, findUserById } from './data.js';
 
 const db = new Database();
 db.exec(`
@@ -39,20 +41,34 @@ db.exec(`
 db.prepare(`
   CREATE OR REPLACE FUNCTION starfin_assign_product_slot(p_user TEXT, p_server TEXT, p_plugin INTEGER)
   RETURNS BOOLEAN LANGUAGE plpgsql AS $fn$
-  DECLARE capacity INTEGER; consumed INTEGER; inserted INTEGER;
+  DECLARE purchases INTEGER; subscription_seats INTEGER; required_groups INTEGER; odd_groups INTEGER; inserted INTEGER;
+  DECLARE target_ip TEXT;
   BEGIN
     PERFORM pg_advisory_xact_lock(hashtext(p_user), p_plugin);
-    SELECT GREATEST(
-      (SELECT COUNT(*)::integer FROM purchases p WHERE p.userId = p_user AND p.pluginId = p_plugin AND p.status = 'approved'),
-      CASE WHEN u.role = 'admin' THEN 1000000 WHEN EXISTS (
-        SELECT 1 FROM plans pl WHERE pl.name = u.plan AND pl.active = 1 AND pl.grantsAllPlugins = 1
-          AND (u.planExpiresAt IS NULL OR u.planExpiresAt::timestamptz > clock_timestamp())
-      ) THEN 1 ELSE 0 END
-    ) INTO capacity FROM users u WHERE u.id = p_user;
-    IF capacity IS NULL THEN RETURN FALSE; END IF;
-    SELECT COUNT(*)::integer INTO consumed FROM server_plugins sp JOIN servers s ON s.id = sp.serverId
-      WHERE s.userId = p_user AND sp.pluginId = p_plugin;
-    IF capacity <= consumed THEN RETURN FALSE; END IF;
+    SELECT COALESCE((SELECT COUNT(*)::integer FROM purchases p WHERE p.userId = p_user AND p.pluginId = p_plugin AND p.status = 'approved'), 0),
+      CASE WHEN u.role = 'admin' THEN 1000000
+        WHEN u.plan IN ('Spawn', 'Free') AND pl.tags LIKE '%%"Free"%%' THEN 1
+        WHEN u.plan = 'Craft' AND u.planExpiresAt::timestamptz > clock_timestamp()
+          AND (pl.launchOverride = 'standard' OR pl.launchOverride = 'auto'
+            AND (pl.firstPublishedISO IS NULL OR pl.firstPublishedISO::timestamptz + INTERVAL '60 days' <= clock_timestamp())) THEN 1
+        WHEN u.plan IN ('Nexus', 'Premium') AND u.planExpiresAt::timestamptz > clock_timestamp() THEN 2
+        ELSE 0 END
+      INTO purchases, subscription_seats FROM users u CROSS JOIN plugins pl WHERE u.id = p_user AND pl.id = p_plugin;
+    IF purchases IS NULL OR NOT EXISTS (SELECT 1 FROM servers WHERE id = p_server AND userId = p_user AND revokedISO IS NULL) THEN RETURN FALSE; END IF;
+    IF EXISTS (SELECT 1 FROM server_plugins WHERE serverId = p_server AND pluginId = p_plugin) THEN RETURN FALSE; END IF;
+    SELECT COALESCE(NULLIF(observedIp, ''), NULLIF(ips::jsonb ->> 0, ''), 'unlinked:' || id)
+      INTO target_ip FROM servers WHERE id = p_server;
+    WITH assigned AS (
+      SELECT COALESCE(NULLIF(s.observedIp, ''), NULLIF(s.ips::jsonb ->> 0, ''), 'unlinked:' || s.id) AS ip
+      FROM server_plugins sp JOIN servers s ON s.id = sp.serverId
+      WHERE s.userId = p_user AND sp.pluginId = p_plugin AND s.revokedISO IS NULL
+      UNION ALL SELECT target_ip
+    ), grouped AS (SELECT COUNT(*)::integer AS n FROM assigned GROUP BY ip)
+    SELECT COALESCE(SUM((n + 1) / 2), 0)::integer, COALESCE(SUM(n %% 2), 0)::integer
+      INTO required_groups, odd_groups FROM grouped;
+    required_groups := required_groups - LEAST(subscription_seats, odd_groups)
+      - GREATEST(subscription_seats - odd_groups, 0) / 2;
+    IF required_groups > purchases THEN RETURN FALSE; END IF;
     INSERT INTO server_plugins (serverId, pluginId)
       SELECT s.id, p_plugin FROM servers s WHERE s.id = p_server AND s.userId = p_user
       ON CONFLICT DO NOTHING;
@@ -73,8 +89,9 @@ db.prepare(`
       OR EXISTS (SELECT 1 FROM server_plugins WHERE serverId = p_to AND pluginId = p_plugin)
     THEN RETURN FALSE; END IF;
     DELETE FROM server_plugins WHERE serverId = p_from AND pluginId = p_plugin;
-    INSERT INTO server_plugins (serverId, pluginId) VALUES (p_to, p_plugin);
-    RETURN TRUE;
+    IF starfin_assign_product_slot(p_user, p_to, p_plugin) THEN RETURN TRUE; END IF;
+    INSERT INTO server_plugins (serverId, pluginId) VALUES (p_from, p_plugin);
+    RETURN FALSE;
   END
   $fn$;
 `).run();
@@ -186,25 +203,33 @@ export function migrateMatchingLegacyPurchases(userId: string, serverId: string,
 
 export function productEntitlements(userId: string, pluginId: number) {
   const row = db.prepare("SELECT COUNT(*)::integer AS purchased FROM purchases WHERE userId = ? AND pluginId = ? AND status = 'approved'").get(userId, pluginId) as { purchased: number };
-  const used = db.prepare('SELECT COUNT(*)::integer AS used FROM server_plugins sp JOIN servers s ON s.id = sp.serverId WHERE s.userId = ? AND sp.pluginId = ?').get(userId, pluginId) as { used: number };
-  const global = db.prepare(`SELECT CASE WHEN u.role = 'admin' THEN 1000000 WHEN EXISTS (
-    SELECT 1 FROM plans pl WHERE pl.name = u.plan AND pl.active = 1 AND pl.grantsAllPlugins = 1
-      AND (u.planExpiresAt IS NULL OR u.planExpiresAt > ?)
-  ) THEN 1 ELSE 0 END AS capacity FROM users u WHERE u.id = ?`).get(now(), userId) as { capacity: number } | undefined;
-  const limit = Math.max(Number(row.purchased), Number(global?.capacity || 0));
-  return { purchased: Number(row.purchased), limit, used: Number(used.used), available: Math.max(0, limit - Number(used.used)) };
+  const used = db.prepare('SELECT COUNT(*)::integer AS used FROM server_plugins sp JOIN servers s ON s.id = sp.serverId WHERE s.userId = ? AND sp.pluginId = ? AND s.revokedISO IS NULL').get(userId, pluginId) as { used: number };
+  const owner = findUserById(userId);
+  const plugin = getPluginDetail(pluginId);
+  const subscription = owner?.role === 'admin' ? 1000000 : planSeats(owner?.plan || 'Spawn', owner?.planExpiresAt, plugin?.tags || [], isLaunch(plugin?.firstPublishedISO, plugin?.launchOverride));
+  const purchased = Number(row.purchased);
+  const limit = purchased * 2 + subscription;
+  return { purchased, subscription, limit, used: Number(used.used), available: Math.max(0, limit - Number(used.used)) };
 }
 
 export function installationHasSeat(userId: string, serverId: string, pluginId: number, limit: number) {
   if (limit < 1) return false;
-  const row = db.prepare(`
-    SELECT ordinal FROM (
-      SELECT sp.serverId, ROW_NUMBER() OVER (ORDER BY s.createdISO, s.id) AS ordinal
-      FROM server_plugins sp JOIN servers s ON s.id = sp.serverId
-      WHERE s.userId = ? AND sp.pluginId = ?
-    ) ranked WHERE serverId = ?
-  `).get(userId, pluginId, serverId) as { ordinal: number } | undefined;
-  return Boolean(row && Number(row.ordinal) <= limit);
+  const quantity = productEntitlements(userId, pluginId);
+  const assignments = db.prepare(`
+    SELECT s.id, COALESCE(NULLIF(s.observedIp, ''), NULLIF(s.ips::jsonb ->> 0, ''), 'unlinked:' || s.id) AS networkKey
+    FROM server_plugins sp JOIN servers s ON s.id = sp.serverId
+    WHERE s.userId = ? AND sp.pluginId = ? AND s.revokedISO IS NULL
+    ORDER BY s.createdISO, s.id
+  `).all(userId, pluginId) as Array<{ id: string; networkKey: string }>;
+  const groups = new Map<string, number>();
+  for (const assignment of assignments) {
+    groups.set(assignment.networkKey, (groups.get(assignment.networkKey) || 0) + 1);
+    if (!fitsIpGroups(groups.values(), quantity.purchased, quantity.subscription)) {
+      groups.set(assignment.networkKey, groups.get(assignment.networkKey)! - 1);
+      if (assignment.id === serverId) return false;
+    } else if (assignment.id === serverId) return true;
+  }
+  return false;
 }
 
 export function assignProductWithLimit(userId: string, serverId: string, pluginId: number) {

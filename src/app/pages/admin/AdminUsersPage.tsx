@@ -44,7 +44,7 @@ export function AdminUsersPage() {
     email: '',
     password: '',
     role: 'user',
-    plan: 'Free',
+    plan: 'Spawn',
     permissions: []
   });
   const [saving, setSaving] = useState(false);
@@ -130,7 +130,7 @@ export function AdminUsersPage() {
       setUsers(prev => [created, ...prev]);
       toast.success('Usuário criado com sucesso!');
       setIsCreating(false);
-      setNewUser({ name: '', email: '', password: '', role: 'user', plan: 'Free', permissions: [] });
+      setNewUser({ name: '', email: '', password: '', role: 'user', plan: 'Spawn', permissions: [] });
     } catch (e) {
       console.error(e);
       toast.error('Erro ao criar usuário.');
@@ -277,7 +277,7 @@ export function AdminUsersPage() {
                     </td>
                     <td className="p-4 text-sm">
                       <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                        user.plan === 'Premium' ? 'bg-amber-500/20 text-amber-400' : 'bg-gray-500/20 text-gray-400'
+                        ['Craft', 'Nexus'].includes(user.plan) ? 'bg-amber-500/20 text-amber-400' : 'bg-gray-500/20 text-gray-400'
                       }`}>
                         {user.plan}
                       </span>
@@ -415,8 +415,7 @@ export function AdminUsersPage() {
                       onChange={(e) => isCreating ? setNewUser({ ...newUser, plan: e.target.value as any }) : setEditingUser({ ...editingUser!, plan: e.target.value as any })}
                       className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
                     >
-                      <option value="Free">Gratuito (Free)</option>
-                      {plans.map(p => (
+                      {plans.filter(p => ['spawn', 'craft', 'nexus'].includes(p.id)).map(p => (
                         <option key={p.id} value={p.name}>{p.name}</option>
                       ))}
                     </select>
