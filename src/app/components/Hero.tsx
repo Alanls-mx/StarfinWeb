@@ -28,7 +28,7 @@ export function Hero({ content = defaultHomeContent }: { content?: HomeContent }
 
         <div className="relative min-h-[390px] lg:h-full" aria-label="Personagem da comunidade StarfinPlugins">
           <div aria-hidden="true" className="absolute inset-8 rounded-full bg-[#48c6bc]/15 blur-3xl" />
-          <img src={content.heroImageUrl || '/brand/main-character.png'} alt="Personagem principal da StarfinPlugins com coroa dourada" className="absolute inset-0 h-full w-full object-cover object-[center_30%] [mask-image:linear-gradient(to_bottom,#000_75%,transparent)] lg:[mask-image:linear-gradient(to_right,transparent_0%,#000_22%,#000_88%,transparent_100%)]" fetchPriority="high" />
+          <img src={content.heroImageUrl || '/brand/main-character.png'} alt="Personagem principal da StarfinPlugins com coroa dourada" className="absolute inset-0 h-full w-full object-cover object-top" style={{ maskImage: 'radial-gradient(ellipse at 50% 45%, #000 60%, transparent 90%)' }} fetchPriority="high" />
           <div className="absolute bottom-3 right-0 border-l-2 border-[#48c6bc] bg-[#0b1715]/90 px-4 py-3 font-mono text-xs text-[#c7f7e1]">LICENÇAS · PLUGINS · SERVIDORES</div>
         </div>
       </div>
