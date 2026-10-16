@@ -65,3 +65,10 @@ Na revisão `1227b4a`, SMTP e Mercado Pago aguardavam configuração manual e ai
 - Backup PostgreSQL: `/opt/starfinweb/backups/starfin-site-pre-f004b8a-20261016T013534Z.dump`. Backup de código: `/opt/starfinweb/backups/starfin-code-pre-f004b8a-20261016T013534Z.tar.gz`.
 - Rollback imediato: `/opt/starfinweb/app/rollback-dist-pre-f004b8a-20261016T013534Z` e `/opt/starfinweb/app/server/rollback-dist-pre-f004b8a-20261016T013534Z`.
 - Site, login, catálogo, favicon e health da API responderam por HTTPS. O HTML apontou para `index-CHTVScur.js`. StarfinWeb, Nginx e PostgreSQL permaneceram ativos.
+
+## Publicação `35f0064` — restauração visual da sessão
+
+- [CI da revisão](https://github.com/Alanls-mx/StarfinWeb/actions/runs/38836150514): sucesso. O header usa um estado neutro enquanto valida um token salvo, sem mostrar “Entrar” a quem já tem sessão. Sem token, o estado inicial é anônimo.
+- Backup PostgreSQL: `/opt/starfinweb/backups/starfin-site-pre-35f0064-20261016T014024Z.dump`. Backup de código: `/opt/starfinweb/backups/starfin-code-pre-35f0064-20261016T014024Z.tar.gz`.
+- Rollback imediato: `/opt/starfinweb/app/rollback-dist-pre-35f0064-20261016T014024Z` e `/opt/starfinweb/app/server/rollback-dist-pre-35f0064-20261016T014024Z`.
+- Após o deploy, o site serviu `index-D4bFgh9f.js`, o health da API respondeu 200 e StarfinWeb, Nginx e PostgreSQL estavam ativos.
