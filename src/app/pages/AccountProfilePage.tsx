@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
-import { getMySettings, removeMyAvatar, updateMyPassword, updateMyProfile, uploadMyAvatar } from '../lib/api';
+import { getMySettings, removeMyAvatar, updateMyPassword, updateMyProfile, updateMySettings, uploadMyAvatar } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { AccountNav } from '../components/AccountNav';
 
@@ -16,6 +16,7 @@ export function AccountProfilePage() {
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [saving, setSaving] = useState(false);
   const [password, setPassword] = useState({ currentPassword: '', newPassword: '', confirmation: '' });
+  const [preferences, setPreferences] = useState<{ marketingEmails: boolean; securityAlerts: boolean } | null>(null);
   const [error, setError] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -23,7 +24,10 @@ export function AccountProfilePage() {
     if (!token) return;
     let active = true;
     getMySettings(token).then(result => {
-      if (active) setProfile({ name: result.name, email: result.email, avatarUrl: result.avatarUrl, bio: result.bio || '', discordId: result.discordId || '', githubUrl: result.githubUrl || '', twitterUrl: result.twitterUrl || '' });
+      if (active) {
+        setProfile({ name: result.name, email: result.email, avatarUrl: result.avatarUrl, bio: result.bio || '', discordId: result.discordId || '', githubUrl: result.githubUrl || '', twitterUrl: result.twitterUrl || '' });
+        setPreferences({ marketingEmails: result.marketingEmails, securityAlerts: result.securityAlerts });
+      }
     }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar o perfil.'); });
     return () => { active = false; };
   }, [token]);
@@ -65,7 +69,9 @@ export function AccountProfilePage() {
     setSaving(true); setError('');
     try {
       if (file) {
-        const blob = await new Promise<Blob>((resolve, reject) => canvasRef.current?.toBlob(value => value ? resolve(value) : reject(new Error('Falha ao recortar imagem')), 'image/jpeg', .9));
+        const canvas = canvasRef.current;
+        if (!canvas) throw new Error('A prévia da imagem ainda não está pronta. Tente novamente.');
+        const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Falha ao recortar imagem')), 'image/jpeg', .9));
         const result = await uploadMyAvatar(token, new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
         setProfile(current => current ? { ...current, avatarUrl: result.avatarUrl } : current);
         setFile(null);
@@ -94,6 +100,14 @@ export function AccountProfilePage() {
     finally { setSaving(false); }
   }
 
+  async function savePreferences() {
+    if (!token || !preferences || saving) return;
+    setSaving(true); setError('');
+    try { await updateMySettings(token, preferences); toast.success('Preferências salvas.'); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao salvar preferências.'); }
+    finally { setSaving(false); }
+  }
+
   if (state.status === 'loading') return <main className="min-h-screen px-5 pt-32 text-center text-[#bdd2c5]">Verificando sessão...</main>;
   if (!token) return <main className="min-h-screen px-5 pt-32 text-center text-white"><p>Entre para editar seu perfil.</p><Link to="/login?next=%2Faccount%2Fprofile" className="text-[#a9f58e] underline">Entrar</Link></main>;
 
@@ -103,8 +117,8 @@ export function AccountProfilePage() {
     {error && <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">{error}</p>}
     {!profile ? <p role="status">Carregando perfil...</p> : <>
       <section className="rounded-lg border border-white/15 bg-[#14251e] p-6 sm:p-8"><h2 className="text-xl font-semibold">Foto e informações</h2>
-        <div className="mt-6 flex flex-wrap items-start gap-6"><div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-[#85ed65]/40 bg-[#0b1715]">{file ? <canvas ref={canvasRef} width={320} height={320} className="h-full w-full" /> : profile.avatarUrl ? <img src={profile.avatarUrl} alt="Seu avatar" className="h-full w-full object-cover" /> : <span className="text-3xl font-bold text-[#85ed65]">{profile.name[0]?.toUpperCase() || 'S'}</span>}</div>
-          <div className="space-y-3"><label className="inline-block cursor-pointer rounded-lg bg-[#85ed65] px-4 py-2.5 text-sm font-bold text-[#112516]">Selecionar imagem<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={event => { selectFile(event.target.files?.[0]); event.target.value = ''; }} /></label><p className="text-xs text-[#bdd2c5]">PNG, JPG ou WEBP, até 5 MB. A imagem será recortada em quadrado.</p>{(profile.avatarUrl || file) && <button type="button" disabled={saving} onClick={() => file ? setFile(null) : void removeAvatar()} className="block text-sm text-red-200 underline">Remover foto</button>}</div></div>
+        <div className="mt-6 flex flex-wrap items-start gap-6" onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); selectFile(event.dataTransfer.files[0]); }}><div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-[#85ed65]/40 bg-[#0b1715]">{file ? <canvas ref={canvasRef} width={320} height={320} className="h-full w-full" /> : profile.avatarUrl ? <img src={profile.avatarUrl} alt="Seu avatar" className="h-full w-full object-cover" /> : <span className="text-3xl font-bold text-[#85ed65]">{profile.name[0]?.toUpperCase() || 'S'}</span>}</div>
+          <div className="space-y-3"><label className="inline-block cursor-pointer rounded-lg bg-[#85ed65] px-4 py-2.5 text-sm font-bold text-[#112516]">Selecionar imagem<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={event => { selectFile(event.target.files?.[0]); event.target.value = ''; }} /></label><p className="text-xs text-[#bdd2c5]">Selecione ou arraste PNG, JPG ou WEBP de até 5 MB. A imagem será recortada em quadrado.</p>{(profile.avatarUrl || file) && <button type="button" disabled={saving} onClick={() => file ? setFile(null) : void removeAvatar()} className="block text-sm text-red-200 underline">Remover foto</button>}</div></div>
         {file && <div className="mt-6 grid gap-4 sm:grid-cols-3"><label className="text-sm">Aproximar<input type="range" min="1" max="3" step="0.05" value={zoom} onChange={event => setZoom(Number(event.target.value))} className="mt-2 w-full" /></label><label className="text-sm">Horizontal<input type="range" min="0" max="100" value={position.x} onChange={event => setPosition(current => ({ ...current, x: Number(event.target.value) }))} className="mt-2 w-full" /></label><label className="text-sm">Vertical<input type="range" min="0" max="100" value={position.y} onChange={event => setPosition(current => ({ ...current, y: Number(event.target.value) }))} className="mt-2 w-full" /></label></div>}
         <div className="mt-7 grid gap-4 sm:grid-cols-2"><div><span className="text-sm text-[#bdd2c5]">Nome</span><p className="mt-2 font-medium">{profile.name}</p></div><div><span className="text-sm text-[#bdd2c5]">E-mail</span><p className="mt-2 font-medium">{profile.email}</p></div></div>
         <label className="mt-6 block text-sm">Biografia<textarea value={profile.bio} maxLength={500} onChange={event => setProfile({ ...profile, bio: event.target.value })} className={`${field} min-h-24`} /></label>
@@ -112,6 +126,7 @@ export function AccountProfilePage() {
         <button type="button" disabled={saving} onClick={() => void saveProfile()} className="mt-6 rounded-lg bg-[#85ed65] px-5 py-3 text-sm font-bold text-[#112516] disabled:opacity-60">{saving ? 'Salvando...' : 'Salvar perfil'}</button>
       </section>
       <section className="rounded-lg border border-white/15 bg-[#14251e] p-6 sm:p-8"><h2 className="text-xl font-semibold">Alterar senha</h2><div className="mt-5 grid gap-4 sm:grid-cols-3"><label className="text-sm">Senha atual<input type="password" autoComplete="current-password" value={password.currentPassword} onChange={event => setPassword({ ...password, currentPassword: event.target.value })} className={field}/></label><label className="text-sm">Nova senha<input type="password" autoComplete="new-password" value={password.newPassword} onChange={event => setPassword({ ...password, newPassword: event.target.value })} className={field}/></label><label className="text-sm">Confirmar nova senha<input type="password" autoComplete="new-password" value={password.confirmation} onChange={event => setPassword({ ...password, confirmation: event.target.value })} className={field}/></label></div><button type="button" disabled={saving} onClick={() => void changePassword()} className="mt-6 rounded-lg border border-[#85ed65] px-5 py-3 text-sm font-bold text-[#a9f58e] disabled:opacity-60">Atualizar senha</button></section>
+      {preferences && <section className="rounded-lg border border-white/15 bg-[#14251e] p-6 sm:p-8"><h2 className="text-xl font-semibold">Preferências</h2><p className="mt-2 text-sm text-[#bdd2c5]">Controle quais comunicações sua conta pode receber.</p><div className="mt-5 space-y-4"><label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={preferences.marketingEmails} onChange={event => setPreferences(current => current && { ...current, marketingEmails: event.target.checked })} className="h-5 w-5 accent-[#85ed65]" /> Novidades e campanhas por e-mail</label><label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={preferences.securityAlerts} onChange={event => setPreferences(current => current && { ...current, securityAlerts: event.target.checked })} className="h-5 w-5 accent-[#85ed65]" /> Alertas de segurança da conta</label></div><button type="button" disabled={saving} onClick={() => void savePreferences()} className="mt-6 rounded-lg border border-[#85ed65] px-5 py-3 text-sm font-bold text-[#a9f58e] disabled:opacity-60">Salvar preferências</button></section>}
     </>}
   </div></main>;
 }
