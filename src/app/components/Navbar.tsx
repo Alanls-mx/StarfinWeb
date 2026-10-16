@@ -8,8 +8,7 @@ const links = [
   { label: 'Início', href: '/' },
   { label: 'Plugins', href: '/plugins' },
   { label: 'Planos', href: '/premium' },
-  { label: 'Documentação', href: '/docs' },
-  { label: 'Suporte', href: '/support' }
+  { label: 'Documentação', href: '/docs' }
 ];
 
 export function Navbar({ branding }: { branding: { siteName: string; logoUrl: string | null } }) {

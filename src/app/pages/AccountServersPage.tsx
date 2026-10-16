@@ -15,6 +15,8 @@ export function AccountServersPage() {
   const [name, setName] = useState('');
   const [ips, setIps] = useState('');
   const [codes, setCodes] = useState<Record<string, string>>({});
+  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [revokeReason, setRevokeReason] = useState('');
   const [transferTargets, setTransferTargets] = useState<Record<string, string>>({});
   const [history, setHistory] = useState<Record<string, InstallationEvent[]>>({});
   const [loading, setLoading] = useState(true);
@@ -71,10 +73,16 @@ export function AccountServersPage() {
   }
   async function revoke(server: ServerRecord) {
     if (!token || busy) return;
-    const reason = window.prompt(`Motivo para desvincular ${server.name}:`);
-    if (!reason) return;
+    const reason = revokeReason.trim();
+    if (reason.length < 8) { setError('Informe um motivo com pelo menos 8 caracteres.'); return; }
     setBusy(true); setError('');
-    try { await revokeInstallation(token, server.id, reason); await refresh(token); toast.success('Credencial revogada.'); }
+    try {
+      const result = await revokeInstallation(token, server.id, reason);
+      if (!result.ok) throw new Error('A instalação não foi desvinculada. Atualize a página e tente novamente.');
+      await refresh(token);
+      setRevokeTarget(null); setRevokeReason('');
+      toast.success('Vínculo revogado e ativações liberadas.');
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao revogar vínculo.'); }
     finally { setBusy(false); }
   }
@@ -109,7 +117,8 @@ export function AccountServersPage() {
         {!active && <div className="mt-5 border-t border-white/10 pt-4"><p className="text-sm">Execute <code>/starfincore ativar</code> no servidor e confirme o código temporário de 10 caracteres aqui.</p><div className="mt-3 flex flex-wrap gap-2"><input aria-label={`Código de ativação de ${server.name}`} value={codes[server.id] || ''} onChange={event => setCodes(current => ({ ...current, [server.id]: event.target.value.toUpperCase() }))} maxLength={10} placeholder="Código de ativação" className="min-w-0 flex-1 rounded-md border border-white/20 bg-[#0b1715] px-3 py-2 font-mono text-sm" /><button type="button" disabled={busy || !/^[0-9A-F]{10}$/.test(codes[server.id] || '')} onClick={() => void activate(server)} className="sf-button-primary">Vincular Core</button></div></div>}
         <div className="mt-5 border-t border-white/10 pt-4"><h3 className="text-sm font-semibold">Ativações por produto</h3><div className="mt-2 flex flex-wrap gap-2">{server.entitlements?.map(item => <span key={item.pluginId} className="rounded border border-white/15 px-3 py-2 text-xs">{uniqueLicenses.find(license => license.pluginId === item.pluginId)?.name || `Produto ${item.pluginId}`}: {item.used}/{item.limit} em uso · {item.available} disponível</span>)}</div></div>
         {server.plugins.length > 0 && servers.length > 1 && <div className="mt-5 border-t border-white/10 pt-4"><h3 className="text-sm font-semibold">Transferir produto</h3><div className="mt-3 space-y-2">{server.plugins.map(pluginId => { const key = `${server.id}:${pluginId}`; return <div key={pluginId} className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-32">{uniqueLicenses.find(item => item.pluginId === pluginId)?.name || `Produto ${pluginId}`}</span><select aria-label={`Destino para produto ${pluginId} de ${server.name}`} value={transferTargets[key] || ''} onChange={event => setTransferTargets(current => ({ ...current, [key]: event.target.value }))} className="rounded border border-white/20 bg-[#0b1715] px-3 py-2"><option value="">Selecione o destino</option>{servers.filter(item => item.id !== server.id && !item.plugins.includes(pluginId)).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button type="button" disabled={busy || !transferTargets[key]} onClick={() => void transferProduct(server, pluginId)} className="text-[#a9f58e]">Transferir</button></div>; })}</div></div>}
-        <div className="mt-5 flex flex-wrap gap-4 border-t border-white/10 pt-4 text-sm"><button type="button" onClick={() => void showHistory(server)} className="text-[#a9f58e]">{history[server.id] ? 'Ocultar histórico' : 'Ver histórico'}</button>{active && <button type="button" onClick={() => void revoke(server)} className="text-red-200">Revogar vínculo</button>}</div>
+        <div className="mt-5 flex flex-wrap gap-4 border-t border-white/10 pt-4 text-sm"><button type="button" onClick={() => void showHistory(server)} className="text-[#a9f58e]">{history[server.id] ? 'Ocultar histórico' : 'Ver histórico'}</button>{active && <button type="button" disabled={busy} onClick={() => { setRevokeTarget(server.id); setRevokeReason(''); setError(''); }} className="text-red-200">Revogar vínculo</button>}</div>
+        {active && revokeTarget === server.id && <div className="mt-4 rounded-md border border-red-300/30 bg-red-950/20 p-4 text-sm"><p>Revogar o Core de <strong>{server.name}</strong> invalida a credencial e libera as ativações de produtos deste servidor.</p><label className="mt-3 block">Motivo (mínimo 8 caracteres)<input value={revokeReason} onChange={event => setRevokeReason(event.target.value)} minLength={8} maxLength={255} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3" /></label><div className="mt-3 flex gap-4"><button type="button" disabled={busy || revokeReason.trim().length < 8} onClick={() => void revoke(server)} className="text-red-200">Confirmar revogação</button><button type="button" disabled={busy} onClick={() => setRevokeTarget(null)} className="text-[#bdd2c5]">Cancelar</button></div></div>}
         {history[server.id] && <ol className="mt-4 space-y-2 text-xs text-[#bdd2c5]">{history[server.id].length ? history[server.id].map(event => <li key={event.id} className="border-l border-white/20 pl-3">{new Date(event.createdISO).toLocaleString('pt-BR')} · {event.action} · {event.reason}</li>) : <li>Nenhum evento registrado.</li>}</ol>}
       </section>;
     })}

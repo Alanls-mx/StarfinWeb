@@ -5,7 +5,7 @@ import { subscribeNewsletter } from '../lib/api';
 
 const groups = [
   { title: 'Produtos', links: [{ title: 'Catálogo', href: '/plugins' }, { title: 'Planos', href: '/premium' }, { title: 'Atualizações', href: '/changelog' }] },
-  { title: 'Ajuda', links: [{ title: 'Documentação', href: '/docs' }, { title: 'Central de suporte', href: '/support' }, { title: 'Perguntas frequentes', href: '/faq' }] },
+  { title: 'Ajuda', links: [{ title: 'Documentação', href: '/docs' }, { title: 'Perguntas frequentes', href: '/faq' }] },
   { title: 'StarfinPlugins', links: [{ title: 'Sobre', href: '/about' }, { title: 'Contato', href: '/contact' }, { title: 'Status', href: '/status' }] },
   { title: 'Legal', links: [{ title: 'Termos de uso', href: '/terms' }, { title: 'Privacidade', href: '/privacy' }] }
 ];

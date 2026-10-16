@@ -85,7 +85,10 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     const revoke = await post(`/api/users/me/servers/${winner}/revoke`, { reason: 'Teste de revogação autorizado' }, `Bearer ${token}`);
     assert.equal(revoke.status, 200);
     assert.equal((await post('/v3/installations/check', { installationId }, `Installation ${credential}`)).status, 401);
-    assert.equal((await assign(winner)).status, 200); // already assigned; no extra entitlement granted
+    const afterRevoke = await fetch(`${base}/api/users/me/servers`, { headers: { authorization: `Bearer ${token}` } });
+    assert.deepEqual((await afterRevoke.json() as { items: Array<{ id: string; plugins: number[] }> }).items.find(item => item.id === winner)?.plugins, []);
+    assert.equal((await post(`/api/users/me/servers/${winner}/revoke`, { reason: 'Revogação repetida de teste' }, `Bearer ${token}`)).status, 409);
+    assert.equal((await assign(winner)).status, 409); // another installation still holds the remaining paid seat
     const list = await fetch(`${base}/api/users/me/servers`, { headers: { authorization: `Bearer ${token}` } });
     const items = (await list.json() as { items: any[] }).items;
     assert.equal(items.find(item => item.id === winner).entitlements[0].purchased, 1);

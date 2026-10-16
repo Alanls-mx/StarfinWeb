@@ -1,8 +1,8 @@
 import { NavLink } from 'react-router';
 
 const entries = [
-  ['Visão geral', '/account'], ['Meus plugins', '/account/plugins'], ['Licenças', '/account/licenses'],
-  ['Servidores', '/account/servers'], ['Pedidos', '/account/orders'], ['Notificações', '/account/notifications'], ['Suporte', '/support'],
+  ['Visão geral', '/account'], ['Meus plugins', '/account/plugins'],
+  ['Servidores', '/account/servers'], ['Pedidos', '/account/orders'],
   ['Perfil e segurança', '/account/profile']
 ] as const;
 

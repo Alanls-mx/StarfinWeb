@@ -2,7 +2,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '../../components/
 import { AdminSidebar } from '../../components/AdminSidebar';
 import { useAuth } from '../../lib/auth';
 import { Link, Navigate, Outlet } from 'react-router';
-import { Bell, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 export function AdminLayout() {
   const { state } = useAuth();
@@ -32,7 +32,6 @@ export function AdminLayout() {
             </div>
             <div className="flex items-center gap-3">
               <Link to="/" className="hidden items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-[#b7bfcd] hover:text-white sm:inline-flex">Ver loja <ExternalLink size={13}/></Link>
-              <Link to="/admin/notifications" className="rounded-lg border border-white/10 p-2.5 text-[#b7bfcd] hover:text-white" aria-label="Abrir notificações"><Bell size={18}/></Link>
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#85ed65] text-sm font-bold text-[#112516]" title={state.user.name}>{state.user.name?.[0]?.toUpperCase() || 'A'}</span>
             </div>
           </header>

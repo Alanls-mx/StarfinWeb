@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Route, Routes, useLocation } from 'react-router';
+import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { Navbar } from './components/Navbar';
 import { Store } from './components/Store';
 import { PluginDetail } from './components/PluginDetail';
@@ -21,7 +21,6 @@ import { PrivacyPage } from './pages/PrivacyPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { AccountOrdersPage } from './pages/AccountOrdersPage';
-import { AccountLicensesPage } from './pages/AccountLicensesPage';
 import { AccountProfilePage } from './pages/AccountProfilePage';
 import { AccountOverviewPage } from './pages/AccountOverviewPage';
 import { AccountPluginsPage } from './pages/AccountPluginsPage';
@@ -100,9 +99,9 @@ export default function App({ homeContent, institutionalContent, faqItems, about
               <Route path="/account" element={<AccountOverviewPage />} />
               <Route path="/account/plugins" element={<AccountPluginsPage />} />
               <Route path="/account/servers" element={<AccountServersPage />} />
+              <Route path="/account/licenses" element={<Navigate to="/account/servers" replace />} />
               <Route path="/account/notifications" element={<AccountNotificationsPage />} />
               <Route path="/account/orders" element={<AccountOrdersPage />} />
-              <Route path="/account/licenses" element={<AccountLicensesPage />} />
               <Route path="/account/profile" element={<AccountProfilePage />} />
               <Route path="/status" element={<StatusPage />} />
               <Route path="/changelog" element={<ChangelogPage />} />

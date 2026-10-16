@@ -303,7 +303,7 @@ export function Dashboard() {
         ) : null}
 
         <nav aria-label="Seções da conta" className="mb-8 flex flex-wrap gap-2 rounded-xl border border-[#315647] bg-[#152a22] p-2 text-sm">
-          <Link to="/account/licenses" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Licenças</Link>
+          <Link to="/account/servers" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Instalações</Link>
           <a href="#servidores" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Servidores</a>
           <a href="#plugins" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Plugins</a>
           <Link to="/account/orders" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Pedidos</Link>
@@ -317,7 +317,7 @@ export function Dashboard() {
           {[
             { icon: Package, label: 'Plugins na conta', value: String(stats.pluginsCount), onClick: () => document.getElementById('plugins')?.scrollIntoView({ behavior: 'smooth' }) },
             { icon: Server, label: 'Servidores cadastrados', value: String(stats.serversCount), onClick: () => document.getElementById('servidores')?.scrollIntoView({ behavior: 'smooth' }) },
-            { icon: Key, label: 'Licenças ativas', value: String(stats.licensesActive), onClick: () => navigate('/account/licenses') }
+            { icon: Key, label: 'Produtos ativos', value: String(stats.licensesActive), onClick: () => navigate('/account/plugins') }
           ].map((stat, index) => (
             <button type="button"
               key={index}
@@ -335,10 +335,10 @@ export function Dashboard() {
         <div className="mb-10 rounded-2xl border border-[#37694d] bg-[#174d39] p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-5">
             <div>
-              <h2 className="text-xl font-semibold">Licenças e acesso</h2>
+              <h2 className="text-xl font-semibold">Instalações e produtos</h2>
               <p className="mt-2 text-sm text-muted-foreground">Consulte seus produtos e gerencie as ativações por instalação.</p>
             </div>
-            <Link to="/account/licenses" className="sf-button-primary">Gerenciar licenças</Link>
+            <Link to="/account/servers" className="sf-button-primary">Gerenciar instalações</Link>
           </div>
         </div>
 
@@ -524,15 +524,6 @@ export function Dashboard() {
                   </span>
                 </Link>
 
-                <button
-                  onClick={openNotifications}
-                  className="w-full flex items-center gap-3 p-3 bg-[#0B1715]/50 rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-left group"
-                >
-                  <Bell className="w-5 h-5 text-gray-400 group-hover:text-[#A6F3C8] transition-colors duration-300" />
-                  <span className="text-sm text-gray-300 group-hover:text-white transition-colors duration-300">
-                    Notificações
-                  </span>
-                </button>
 
                 <Link
                   to="/account/profile"
@@ -568,28 +559,12 @@ export function Dashboard() {
                 >
                   Explorar Plugins
                 </Link>
-                <Link to="/support" className="block w-full px-4 py-3 bg-transparent border border-[#177F58]/40 text-white rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-sm text-center">
-                  Suporte
-                </Link>
                 <Link to="/docs" className="block w-full px-4 py-3 bg-transparent border border-[#177F58]/40 text-white rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-sm text-center">
                   Documentação
                 </Link>
               </div>
             </div>
 
-            {/* Support Card */}
-            <div className="bg-gradient-to-br from-[#177F58]/20 to-[#0A4C43]/20 backdrop-blur-sm border border-[#177F58]/30 rounded-xl p-6">
-              <div className="w-12 h-12 rounded-lg bg-[#177F58] flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-lg text-white mb-2">Precisa de Ajuda?</h3>
-              <p className="text-sm text-gray-400 mb-4">
-                Abra um chamado de suporte e acompanhe a resposta pela plataforma.
-              </p>
-              <Link to="/support" className="block w-full px-4 py-2 bg-white text-[#0B1715] rounded-lg hover:bg-gray-100 transition-all duration-300 text-sm text-center">
-                Abrir Ticket
-              </Link>
-            </div>
           </div>
         </div>
       </div>

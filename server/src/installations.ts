@@ -148,9 +148,16 @@ export function listInstallationEvents(serverId: string) {
 }
 
 export function revokeInstallation(serverId: string, actorUserId: string, reason: string) {
-  const changed = db.prepare('UPDATE servers SET credentialHash = NULL, revokedISO = ? WHERE id = ? AND revokedISO IS NULL').run(now(), serverId).changes;
-  if (changed) logInstallationEvent(serverId, 'installation.revoke', actorUserId, reason);
-  return Boolean(changed);
+  const changed = db.prepare(`
+    WITH revoked AS (
+      UPDATE servers SET credentialHash = NULL, revokedISO = ?, lastSyncISO = NULL
+      WHERE id = ? AND credentialHash IS NOT NULL AND revokedISO IS NULL RETURNING id
+    ), released AS (
+      DELETE FROM server_plugins WHERE serverId IN (SELECT id FROM revoked)
+    ) SELECT COUNT(*)::integer AS count FROM revoked
+  `).get(now(), serverId) as { count: number };
+  if (changed.count) logInstallationEvent(serverId, 'installation.revoke', actorUserId, reason);
+  return changed.count > 0;
 }
 
 export function transferInstallation(serverId: string, targetUserId: string, actorUserId: string, reason: string) {

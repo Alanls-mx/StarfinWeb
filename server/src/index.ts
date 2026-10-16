@@ -2818,7 +2818,8 @@ app.post('/api/users/me/servers/:id/revoke', (req, res) => {
   const reason = String(req.body?.reason || '').trim();
   if (reason.length < 8) return res.status(400).json({ error: 'Informe o motivo do desvínculo (mínimo de 8 caracteres).' });
   const changed = revokeInstallation(server.id, ctx.userId, reason.slice(0, 255));
-  res.json({ ok: changed });
+  if (!changed) return res.status(409).json({ ok: false, error: 'Instalação já desvinculada ou sem credencial ativa.' });
+  res.json({ ok: true });
 });
 
 app.get('/api/users/me/servers/:id/history', (req, res) => {
@@ -3050,7 +3051,8 @@ app.post('/api/admin/installations/:id/revoke', (req, res) => {
   if (reason.length < 10 || reason.length > 500) return res.status(400).json({ error: 'Informe motivo de 10 a 500 caracteres.' });
   const changed = revokeInstallation(server.id, getAuthContext(req)!.userId, reason);
   auditAdmin(req, 'installation.revoke', 'server', server.id, { reason, changed });
-  res.json({ ok: changed });
+  if (!changed) return res.status(409).json({ ok: false, error: 'Instalação já desvinculada ou sem credencial ativa.' });
+  res.json({ ok: true });
 });
 
 app.post('/api/admin/installations/:id/transfer', (req, res) => {

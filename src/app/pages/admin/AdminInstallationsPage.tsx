@@ -29,7 +29,7 @@ export function AdminInstallationsPage() {
     const reason = window.prompt(`Motivo da revogação de ${server.name} (mínimo 10 caracteres):`);
     if (!reason) return;
     setBusy(true);
-    try { await adminRevokeInstallation(token, server.id, reason); await refresh(); toast.success('Instalação revogada.'); }
+    try { const result = await adminRevokeInstallation(token, server.id, reason); if (!result.ok) throw new Error('A instalação não foi revogada.'); await refresh(); toast.success('Instalação revogada e ativações liberadas.'); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha na revogação.'); }
     finally { setBusy(false); }
   }

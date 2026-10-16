@@ -17,15 +17,13 @@ const groups = [
   ] },
   { label: 'Clientes', links: [
     { to: '/admin/users', label: 'Usuários', icon: Users },
-    { to: '/admin/support', label: 'Suporte', icon: MessageSquare },
     { to: '/admin/reviews', label: 'Avaliações', icon: Bell }
   ] },
   { label: 'Conteúdo', links: [
     { to: '/admin/content', label: 'Conteúdo do site', icon: Briefcase },
     { to: '/admin/docs', label: 'Documentação', icon: BookOpen },
     { to: '/admin/changelog', label: 'Changelog', icon: ScrollText },
-    { to: '/admin/newsletter', label: 'Newsletter', icon: Mail },
-    { to: '/admin/notifications', label: 'Notificações', icon: FileText }
+    { to: '/admin/newsletter', label: 'Newsletter', icon: Mail }
   ] },
   { label: 'Sistema', links: [
     { to: '/admin/integrations', label: 'Integrações', icon: Link2 },
