@@ -154,7 +154,7 @@ import {
   findAuthenticatedInstallation, listInstallationEvents, logInstallationEvent,
   productEntitlements, revokeInstallation, updateInstallationSync,
   migrateMatchingLegacyPurchases, transferInstallation, installationHasSeat, transferProductAssignment,
-  authorizedInstallationPort, pinLegacyInstallationIp, validPort
+  authorizedInstallationPort, pinLegacyInstallationIp, validPort, assignEligibleProductsOnLink
 } from './installations.js';
 
 function getMpCredentials() {
@@ -2943,6 +2943,7 @@ app.post('/api/users/me/servers/:id/claim', (req, res) => {
   const linked = claimInstallation(code, ctx.userId, server.id, String(req.body?.reason || 'Ativação pelo proprietário').slice(0, 255));
   if (!linked) return res.status(409).json({ code: 'ACTIVATION_REJECTED', error: 'Código expirado, usado ou instalação já vinculada.' });
   migrateMatchingLegacyPurchases(ctx.userId, server.id, linked.installationId);
+  assignEligibleProductsOnLink(ctx.userId, server.id);
   res.json({ item: publicServer(findServerById(server.id)) });
 });
 

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import Database from './postgres-sync.js';
 import { fitsIpGroups, isLaunch, planSeats } from './license-policy.js';
-import { getPluginDetail, findUserById } from './data.js';
+import { getPluginDetail, findUserById, pluginSummaries } from './data.js';
 
 const db = new Database();
 db.exec(`
@@ -269,6 +269,26 @@ export function assignProductWithLimit(userId: string, serverId: string, pluginI
   // then counts purchased and occupied slots against a fresh snapshot.
   const row = db.prepare('SELECT starfin_assign_product_slot(?, ?, ?) AS assigned').get(userId, serverId, pluginId) as { assigned: boolean };
   return Boolean(row.assigned);
+}
+
+export function assignEligibleProductsOnLink(userId: string, serverId: string) {
+  const owner = findUserById(userId);
+  if (!owner || owner.banned) return [];
+  const purchased = db.prepare("SELECT DISTINCT pluginId FROM purchases WHERE userId = ? AND status = 'approved'")
+    .all(userId) as Array<{ pluginId: number }>;
+  const candidates = new Set<number>(purchased.map(row => Number(row.pluginId)));
+  for (const plugin of pluginSummaries) {
+    if (owner.role === 'admin' || planSeats(owner.plan, owner.planExpiresAt, plugin.tags,
+      isLaunch(plugin.firstPublishedISO, plugin.launchOverride)) !== 0) candidates.add(plugin.id);
+  }
+  const assigned: number[] = [];
+  for (const pluginId of candidates) {
+    if (assignProductWithLimit(userId, serverId, pluginId)) {
+      logInstallationEvent(serverId, 'product.assign', userId, 'Atribuição automática após vínculo confirmado', { pluginId });
+      assigned.push(pluginId);
+    }
+  }
+  return assigned;
 }
 
 export function transferProductAssignment(userId: string, fromServerId: string, toServerId: string, pluginId: number, actorUserId: string, reason: string) {

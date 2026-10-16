@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { test } from 'node:test';
 import { app } from './index.js';
-import { createPlugin, createPurchase, createSession, createUser, findServerById, updatePurchaseStatus, updateUserAdmin } from './data.js';
+import { createPlugin, createPurchase, createSession, createUser, findServerById, listPluginsForServer, updatePurchaseStatus, updateUserAdmin } from './data.js';
 import { transferInstallation } from './installations.js';
 import Database from './postgres-sync.js';
 
@@ -63,7 +63,7 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     assert.equal(authorized.installation.authorizedPort, 25565);
     assert.equal(authorized.installation.reportedPort, 25565);
     assert.equal(authorized.installation.portMatches, true);
-    assert.deepEqual(authorized.allowedProductIds, ['core_test']);
+    assert.equal(authorized.allowedProductIds.includes('core_test'), true);
     assert.equal(authorized.products[0].quantity.purchased, 2);
     assert.equal(authorized.products[0].quantity.used, 2);
     assert.equal(authorized.products[0].quantity.available, 2);
@@ -141,7 +141,45 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     const legacyCode = (await legacyChallenge.json() as { code: string }).code;
     assert.equal((await post(`/api/users/me/servers/${legacyServerId}/claim`, { code: legacyCode }, `Bearer ${legacyToken}`)).status, 200);
     const migrated = await post('/v3/installations/check', { installationId: legacyInstallationId }, `Installation ${legacyCredential}`);
-    assert.deepEqual((await migrated.json() as { allowedProductIds: string[] }).allowedProductIds, ['core_test']);
+    assert.equal((await migrated.json() as { allowedProductIds: string[] }).allowedProductIds.includes('core_test'), true);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});
+
+test('linking an installation assigns only eligible purchases and keeps manual removal effective', async () => {
+  const suffix = Date.now();
+  const owned = createPlugin({ name: `AutoClaim-${suffix}`, description: 'Owned', category: 'Administração', tags: [], mcVersion: '1.21', imageUrl: 'https://example.invalid/owned.png', priceDisplay: 'R$ 10,00', licenseName: `auto_claim_${suffix}` });
+  const ownedProductId = `auto_claim_${suffix}`;
+  const unowned = createPlugin({ name: `NotOwned-${suffix}`, description: 'Unowned', category: 'Administração', tags: [], mcVersion: '1.21', imageUrl: 'https://example.invalid/unowned.png', priceDisplay: 'R$ 10,00', licenseName: `unowned_${suffix}` });
+  const owner = createUser({ name: 'Cliente com compra', email: `auto-claim-${suffix}@example.invalid`, password: 'test-only-password' });
+  assert.ok(owner);
+  updatePurchaseStatus(createPurchase(owner.id, owned.id).id, 'approved');
+  const token = createSession(owner.id, 'user').token;
+  const server = app.listen(0, '127.0.0.1');
+  try {
+    await new Promise<void>((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
+    const address = server.address();
+    assert.ok(address && typeof address !== 'string');
+    const base = `http://127.0.0.1:${address.port}`;
+    const post = (path: string, body: unknown, auth?: string) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', ...(auth ? { authorization: auth } : {}) }, body: JSON.stringify(body) });
+    const registered = await post('/api/users/me/servers', { name: 'Lobby', ips: [] }, `Bearer ${token}`);
+    assert.equal(registered.status, 201);
+    const serverId = (await registered.json() as { id: string }).id;
+    const installationId = crypto.randomUUID();
+    const credential = crypto.randomBytes(32).toString('base64url');
+    const challenge = await post('/v3/installations/challenge', { installationId, credential, name: 'Lobby', platform: 'Bukkit', coreVersion: '0.3.1', serverPort: 25565 });
+    assert.equal(challenge.status, 201);
+    const code = (await challenge.json() as { code: string }).code;
+    assert.equal((await post(`/api/users/me/servers/${serverId}/claim`, { code }, `Bearer ${token}`)).status, 200);
+    assert.equal(listPluginsForServer(serverId).includes(owned.id), true);
+    assert.equal(listPluginsForServer(serverId).includes(unowned.id), false);
+    const check = await post('/v3/installations/check', { installationId, platform: 'Bukkit', coreVersion: '0.3.1', serverPort: 25565 }, `Installation ${credential}`);
+    assert.equal((await check.json() as { allowedProductIds: string[] }).allowedProductIds.includes(ownedProductId), true);
+    assert.equal((await fetch(`${base}/api/users/me/servers/${serverId}/plugins/${owned.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${token}` } })).status, 200);
+    assert.equal(listPluginsForServer(serverId).includes(owned.id), false);
+    assert.equal((await (await post('/v3/installations/check', { installationId, serverPort: 25565 }, `Installation ${credential}`)).json() as { allowedProductIds: string[] }).allowedProductIds.includes(ownedProductId), false);
+    assert.equal(listPluginsForServer(serverId).includes(unowned.id), false);
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
