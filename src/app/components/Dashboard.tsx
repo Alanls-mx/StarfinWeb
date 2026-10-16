@@ -229,9 +229,9 @@ export function Dashboard() {
     return (
       <div className="min-h-screen bg-[#0b1715] pt-28 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
-          <div className="overflow-hidden rounded-[2rem] border border-[#b7efbd] bg-[#e9f9e8] text-[#11291b] sm:grid sm:grid-cols-[1fr_230px]">
-            <div className="p-8 sm:p-10"><p className="sf-eyebrow !text-[#147a58]">Seu espaço Starfin</p><h1 className="mt-3 mb-4 text-4xl font-extrabold tracking-tight sm:text-5xl">Minha Conta</h1>
-            <p className="mb-8 text-base leading-7 text-[#4e6955]">Entre para gerenciar suas licenças, plugins e servidores em um só lugar.</p>
+          <div className="border-l-2 border-[#85ed65] bg-[#14251e] text-white">
+            <div className="p-8 sm:p-10"><h1 className="mb-4 text-4xl font-extrabold tracking-tight sm:text-5xl">Minha conta</h1>
+            <p className="mb-8 text-base leading-7 text-[#bdd2c5]">Entre para consultar suas licenças, plugins e servidores.</p>
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
@@ -241,7 +241,6 @@ export function Dashboard() {
               Entrar
             </motion.button>
             </div>
-            <div className="relative hidden min-h-65 bg-[#bcefd0] sm:block"><img src="/voxel/engineer.webp" alt="Personagem voxel apresentando a área da conta" className="absolute inset-x-0 -bottom-5 h-[115%] w-full object-contain object-bottom" /></div>
           </div>
         </div>
       </div>
@@ -252,15 +251,13 @@ export function Dashboard() {
     <div className="min-h-screen bg-[#0b1715] pt-27 pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="relative mb-8 min-h-[470px] overflow-hidden rounded-[2rem] bg-[linear-gradient(115deg,#dcf9ce,#7ce5ce)] p-7 text-[#11291b] sm:min-h-[280px] sm:p-10">
-          <div aria-hidden="true" className="sf-grid absolute inset-0 opacity-70" />
-          <div className="relative z-10 max-w-full sm:max-w-[60%]">
-            <p className="sf-eyebrow !text-[#126c53]">Painel do jogador</p>
+        <div className="relative mb-8 border-b border-white/15 bg-[#10221b] px-7 py-9 text-white sm:px-10">
+          <div className="relative z-10 max-w-full">
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <h1 className="text-4xl font-extrabold tracking-[-.055em] sm:text-5xl">Minha Conta</h1>
+              <h1 className="text-4xl font-extrabold tracking-[-.025em] sm:text-5xl">Minha conta</h1>
               <div className="flex gap-2">
-                <span className="rounded-full border border-[#5bbd88] bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#13573a]">
-                  {user?.plan || 'Free'}
+                <span className="rounded-md border border-white/20 bg-[#193427] px-3 py-1 font-mono text-xs text-[#a9f58e]">
+                  {user?.plan === 'Premium' ? 'Plano Premium' : 'Plano Gratuito'}
                 </span>
                 {user?.role === 'admin' && (
                   <span className="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded-full border border-red-500/30 uppercase tracking-wider">
@@ -269,10 +266,9 @@ export function Dashboard() {
                 )}
               </div>
             </div>
-            <p className="mt-4 max-w-lg text-sm leading-7 text-[#385e49] sm:text-base">Bem-vindo de volta, {user?.name?.split(' ')[0]}. Seus plugins, licenças e servidores estão aqui.</p>
-            <div className="mt-6 hidden text-xs font-semibold text-[#32624c] sm:block">{user?.email}</div>
+            <p className="mt-4 max-w-lg text-sm leading-7 text-[#bdd2c5] sm:text-base">Olá, {user?.name?.split(' ')[0]}. Consulte suas instalações, licenças e pedidos.</p>
+            <div className="mt-6 hidden font-mono text-xs text-[#9cb8a6] sm:block">{user?.email}</div>
           </div>
-          <img src="/voxel/engineer.webp" alt="Personagem voxel mostrando a gestão da conta" className="absolute -right-4 bottom-0 h-[45%] w-[62%] object-contain object-bottom sm:right-2 sm:-bottom-10 sm:h-[105%] sm:w-[42%]" />
         </div>
 
         {user?.verified === false ? (
@@ -316,25 +312,21 @@ export function Dashboard() {
 
         {loadError && <p role="alert" className="mb-8 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{loadError}</p>}
 
-        {/* Stats Cards */}
-        <div className="mb-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Compact operational summary */}
+        <div className="mb-10 grid grid-cols-1 divide-y divide-white/10 rounded-lg border border-white/15 bg-[#14251e] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {[
-            { icon: Package, label: 'Plugins na conta', value: String(stats.pluginsCount), tone: 'bg-[#e8f8df]', onClick: () => document.getElementById('plugins')?.scrollIntoView({ behavior: 'smooth' }) },
-            { icon: Server, label: 'Servidores cadastrados', value: String(stats.serversCount), tone: 'bg-[#d9f4ee]', onClick: () => document.getElementById('servidores')?.scrollIntoView({ behavior: 'smooth' }) },
-            { icon: Key, label: 'Licenças ativas', value: String(stats.licensesActive), tone: 'bg-[#f3f8db]', onClick: () => navigate('/account/licenses') },
-            { icon: Shield, label: user?.plan || 'Free', value: 'Plano', tone: 'bg-[#dceee4]', onClick: () => setActiveModal('plans') }
+            { icon: Package, label: 'Plugins na conta', value: String(stats.pluginsCount), onClick: () => document.getElementById('plugins')?.scrollIntoView({ behavior: 'smooth' }) },
+            { icon: Server, label: 'Servidores cadastrados', value: String(stats.serversCount), onClick: () => document.getElementById('servidores')?.scrollIntoView({ behavior: 'smooth' }) },
+            { icon: Key, label: 'Licenças ativas', value: String(stats.licensesActive), onClick: () => navigate('/account/licenses') }
           ].map((stat, index) => (
             <button type="button"
               key={index}
               onClick={stat.onClick}
-              className={`group relative overflow-hidden rounded-2xl border border-[#b8d9c2] p-5 text-left text-[#133326] transition-transform hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#85ed65] ${stat.tone}`}
+              className="group p-5 text-left text-white transition-colors hover:bg-white/[.04]"
             >
-              <div className="relative">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#1b714e] text-white">
-                  <stat.icon className="h-5 w-5" />
-                </div>
-                <div className="mb-1 text-3xl font-extrabold">{stat.value}</div>
-                <div className="text-sm font-semibold text-[#4f6d59]">{stat.label}</div>
+              <div className="flex items-center gap-4">
+                <stat.icon className="h-5 w-5 text-[#85ed65]" />
+                <div><div className="font-mono text-2xl font-bold">{stat.value}</div><div className="mt-1 text-xs text-[#bdd2c5]">{stat.label}</div></div>
               </div>
             </button>
           ))}
@@ -428,10 +420,9 @@ export function Dashboard() {
             ))}
 
             {servers.length === 0 && (
-              <div className="col-span-full grid overflow-hidden rounded-2xl border border-[#bee3c8] bg-[#e6f6e6] text-[#173526] sm:grid-cols-[1fr_230px]">
-                <div className="p-8 sm:p-10"><Server className="mb-4 h-7 w-7 text-[#137f56]" /><h3 className="text-2xl font-extrabold">Seu primeiro servidor começa aqui.</h3><p className="mt-3 max-w-md text-sm leading-7 text-[#526d59]">Cadastre um servidor para organizar seus IPs autorizados e os plugins que pertencem a ele.</p>
-                <button onClick={() => openServerModal(null)} className="sf-button-primary mt-6">Criar meu primeiro servidor <Plus size={17}/></button></div>
-                <div className="relative hidden min-h-55 bg-[#bcebd3] sm:block"><img src="/voxel/engineer.webp" alt="Personagem voxel segurando um núcleo de servidor" loading="lazy" className="absolute inset-x-0 -bottom-6 h-[115%] w-full object-contain object-bottom" /></div>
+              <div className="col-span-full border-l-2 border-[#85ed65] bg-[#14251e] p-7 text-white">
+                <h3 className="text-xl font-bold">Nenhum servidor cadastrado</h3><p className="mt-2 max-w-xl text-sm leading-7 text-[#bdd2c5]">Informe um nome e os IPs autorizados para organizar seus plugins.</p>
+                <button onClick={() => openServerModal(null)} className="sf-button-primary mt-5">Criar servidor <Plus size={17}/></button>
               </div>
             )}
           </div>
@@ -491,7 +482,7 @@ export function Dashboard() {
                     </div>
                   </div>
                 ))}
-                {!loading && licenses.length === 0 && !loadError && <div className="flex flex-wrap items-center justify-between gap-5 rounded-xl border border-[#bde5ce] bg-[#e7f8ee] p-6 text-[#173526]"><div><h3 className="text-lg font-extrabold">Sua coleção começa aqui</h3><p className="mt-2 max-w-md text-sm leading-6 text-[#526d59]">Quando você adquirir um plugin publicado, ele aparecerá nesta área junto à sua licença.</p><Link to="/plugins" className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#0d7550] hover:underline">Explorar catálogo →</Link></div><img src="/voxel/creator-avatar.webp" alt="Personagem voxel mostrando a coleção de plugins" loading="lazy" className="h-36 w-28 object-contain" /></div>}
+                {!loading && licenses.length === 0 && !loadError && <div className="border-l-2 border-[#85ed65] bg-[#14251e] p-6 text-white"><h3 className="text-lg font-bold">Nenhum plugin na conta</h3><p className="mt-2 max-w-xl text-sm leading-6 text-[#bdd2c5]">Quando uma compra for aprovada, o produto e sua licença aparecerão aqui.</p><Link to="/plugins" className="mt-4 inline-flex text-sm font-bold text-[#a9f58e] hover:underline">Ver produtos publicados →</Link></div>}
               </div>
             </div>
 
@@ -508,7 +499,7 @@ export function Dashboard() {
                 </div>
                 <div>
                   <h3 className="text-lg text-white mb-1">{user?.name}</h3>
-                  <p className="text-sm text-gray-400">{user?.plan === 'Premium' ? 'Premium Member' : 'Free Member'}</p>
+                  <p className="text-sm text-gray-400">{user?.plan === 'Premium' ? 'Plano Premium' : 'Plano Gratuito'}</p>
                 </div>
               </div>
 

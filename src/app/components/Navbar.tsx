@@ -1,30 +1,22 @@
 import { ArrowRight, Menu, ShoppingBag, UserRound, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
-import { getPublicSettings } from '../lib/api';
 
 const links = [
   { label: 'Início', href: '/' },
   { label: 'Plugins', href: '/plugins' },
-  { label: 'Premium', href: '/premium' },
+  { label: 'Planos', href: '/premium' },
   { label: 'Documentação', href: '/docs' },
   { label: 'Suporte', href: '/support' }
 ];
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [branding, setBranding] = useState<{ siteName: string; logoUrl: string | null } | null>(null);
   const { state, logout } = useAuth();
   const { count } = useCart();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    getPublicSettings()
-      .then((value) => setBranding({ siteName: value.siteName, logoUrl: value.logoUrl }))
-      .catch(() => {});
-  }, []);
 
   const verifiedWarning = state.status === 'authenticated' && !state.user.verified;
 
@@ -37,12 +29,8 @@ export function Navbar() {
       )}
       <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-5 px-5 sm:px-8">
         <Link to="/" className="flex shrink-0 items-center gap-3" aria-label="StarfinPlugins — início">
-          {branding?.logoUrl ? (
-            <img src={branding.logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" />
-          ) : (
-            <span aria-hidden="true" className="flex h-9 w-9 rotate-3 items-center justify-center rounded-lg border border-[#baf5a9] bg-[#85ed65] font-mono text-sm font-black text-[#123220] shadow-[3px_3px_0_#48c6bc]">SF</span>
-          )}
-          <span className="text-[17px] font-semibold tracking-[-0.035em]">{branding?.siteName || 'StarfinPlugins'}</span>
+          <span aria-hidden="true" className="flex h-9 w-9 rotate-3 items-center justify-center rounded-lg border border-[#baf5a9] bg-[#85ed65] font-mono text-sm font-black text-[#123220] shadow-[3px_3px_0_#48c6bc]">SF</span>
+          <span className="text-[17px] font-semibold tracking-[-0.035em]">StarfinPlugins</span>
         </Link>
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Navegação principal">
           {links.map((item) => (

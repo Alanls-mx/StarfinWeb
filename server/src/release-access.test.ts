@@ -60,7 +60,7 @@ test('releases require active ownership, publication and authenticated download;
 
     const customHome = {
       heroEyebrow: 'Minecraft profissional', heroTitle: 'Meu mundo.', heroAccent: 'Minha conta.',
-      heroDescription: 'Texto editorial aprovado.', accountEyebrow: 'Área do cliente',
+      heroDescription: 'Texto editorial aprovado.',
       accountTitle: 'Controle seus plugins.', accountDescription: 'Licenças, pedidos e servidores organizados.'
     };
     const saveHome = await fetch(`${base}/api/admin/settings`, { method: 'POST', headers: { ...auth(adminToken), 'content-type': 'application/json' }, body: JSON.stringify({ homeContent: customHome }) });

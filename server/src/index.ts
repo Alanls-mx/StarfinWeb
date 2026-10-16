@@ -2913,9 +2913,9 @@ app.post('/api/admin/settings', (req, res) => {
   }
   const body = { ...(req.body ?? {}) };
   if (body.homeContent !== undefined) {
-    const fields = ['heroEyebrow', 'heroTitle', 'heroAccent', 'heroDescription', 'accountEyebrow', 'accountTitle', 'accountDescription'];
+    const fields = ['heroEyebrow', 'heroTitle', 'heroAccent', 'heroDescription', 'accountTitle', 'accountDescription'];
     if (!body.homeContent || typeof body.homeContent !== 'object' || Array.isArray(body.homeContent) ||
-        Object.keys(body.homeContent).some(key => !fields.includes(key)) ||
+        Object.keys(body.homeContent).some(key => ![...fields, 'accountEyebrow'].includes(key)) ||
         fields.some(key => typeof body.homeContent[key] !== 'string' || !body.homeContent[key].trim() || body.homeContent[key].length > (key.endsWith('Description') ? 400 : 100))) {
       return res.status(400).json({ error: 'conteúdo da homepage inválido' });
     }

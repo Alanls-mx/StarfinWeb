@@ -1,7 +1,7 @@
-import { Save, Settings, Shield, Globe, MessageSquare, Info, BarChart3, Upload, Loader2, CreditCard } from 'lucide-react';
+import { Save, Settings, Shield, MessageSquare, Info, CreditCard } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { adminGetSettings, adminSaveSettings, adminUploadFile } from '../../lib/api';
+import { adminGetSettings, adminSaveSettings } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { toast } from 'sonner';
 
@@ -12,7 +12,6 @@ export function AdminSettingsPage() {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -39,23 +38,6 @@ export function AdminSettingsPage() {
     }
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !token) return;
-
-    setUploading(true);
-    try {
-      const { url } = await adminUploadFile(token, file);
-      setSettings({ ...settings, logoUrl: url });
-      toast.success('Logo enviada com sucesso!');
-    } catch (e: any) {
-      console.error(e);
-      toast.error(e.message || 'Erro ao enviar logo.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -68,87 +50,10 @@ export function AdminSettingsPage() {
     <div className="space-y-8 max-w-4xl">
       <div>
         <h1 className="text-3xl font-bold mb-2">Configurações Globais</h1>
-        <p className="text-gray-400">Gerencie as informações principais e comportamentos do site.</p>
+        <p className="text-gray-400">Gerencie integrações e comportamentos do site. Nome, logo, favicon, textos e metadados são definidos no frontend.</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Geral */}
-        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Globe className="w-5 h-5 text-[#A6F3C8]" />
-            <h3 className="text-xl font-bold">Informações do Site</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Nome do Site</label>
-              <input
-                value={settings.siteName}
-                onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Logo do Site</label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <input
-                    value={settings.logoUrl || ''}
-                    onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
-                    placeholder="URL da imagem..."
-                  />
-                </div>
-                <label className="cursor-pointer px-4 py-3 bg-[#172822] border border-[#177F58]/20 rounded-xl text-gray-400 hover:text-white hover:border-[#177F58] transition-all flex items-center gap-2 min-w-fit">
-                  {uploading ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-[#A6F3C8]" />
-                  ) : (
-                    <Upload className="w-5 h-5" />
-                  )}
-                  <span>{uploading ? 'Enviando...' : 'Upload'}</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    disabled={uploading}
-                  />
-                </label>
-              </div>
-              <p className="mt-2 text-[10px] text-gray-500">
-                Envie um arquivo local ou insira uma URL externa.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">URL do Discord</label>
-              <input
-                value={settings.discordUrl}
-                onChange={(e) => setSettings({ ...settings, discordUrl: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm text-gray-400 mb-2">Descrição Curta (SEO)</label>
-              <textarea
-                value={settings.siteDescription}
-                onChange={(e) => setSettings({ ...settings, siteDescription: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all min-h-20"
-              />
-            </div>
-            <div className="md:col-span-2 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#172822] border border-[#177F58]/20 flex items-center justify-center overflow-hidden">
-                {settings.logoUrl ? (
-                  <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-7 h-7 border-2 border-white/40 rounded-sm" />
-                )}
-              </div>
-              <div className="text-xs text-gray-500">
-                Pré-visualização da logo usada no topo e no rodapé.
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Suporte & Contato */}
         <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-6">
@@ -161,56 +66,6 @@ export function AdminSettingsPage() {
               <input
                 value={settings.supportEmail}
                 onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Texto do Rodapé</label>
-              <input
-                value={settings.footerText}
-                onChange={(e) => setSettings({ ...settings, footerText: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Estatísticas da Home */}
-        <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <BarChart3 className="w-5 h-5 text-[#A6F3C8]" />
-            <h3 className="text-xl font-bold">Estatísticas da Página Inicial</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Plugins Premium (Ex: 500+)</label>
-              <input
-                value={settings.homeStatsPlugins}
-                onChange={(e) => setSettings({ ...settings, homeStatsPlugins: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Servidores Ativos (Ex: 50K+)</label>
-              <input
-                value={settings.homeStatsServers}
-                onChange={(e) => setSettings({ ...settings, homeStatsServers: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Avaliação Média (Ex: 4.9/5)</label>
-              <input
-                value={settings.homeStatsRating}
-                onChange={(e) => setSettings({ ...settings, homeStatsRating: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Suporte (Ex: 24/7)</label>
-              <input
-                value={settings.homeStatsSupport}
-                onChange={(e) => setSettings({ ...settings, homeStatsSupport: e.target.value })}
                 className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white focus:border-[#177F58] outline-none transition-all"
               />
             </div>

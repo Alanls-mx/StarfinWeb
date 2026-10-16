@@ -1,56 +1,27 @@
-import { ArrowRight, BookOpen, KeyRound, Server, ShieldCheck } from 'lucide-react';
+import { ArrowRight, KeyRound, Server } from 'lucide-react';
 import { Link } from 'react-router';
 import { defaultHomeContent, type HomeContent } from '../lib/api';
 
 export function FeatureStories({ content = defaultHomeContent }: { content?: HomeContent }) {
-  return (
-    <div>
-      <section className="bg-[#f4f8ef] px-5 py-20 text-[#12251d] sm:px-8 sm:py-26">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[.9fr_1.1fr] lg:gap-20">
-          <div className="relative order-2 min-h-[370px] overflow-hidden rounded-[2rem] bg-[#d5f4d9] lg:order-1 lg:min-h-[470px]">
-            <div aria-hidden="true" className="sf-grid absolute inset-0 opacity-70" />
-            <div aria-hidden="true" className="absolute -bottom-20 -left-15 h-65 w-65 rotate-12 rounded-[3rem] bg-[#b7edc7]" />
-            <img src="/voxel/engineer.webp" alt="Personagem voxel apresentando um núcleo de servidor e um escudo" loading="lazy" className="absolute inset-x-0 bottom-0 mx-auto h-[105%] w-full object-contain object-bottom" />
-            <span className="absolute bottom-5 left-5 rounded-lg bg-[#10362d] px-3 py-2 text-xs font-bold text-white">Licenças + instalações</span>
-          </div>
-          <div className="order-1 lg:order-2">
-            <p className="sf-eyebrow !text-[#14775a]">{content.accountEyebrow}</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-.055em] sm:text-5xl">{content.accountTitle}</h2>
-            <p className="mt-6 max-w-xl text-base leading-8 text-[#455e51]">{content.accountDescription}</p>
-            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-              <li className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold"><KeyRound size={19} className="text-[#159965]" /> Consulte suas licenças</li>
-              <li className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold"><Server size={19} className="text-[#159965]" /> Organize servidores</li>
-            </ul>
-            <Link to="/account" className="mt-8 inline-flex items-center gap-2 text-sm font-extrabold text-[#096843] hover:underline">Conhecer minha conta <ArrowRight size={17} /></Link>
-          </div>
-        </div>
-      </section>
+  return <div className="border-t border-white/10 bg-[#0d1d18] text-white">
+    <section className="mx-auto grid max-w-7xl gap-12 px-5 py-18 sm:px-8 lg:grid-cols-[1fr_1fr] lg:items-center">
+      <div>
+        <h2 className="max-w-xl text-4xl font-extrabold tracking-[-.025em] sm:text-5xl">{content.accountTitle}</h2>
+        <p className="mt-5 max-w-xl leading-8 text-[#bdd2c5]">{content.accountDescription}</p>
+        <Link to="/account" className="mt-7 inline-flex items-center gap-2 text-sm font-bold text-[#a9f58e] hover:underline">Abrir minha conta <ArrowRight size={17} /></Link>
+      </div>
+      <div className="border-y border-white/15 font-mono text-sm">
+        <div className="grid grid-cols-[34px_1fr] gap-4 border-b border-white/10 py-5"><KeyRound size={20} className="text-[#85ed65]" /><div><strong className="block text-white">Licenças</strong><span className="mt-1 block font-sans text-[#a9c1b8]">Consulte a chave principal e os produtos autorizados.</span></div></div>
+        <div className="grid grid-cols-[34px_1fr] gap-4 border-b border-white/10 py-5"><Server size={20} className="text-[#85ed65]" /><div><strong className="block text-white">Servidores</strong><span className="mt-1 block font-sans text-[#a9c1b8]">Cadastre IPs e organize instalações na conta.</span></div></div>
+        <div className="grid grid-cols-[34px_1fr] gap-4 py-5"><span className="text-[#85ed65]">{'>_'}</span><div><strong className="block text-white">Arquivos</strong><span className="mt-1 block font-sans text-[#a9c1b8]">Baixe versões publicadas quando houver licença ativa.</span></div></div>
+      </div>
+    </section>
 
-      <section className="bg-[#10332c] px-5 py-20 text-white sm:px-8 sm:py-26">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-20">
-          <div>
-            <p className="sf-eyebrow">Na forja / StarfinBans</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-.055em] sm:text-5xl">Proteção que fala a língua do seu servidor.</h2>
-            <p className="mt-6 max-w-xl text-base leading-8 text-[#c2dfd3]">StarfinBans está em desenvolvimento para apoiar a moderação e a gestão de punições. Acompanhe as novidades antes do lançamento.</p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#a6eea1]/35 bg-[#a6eea1]/10 px-4 py-2 text-xs font-bold text-[#b1f6ac]"><ShieldCheck size={16} /> Em desenvolvimento</span>
-              <Link to="/changelog" className="sf-button-secondary">Acompanhar atualizações <ArrowRight size={17} /></Link>
-            </div>
-          </div>
-          <div className="relative min-h-[370px] overflow-hidden rounded-[2rem] bg-[linear-gradient(140deg,#71dec2,#b9f183)] lg:min-h-[470px]">
-            <div aria-hidden="true" className="sf-grid absolute inset-0 opacity-60" />
-            <img src="/voxel/guardian.webp" alt="Guardião voxel com escudo simbolizando a moderação do StarfinBans" loading="lazy" className="absolute inset-x-0 bottom-0 mx-auto h-[105%] w-full object-contain object-bottom" />
-            <span className="absolute right-5 top-5 rounded-lg bg-[#10332c] px-3 py-2 text-xs font-bold text-white">Moderação em foco</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-[#ddeddf] bg-white px-5 py-18 text-[#13251d] sm:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-7 sm:flex-row sm:items-center">
-          <div><p className="sf-eyebrow !text-[#15866b]">Pronto para explorar?</p><h2 className="mt-3 text-3xl font-extrabold tracking-[-.05em] sm:text-4xl">Seu próximo passo começa aqui.</h2><p className="mt-2 text-sm leading-7 text-[#547063]">Conheça os produtos publicados e encontre guias para configurar seu servidor.</p></div>
-          <div className="flex flex-wrap gap-3"><Link to="/plugins" className="sf-button-primary">Ver catálogo <ArrowRight size={17} /></Link><Link to="/docs" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-[#aacbbb] px-5 text-sm font-bold text-[#1a4834] hover:bg-[#e9f6ed]"><BookOpen size={17} /> Documentação</Link></div>
-        </div>
-      </section>
-    </div>
-  );
+    <section className="border-t border-white/10 bg-[#10251e]">
+      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-18 sm:px-8 lg:grid-cols-[1fr_.9fr] lg:items-center">
+        <div><h2 className="max-w-xl text-4xl font-extrabold tracking-[-.025em] sm:text-5xl">StarfinBans está em desenvolvimento.</h2><p className="mt-5 max-w-xl leading-8 text-[#bdd2c5]">O projeto é voltado à moderação e à gestão de punições. Ainda não há um JAR publicado nesta plataforma.</p><Link to="/changelog" className="mt-7 inline-flex items-center gap-2 text-sm font-bold text-[#a9f58e] hover:underline">Acompanhar atualizações <ArrowRight size={17} /></Link></div>
+        <div className="border border-white/15 bg-[#0b1715] p-5 font-mono text-sm shadow-[8px_8px_0_#183b2c]"><div className="flex items-center justify-between border-b border-white/10 pb-3 text-xs text-[#9cb8a6]"><span>STARFINBANS</span><span>EM DESENVOLVIMENTO</span></div><p className="mt-6 text-[#bdd2c5]"><span className="text-[#85ed65]">produto</span> StarfinBans</p><p className="mt-3 text-[#bdd2c5]"><span className="text-[#85ed65]">área</span> moderação</p><p className="mt-3 text-[#bdd2c5]"><span className="text-[#85ed65]">arquivo</span> ainda não publicado</p><p className="mt-6 border-t border-white/10 pt-3 text-xs text-[#9cb8a6]">Detalhes de compatibilidade serão informados no lançamento.</p></div>
+      </div>
+    </section>
+  </div>;
 }

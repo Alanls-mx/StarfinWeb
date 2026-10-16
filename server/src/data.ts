@@ -1532,7 +1532,6 @@ export interface HomeContentSetting {
   heroTitle: string;
   heroAccent: string;
   heroDescription: string;
-  accountEyebrow: string;
   accountTitle: string;
   accountDescription: string;
 }
@@ -1542,7 +1541,6 @@ export const defaultHomeContent: HomeContentSetting = {
   heroTitle: 'Seu mundo.',
   heroAccent: 'Seu controle.',
   heroDescription: 'Plugins próprios, licenças organizadas e ferramentas para quem leva a experiência do servidor a sério.',
-  accountEyebrow: 'Mais controle, menos confusão',
   accountTitle: 'Tudo o que é seu, em um só lugar.',
   accountDescription: 'A área da conta reúne suas licenças, plugins, servidores e pedidos. Encontre o que precisa sem procurar em mensagens antigas.'
 };

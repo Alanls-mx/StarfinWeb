@@ -1,7 +1,7 @@
 import { ArrowUpRight, Mail } from 'lucide-react';
 import { Link } from 'react-router';
-import { useEffect, useState, type FormEvent } from 'react';
-import { getPublicSettings, subscribeNewsletter } from '../lib/api';
+import { useState, type FormEvent } from 'react';
+import { subscribeNewsletter } from '../lib/api';
 
 const groups = [
   { title: 'Produtos', links: [{ title: 'Catálogo', href: '/plugins' }, { title: 'Planos', href: '/premium' }, { title: 'Atualizações', href: '/changelog' }] },
@@ -14,11 +14,6 @@ export function Footer() {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState('');
-  const [branding, setBranding] = useState<{ siteName: string; footerText: string } | null>(null);
-
-  useEffect(() => {
-    getPublicSettings().then((s) => setBranding({ siteName: s.siteName, footerText: s.footerText })).catch(() => {});
-  }, []);
 
   const subscribe = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -43,7 +38,7 @@ export function Footer() {
           <div>
             <Link to="/" className="inline-flex items-center gap-3 text-lg font-semibold tracking-tight text-white">
               <span className="flex h-9 w-9 rotate-3 items-center justify-center rounded-lg bg-[#85ed65] font-mono text-sm font-black text-[#112516] shadow-[3px_3px_0_#48c6bc]">SF</span>
-              {branding?.siteName || 'StarfinPlugins'}
+              StarfinPlugins
             </Link>
             <p className="mt-5 max-w-sm text-sm leading-7">Desenvolvimento de plugins e ferramentas para servidores Minecraft. Produtos, atualizações e suporte em um só lugar.</p>
             <form onSubmit={subscribe} className="mt-7 max-w-sm">
@@ -68,7 +63,7 @@ export function Footer() {
           </div>
         </div>
         <div className="flex flex-col justify-between gap-4 pt-7 text-xs sm:flex-row sm:items-center">
-          <span>{branding?.footerText || `© ${new Date().getFullYear()} StarfinPlugins. Todos os direitos reservados.`}</span>
+          <span>© {new Date().getFullYear()} StarfinPlugins. Todos os direitos reservados.</span>
           <a href="https://github.com/Alanls-mx/StarfinBans" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-white">StarfinBans no GitHub <ArrowUpRight size={13}/></a>
         </div>
       </div>

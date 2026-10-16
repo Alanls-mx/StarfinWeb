@@ -51,7 +51,6 @@ import { AdminContentPage } from './pages/admin/AdminContentPage';
 import { AdminRafflesPage } from './pages/admin/AdminRafflesPage';
 import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 
-import { getPublicSettings } from './lib/api';
 import { CartProvider } from './lib/cart';
 import { Toaster } from 'sonner';
 
@@ -61,25 +60,6 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
-
-  useEffect(() => {
-    getPublicSettings()
-      .then((s) => {
-        if (s.logoUrl) {
-          let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-          if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.getElementsByTagName('head')[0].appendChild(link);
-          }
-          link.href = s.logoUrl;
-        }
-        if (s.siteName) {
-          document.title = s.siteName;
-        }
-      })
-      .catch(() => null);
-  }, []);
 
   const isAdminRoute = location.pathname.startsWith('/admin');
 

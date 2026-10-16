@@ -1,4 +1,4 @@
-import { Search, FileText, ChevronRight, BookOpen, Layers, Zap, Shield, HelpCircle, ArrowLeft } from 'lucide-react';
+import { Search, FileText, ChevronRight, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { getDocArticle, getDocArticles, type DocArticle } from '../lib/api';
@@ -54,7 +54,7 @@ export function DocsPage() {
                   <BookOpen className="w-6 h-6 text-[#A6F3C8]" />
                   Documentação
                 </h1>
-                <div className="relative group">
+                {articles.length > 0 && <div className="relative group">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#A6F3C8] transition-colors" />
                   <input
                     type="text"
@@ -63,7 +63,7 @@ export function DocsPage() {
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-[#172822]/60 border border-[#177F58]/10 rounded-xl text-sm text-white focus:border-[#177F58]/50 outline-none transition-all placeholder:text-gray-600"
                   />
-                </div>
+                </div>}
               </div>
 
               <nav className="space-y-8">
@@ -137,37 +137,21 @@ export function DocsPage() {
                   animate={{ opacity: 1 }}
                   className="space-y-12"
                 >
-                  <div className="bg-gradient-to-br from-[#177F58]/20 to-transparent border border-[#177F58]/20 rounded-[2rem] p-12 relative overflow-hidden">
-                    <div className="relative z-10">
-                      <h2 className="text-4xl font-bold text-white mb-4">Como podemos ajudar?</h2>
-                      <p className="text-gray-400 text-lg max-w-xl">
-                        Explore nossos guias detalhados, tutoriais de instalação e documentação técnica para todos os plugins Starfin.
-                      </p>
+                  <div className="border-b border-[#315647] pb-7">
+                    <h2 className="text-3xl font-bold text-white">Documentação</h2>
+                    <p className="mt-3 text-gray-400">Artigos publicados sobre instalação, licenças e uso dos produtos.</p>
+                  </div>
+
+                  {loading ? <p className="text-sm text-gray-400">Carregando artigos...</p> : articles.length === 0 ? (
+                    <div className="rounded-lg border border-[#315647] bg-[#12231d] p-8">
+                      <h3 className="text-lg font-semibold text-white">Ainda não há artigos publicados</h3>
+                      <p className="mt-2 text-sm text-gray-400">Se precisar de ajuda agora, abra um chamado com a equipe.</p>
+                      <Link to="/support" className="mt-5 inline-flex rounded-md bg-[#85ed65] px-4 py-2 text-sm font-bold text-[#112516]">Ir para o suporte</Link>
                     </div>
-                    <BookOpen className="absolute -right-8 -bottom-8 w-64 h-64 text-[#177F58]/5 -rotate-12" />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {[
-                      { icon: Zap, title: 'Início Rápido', desc: 'Aprenda a instalar e configurar seu primeiro plugin em minutos.' },
-                      { icon: Shield, title: 'Licenciamento', desc: 'Tudo sobre como gerenciar suas chaves e o StarfinLicense.' },
-                      { icon: Layers, title: 'Integrações', desc: 'Como conectar nossos plugins com outros sistemas e APIs.' },
-                      { icon: HelpCircle, title: 'FAQ', desc: 'Respostas para as perguntas mais frequentes da comunidade.' }
-                    ].map((card, i) => (
-                      <div key={i} className="p-8 bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl hover:border-[#177F58]/30 transition-all group cursor-pointer">
-                        <div className="w-12 h-12 rounded-xl bg-[#177F58]/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                          <card.icon className="w-6 h-6 text-[#A6F3C8]" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white mb-2">{card.title}</h3>
-                        <p className="text-gray-500 text-sm leading-relaxed">{card.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div>
-                    <h3 className="text-2xl font-bold text-white mb-6">Artigos Populares</h3>
+                  ) : <div>
+                    <h3 className="text-lg font-semibold text-white mb-5">Artigos</h3>
                     <div className="grid grid-cols-1 gap-4">
-                      {articles.slice(0, 5).map(article => (
+                      {filteredArticles.filter(article => !initialCategory || article.category === initialCategory).map(article => (
                         <Link
                           key={article.id}
                           to={`/docs/${article.slug}`}
@@ -181,7 +165,7 @@ export function DocsPage() {
                         </Link>
                       ))}
                     </div>
-                  </div>
+                  </div>}
                 </motion.div>
               )}
             </AnimatePresence>
