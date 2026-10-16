@@ -7,11 +7,14 @@ import { Bell, ExternalLink } from 'lucide-react';
 export function AdminLayout() {
   const { state } = useAuth();
 
-  if (state.status !== 'authenticated') {
-    return <Navigate to="/login" replace />;
+  if (state.status === 'loading') {
+    return <div className="flex min-h-screen items-center justify-center bg-[#0b1715] text-[#bed2c6]" role="status">Verificando acesso administrativo...</div>;
+  }
+  if (state.status === 'anonymous') {
+    return <Navigate to="/login?next=%2Fadmin" replace />;
   }
   if (state.user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0b1715] px-5 text-center text-white"><h1 className="text-2xl font-bold">Acesso restrito</h1><p className="max-w-md text-sm text-[#bed2c6]">Sua conta não tem permissão para acessar o painel administrativo.</p><Link to="/account" className="rounded-lg bg-[#85ed65] px-4 py-2 text-sm font-bold text-[#112516]">Voltar à minha conta</Link></main>;
   }
 
   return (

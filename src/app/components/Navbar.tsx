@@ -1,4 +1,4 @@
-import { ArrowRight, Menu, ShoppingBag, UserRound, X } from 'lucide-react';
+import { ArrowRight, Menu, Shield, ShoppingBag, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router';
 import { useAuth } from '../lib/auth';
@@ -50,7 +50,8 @@ export function Navbar() {
               <span className="h-10 w-36 animate-pulse rounded-lg border border-white/15 bg-white/[.08]" />
             </div>
           ) : state.status === 'authenticated' ? (
-            <div className="hidden w-[210px] items-center justify-end gap-3 sm:flex">
+            <div className={`hidden items-center justify-end gap-3 sm:flex ${state.user.role === 'admin' ? 'w-[300px]' : 'w-[210px]'}`}>
+              {state.user.role === 'admin' && <Link to="/admin" className="inline-flex items-center gap-1 rounded-lg border border-[#85ed65]/50 px-3 py-2.5 text-xs font-semibold text-[#a9f58e] hover:bg-white/[.1]"><Shield size={14}/> Painel</Link>}
               <Link to="/account" className="inline-flex items-center gap-2 rounded-lg border border-[#75b69a] px-3 py-2.5 text-xs font-semibold text-white hover:bg-white/[.1]">
                 <UserRound size={15}/><span className="max-w-28 truncate">{state.user.name}</span>
               </Link>
@@ -77,6 +78,7 @@ export function Navbar() {
                 {state.status === 'authenticated' ? 'Minha conta' : 'Entrar ou criar conta'}
               </Link>
             )}
+            {state.status === 'authenticated' && state.user.role === 'admin' && <Link to="/admin" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-3 text-sm font-semibold text-[#a9f58e] hover:bg-white/[.08]">Painel administrativo</Link>}
             {state.status === 'authenticated' && <button type="button" className="px-3 py-2 text-left text-sm text-[#aeb6c4]" onClick={() => { logout(); setMobileOpen(false); }}>Sair</button>}
           </div>
         </nav>
