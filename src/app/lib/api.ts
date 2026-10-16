@@ -1057,6 +1057,25 @@ export function adminUploadFile(token: string, file: File) {
   });
 }
 
+export function adminListMedia(token: string) {
+  return apiFetch<{ items: Array<{ url: string; createdAt: string }> }>('/api/admin/media', { token });
+}
+
+export function uploadMyAvatar(token: string, file: File) {
+  const body = new FormData();
+  body.append('file', file);
+  return fetch('/api/users/me/avatar', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body })
+    .then(async response => {
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha no envio da imagem');
+      return result as { avatarUrl: string };
+    });
+}
+
+export function removeMyAvatar(token: string) {
+  return apiFetch<{ avatarUrl: null }>('/api/users/me/avatar', { method: 'DELETE', token });
+}
+
 export function adminListCoupons(token: string) {
   return apiFetch<{ items: any[] }>('/api/admin/coupons', { token });
 }

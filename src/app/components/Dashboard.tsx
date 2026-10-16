@@ -307,7 +307,7 @@ export function Dashboard() {
           <a href="#servidores" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Servidores</a>
           <a href="#plugins" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Plugins</a>
           <Link to="/account/orders" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Pedidos</Link>
-          <button type="button" onClick={openSettings} className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Perfil</button>
+          <Link to="/account/profile" className="rounded-lg px-4 py-2 font-semibold text-[#d5f2df] hover:bg-[#2a4b37]">Perfil e segurança</Link>
         </nav>
 
         {loadError && <p role="alert" className="mb-8 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{loadError}</p>}
@@ -504,15 +504,15 @@ export function Dashboard() {
               </div>
 
               <div className="space-y-3">
-                <button
-                  onClick={openSettings}
+                <Link
+                  to="/account/profile"
                   className="w-full flex items-center gap-3 p-3 bg-[#0B1715]/50 rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-left group"
                 >
                   <Settings className="w-5 h-5 text-gray-400 group-hover:text-[#A6F3C8] transition-colors duration-300" />
                   <span className="text-sm text-gray-300 group-hover:text-white transition-colors duration-300">
                     Configurações
                   </span>
-                </button>
+                </Link>
 
                 <Link
                   to="/account/orders"
@@ -534,18 +534,15 @@ export function Dashboard() {
                   </span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    setPasswordForm({ current: '', new: '', confirm: '' });
-                    setActiveModal('password');
-                  }}
+                <Link
+                  to="/account/profile"
                   className="w-full flex items-center gap-3 p-3 bg-[#0B1715]/50 rounded-lg hover:bg-[#177F58]/10 transition-all duration-300 text-left group"
                 >
                   <Lock className="w-5 h-5 text-gray-400 group-hover:text-[#A6F3C8] transition-colors duration-300" />
                   <span className="text-sm text-gray-300 group-hover:text-white transition-colors duration-300">
                     Mudar Senha
                   </span>
-                </button>
+                </Link>
 
                 {user?.role === 'admin' && (
                   <Link

@@ -23,6 +23,7 @@ import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { AccountOrdersPage } from './pages/AccountOrdersPage';
 import { AccountLicensesPage } from './pages/AccountLicensesPage';
+import { AccountProfilePage } from './pages/AccountProfilePage';
 import { AboutPage } from './pages/AboutPage';
 import { FaqPage } from './pages/FaqPage';
 import { CareersPage } from './pages/CareersPage';
@@ -94,6 +95,7 @@ export default function App() {
               <Route path="/account" element={<Dashboard />} />
               <Route path="/account/orders" element={<AccountOrdersPage />} />
               <Route path="/account/licenses" element={<AccountLicensesPage />} />
+              <Route path="/account/profile" element={<AccountProfilePage />} />
               <Route path="/status" element={<StatusPage />} />
               <Route path="/changelog" element={<ChangelogPage />} />
               <Route path="/terms" element={<TermsPage />} />

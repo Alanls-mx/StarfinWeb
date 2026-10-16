@@ -346,7 +346,7 @@ function auditAdmin(req: express.Request, action: string, resourceType: string, 
 // Multer config for file uploads
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const uploadsDir = path.join(__dirname, '..', '..', 'public', 'uploads');
+const uploadsDir = process.env.STARFIN_UPLOADS_DIR || path.join(__dirname, '..', '..', 'public', 'uploads');
 const privateReleasesDir = process.env.STARFIN_PRIVATE_RELEASES_DIR || path.join(process.cwd(), 'private', 'releases');
 const releaseUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -356,16 +356,17 @@ function publicRelease(release: ReturnType<typeof findPluginRelease>) {
   return metadata;
 }
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+fs.mkdirSync(uploadsDir, { recursive: true, mode: 0o750 });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, uploadsDir);
   },
   filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ctx = getAuthContext(_req);
+    const uniqueSuffix = _req.path === '/api/users/me/avatar' && ctx
+      ? `avatar-${ctx.userId}-${randomUUID()}`
+      : randomUUID();
     const extensionByMime: Record<string, string> = {
       'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif'
     };
@@ -398,7 +399,30 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Serve uploads statically
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir, { dotfiles: 'deny', setHeaders(res) { res.setHeader('X-Content-Type-Options', 'nosniff'); } }));
+
+function validUploadedImage(file: Express.Multer.File): boolean {
+  const bytes = fs.readFileSync(file.path).subarray(0, 12);
+  return file.mimetype === 'image/png'
+    ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    : file.mimetype === 'image/jpeg'
+      ? bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
+      : file.mimetype === 'image/gif'
+        ? ['GIF87a', 'GIF89a'].includes(bytes.subarray(0, 6).toString('ascii'))
+        : bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP';
+}
+
+function discardInvalidUpload(file: Express.Multer.File): boolean {
+  if (validUploadedImage(file)) return false;
+  fs.unlinkSync(file.path);
+  return true;
+}
+
+function removeOwnedAvatar(url: string | null | undefined, userId: string) {
+  if (!url || !url.startsWith(`/uploads/avatar-${userId}-`) || !/^\/uploads\/avatar-user_[a-f0-9-]+-[a-f0-9-]+\.(?:png|jpg|webp|gif)$/.test(url)) return;
+  const filePath = path.join(uploadsDir, path.basename(url));
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+}
 
 // Upload endpoint
 app.post('/api/admin/upload', (req, res, next) => {
@@ -410,21 +434,45 @@ app.post('/api/admin/upload', (req, res, next) => {
   if (!req.file) {
     return res.status(400).json({ error: 'nenhum arquivo enviado' });
   }
-  const bytes = fs.readFileSync(req.file.path).subarray(0, 12);
-  const valid = req.file.mimetype === 'image/png'
-    ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-    : req.file.mimetype === 'image/jpeg'
-      ? bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
-      : req.file.mimetype === 'image/gif'
-        ? bytes.subarray(0, 6).toString('ascii') === 'GIF87a' || bytes.subarray(0, 6).toString('ascii') === 'GIF89a'
-        : bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP';
-  if (!valid) {
-    fs.unlinkSync(req.file.path);
+  if (discardInvalidUpload(req.file)) {
     return res.status(415).json({ error: 'O conteúdo do arquivo não corresponde a uma imagem válida.' });
   }
   
   const fileUrl = `/uploads/${req.file.filename}`;
   res.json({ url: fileUrl });
+});
+
+app.get('/api/admin/media', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'acesso administrativo necessário' });
+  const items = fs.readdirSync(uploadsDir, { withFileTypes: true })
+    .filter(entry => entry.isFile() && /^[a-f0-9-]+\.(?:png|jpg|webp|gif)$/.test(entry.name))
+    .map(entry => ({ url: `/uploads/${entry.name}`, createdAt: fs.statSync(path.join(uploadsDir, entry.name)).mtime.toISOString() }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  res.json({ items });
+});
+
+app.post('/api/users/me/avatar', (req, res, next) => {
+  if (!getAuthContext(req)) return res.status(401).json({ error: 'não autorizado' });
+  next();
+}, upload.single('file'), (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx || !req.file) return res.status(400).json({ error: 'nenhuma imagem enviada' });
+  if (discardInvalidUpload(req.file)) return res.status(415).json({ error: 'imagem inválida' });
+  const previous = findUserById(ctx.userId)?.avatarUrl;
+  const avatarUrl = `/uploads/${req.file.filename}`;
+  const user = updateUserProfile(ctx.userId, { avatarUrl });
+  if (!user) { fs.unlinkSync(req.file.path); return res.status(404).json({ error: 'usuário não encontrado' }); }
+  removeOwnedAvatar(previous, ctx.userId);
+  res.json({ avatarUrl });
+});
+
+app.delete('/api/users/me/avatar', (req, res) => {
+  const ctx = getAuthContext(req);
+  if (!ctx) return res.status(401).json({ error: 'não autorizado' });
+  const previous = findUserById(ctx.userId)?.avatarUrl;
+  updateUserProfile(ctx.userId, { avatarUrl: null });
+  removeOwnedAvatar(previous, ctx.userId);
+  res.json({ avatarUrl: null });
 });
 
 app.get('/api/health', (_req, res) => {
@@ -1206,7 +1254,13 @@ app.patch('/api/users/me/profile', (req, res) => {
     return;
   }
   const ctx = getAuthContext(req)!;
-  const user = updateUserProfile(ctx.userId, req.body);
+  const body = req.body ?? {};
+  const allowed = ['bio', 'discordId', 'githubUrl', 'twitterUrl'];
+  if (Object.keys(body).some(key => !allowed.includes(key)) ||
+      allowed.some(key => body[key] !== undefined && body[key] !== null && (typeof body[key] !== 'string' || body[key].length > 500))) {
+    return res.status(400).json({ error: 'campos de perfil inválidos' });
+  }
+  const user = updateUserProfile(ctx.userId, body);
   res.json(user ? safeUser(user) : null);
 });
 
@@ -3863,6 +3917,12 @@ const isProdRuntime = process.env.NODE_ENV === 'production' || Boolean(process.e
 
 // Global Error Handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Imagem acima do limite de 5 MB.' : 'Upload inválido.' });
+  }
+  if (err instanceof Error && err.message === 'Formato de arquivo não suportado. Use PNG, JPG, WEBP ou GIF.') {
+    return res.status(415).json({ error: err.message });
+  }
   console.error('SERVER FATAL ERROR:', err.message || err, err.stack);
   if (err.cause) console.error('Error Cause:', err.cause);
   
