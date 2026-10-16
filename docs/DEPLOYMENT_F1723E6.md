@@ -58,3 +58,10 @@ Na revisão `1227b4a`, SMTP e Mercado Pago aguardavam configuração manual e ai
 - Backup PostgreSQL: `/opt/starfinweb/backups/starfin-site-pre-c88671b-20261016T013151Z.dump`. Backup de código: `/opt/starfinweb/backups/starfin-code-pre-c88671b-20261016T013151Z.tar.gz`.
 - Rollback imediato: `/opt/starfinweb/app/rollback-dist-pre-c88671b-20261016T013151Z` e `/opt/starfinweb/app/server/rollback-dist-pre-c88671b-20261016T013151Z`.
 - Após a troca, `starfinweb.service`, Nginx e PostgreSQL estavam ativos. Site, catálogo, documentação, favicon e health da API responderam 200 por HTTPS. O HTML apontou para `index-BtDio_yS.js` e trouxe o título estático.
+
+## Publicação `f004b8a` — acabamento das páginas secundárias
+
+- [CI da revisão](https://github.com/Alanls-mx/StarfinWeb/actions/runs/38835741625): sucesso. A skin aparece somente na Home; login, cadastro e produto usam a superfície escura e o suporte usa a ação “Novo chamado”.
+- Backup PostgreSQL: `/opt/starfinweb/backups/starfin-site-pre-f004b8a-20261016T013534Z.dump`. Backup de código: `/opt/starfinweb/backups/starfin-code-pre-f004b8a-20261016T013534Z.tar.gz`.
+- Rollback imediato: `/opt/starfinweb/app/rollback-dist-pre-f004b8a-20261016T013534Z` e `/opt/starfinweb/app/server/rollback-dist-pre-f004b8a-20261016T013534Z`.
+- Site, login, catálogo, favicon e health da API responderam por HTTPS. O HTML apontou para `index-CHTVScur.js`. StarfinWeb, Nginx e PostgreSQL permaneceram ativos.
