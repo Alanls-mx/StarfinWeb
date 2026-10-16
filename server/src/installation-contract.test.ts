@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { test } from 'node:test';
 import { app } from './index.js';
 import { createPlugin, createPurchase, createSession, createUser, updatePurchaseStatus } from './data.js';
+import { transferInstallation } from './installations.js';
 
 test('installation activation, identity, purchased quantity, observed IP and revocation', async () => {
   const plugin = createPlugin({ name: `CoreTest-${Date.now()}`, description: 'Teste de instalação', category: 'Administração', tags: [], mcVersion: '1.21', imageUrl: 'https://example.invalid/core.png', priceDisplay: 'R$ 10,00', licenseName: 'core_test' });
@@ -89,6 +90,16 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     const items = (await list.json() as { items: any[] }).items;
     assert.equal(items.find(item => item.id === winner).entitlements[0].purchased, 1);
     assert.equal(items.find(item => item.id === winner).credentialHash, undefined);
+    const recipient = createUser({ name: 'Destino de transferência', email: `installation-target-${Date.now()}@example.invalid`, password: 'test-only-password' });
+    assert.ok(recipient);
+    assert.equal(transferInstallation(winner, recipient.id, owner.id, 'Transferência administrativa de teste'), true);
+    const formerOwnerView = await fetch(`${base}/api/users/me/servers`, { headers: { authorization: `Bearer ${token}` } });
+    assert.equal((await formerOwnerView.json() as { items: any[] }).items.some(item => item.id === winner), false);
+    const recipientToken = createSession(recipient.id, 'user').token;
+    const recipientView = await fetch(`${base}/api/users/me/servers`, { headers: { authorization: `Bearer ${recipientToken}` } });
+    const recipientServers = (await recipientView.json() as { items: any[] }).items;
+    assert.deepEqual(recipientServers.find(item => item.id === winner).plugins, []);
+    assert.equal(recipientServers.find(item => item.id === winner).linked, false);
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
