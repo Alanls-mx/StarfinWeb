@@ -1,14 +1,14 @@
 import { FeaturedPlugins } from '../components/FeaturedPlugins';
 import { FeatureStories } from '../components/FeatureStories';
 import { Hero } from '../components/Hero';
-import { defaultHomeContent } from '../lib/api';
+import type { HomeContent } from '../lib/api';
 
-export function HomePage() {
+export function HomePage({ content }: { content: HomeContent }) {
   return (
     <>
-      <Hero content={defaultHomeContent} />
+      <Hero content={content} />
       <FeaturedPlugins />
-      <FeatureStories content={defaultHomeContent} />
+      <FeatureStories content={content} />
     </>
   );
 }

@@ -12,7 +12,7 @@ const links = [
   { label: 'Suporte', href: '/support' }
 ];
 
-export function Navbar() {
+export function Navbar({ branding }: { branding: { siteName: string; logoUrl: string | null } }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { state, logout } = useAuth();
   const { count } = useCart();
@@ -28,9 +28,9 @@ export function Navbar() {
         </div>
       )}
       <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-5 px-5 sm:px-8">
-        <Link to="/" className="flex shrink-0 items-center gap-3" aria-label="StarfinPlugins — início">
-          <span aria-hidden="true" className="flex h-9 w-9 rotate-3 items-center justify-center rounded-lg border border-[#baf5a9] bg-[#85ed65] font-mono text-sm font-black text-[#123220] shadow-[3px_3px_0_#48c6bc]">SF</span>
-          <span className="text-[17px] font-semibold tracking-[-0.035em]">StarfinPlugins</span>
+        <Link to="/" className="flex shrink-0 items-center gap-3" aria-label={`${branding.siteName} — início`}>
+          {branding.logoUrl ? <img src={branding.logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" /> : <span aria-hidden="true" className="flex h-9 w-9 rotate-3 items-center justify-center rounded-lg border border-[#baf5a9] bg-[#85ed65] font-mono text-sm font-black text-[#123220] shadow-[3px_3px_0_#48c6bc]">SF</span>}
+          <span className="text-[17px] font-semibold tracking-[-0.035em]">{branding.siteName}</span>
         </Link>
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Navegação principal">
           {links.map((item) => (

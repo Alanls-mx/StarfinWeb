@@ -1534,6 +1534,13 @@ export interface HomeContentSetting {
   heroDescription: string;
   accountTitle: string;
   accountDescription: string;
+  heroImageUrl?: string;
+  accountImageUrl?: string;
+  projectImageUrl?: string;
+  heroPrimaryLabel?: string;
+  heroPrimaryHref?: string;
+  heroSecondaryLabel?: string;
+  heroSecondaryHref?: string;
 }
 
 export const defaultHomeContent: HomeContentSetting = {
@@ -1548,6 +1555,7 @@ export const defaultHomeContent: HomeContentSetting = {
 export type AdminSettings = {
   siteName: string;
   logoUrl: string;
+  faviconUrl: string;
   siteDescription: string;
   maintenanceMode: boolean;
   discordUrl: string;
@@ -1572,6 +1580,7 @@ export type AdminSettings = {
 const defaultAdminSettings: AdminSettings = {
   siteName: 'StarfinPlugins',
   logoUrl: '',
+  faviconUrl: '',
   siteDescription: 'Marketplace de plugins para Minecraft',
   maintenanceMode: false,
   discordUrl: '',

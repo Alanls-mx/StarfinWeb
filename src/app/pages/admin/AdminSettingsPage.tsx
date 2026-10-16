@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { adminGetSettings, adminSaveSettings } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { toast } from 'sonner';
+import { MediaPicker } from '../../components/admin/MediaPicker';
 
 export function AdminSettingsPage() {
   const { state } = useAuth();
@@ -50,10 +51,18 @@ export function AdminSettingsPage() {
     <div className="space-y-8 max-w-4xl">
       <div>
         <h1 className="text-3xl font-bold mb-2">Configurações Globais</h1>
-        <p className="text-gray-400">Gerencie integrações e comportamentos do site. Nome, logo, favicon, textos e metadados são definidos no frontend.</p>
+        <p className="text-gray-400">Gerencie identidade publicada, integrações e comportamentos do site.</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        <section className="space-y-5 rounded-lg border border-white/15 bg-[#14251e] p-6">
+          <h2 className="text-xl font-semibold">Identidade e metadados</h2>
+          <p className="text-sm text-[#bdd2c5]">As mudanças aparecem no HTML e na navegação após recarregar, sem substituir a identidade após a página abrir.</p>
+          <label className="block text-sm">Nome do site<input value={settings.siteName || ''} maxLength={80} onChange={event => setSettings({ ...settings, siteName: event.target.value })} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3" /></label>
+          <label className="block text-sm">Descrição para mecanismos de busca<textarea value={settings.siteDescription || ''} maxLength={300} onChange={event => setSettings({ ...settings, siteDescription: event.target.value })} className="mt-2 min-h-20 w-full rounded-md border border-white/20 bg-[#0b1715] p-3" /></label>
+          {token && <div className="grid gap-6 md:grid-cols-2"><MediaPicker token={token} label="Logotipo" value={settings.logoUrl || ''} onChange={logoUrl => setSettings({ ...settings, logoUrl })}/><MediaPicker token={token} label="Favicon" value={settings.faviconUrl || ''} onChange={faviconUrl => setSettings({ ...settings, faviconUrl })}/></div>}
+          <label className="block text-sm">Texto do rodapé<input value={settings.footerText || ''} maxLength={200} onChange={event => setSettings({ ...settings, footerText: event.target.value })} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3" /></label>
+        </section>
         {/* Suporte & Contato */}
         <div className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-6">

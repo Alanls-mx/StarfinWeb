@@ -407,6 +407,8 @@ export interface TeamMemberProfile {
 export interface PublicSettings {
   siteName: string;
   logoUrl: string | null;
+  faviconUrl: string | null;
+  siteDescription: string;
   footerText: string;
   discordUrl: string;
   supportEmail: string;
@@ -426,6 +428,13 @@ export interface HomeContent {
   heroDescription: string;
   accountTitle: string;
   accountDescription: string;
+  heroImageUrl?: string;
+  accountImageUrl?: string;
+  projectImageUrl?: string;
+  heroPrimaryLabel?: string;
+  heroPrimaryHref?: string;
+  heroSecondaryLabel?: string;
+  heroSecondaryHref?: string;
 }
 
 export const defaultHomeContent: HomeContent = {

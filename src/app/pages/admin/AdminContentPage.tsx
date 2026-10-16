@@ -1,8 +1,9 @@
 import { Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminGetSettings, adminSaveSettings, type CareerJob, type TeamMemberProfile } from '../../lib/api';
+import { adminGetSettings, adminSaveSettings, defaultHomeContent, type HomeContent, type CareerJob, type TeamMemberProfile } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { MediaPicker } from '../../components/admin/MediaPicker';
 
 function createId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -41,6 +42,7 @@ export function AdminContentPage() {
   const [saving, setSaving] = useState(false);
   const [jobs, setJobs] = useState<CareerJob[]>([]);
   const [team, setTeam] = useState<TeamMemberProfile[]>([]);
+  const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
 
   useEffect(() => {
     if (!token) return;
@@ -49,6 +51,7 @@ export function AdminContentPage() {
       .then((settings) => {
         setJobs(settings.careersJobs ?? []);
         setTeam(settings.aboutTeam ?? []);
+        setHomeContent({ ...defaultHomeContent, ...settings.homeContent });
       })
       .catch((error) => {
         console.error(error);
@@ -88,13 +91,15 @@ export function AdminContentPage() {
 
   const handleSave = async () => {
     if (!token) return;
+    if ((['heroEyebrow', 'heroTitle', 'heroAccent', 'heroDescription', 'accountTitle', 'accountDescription'] as const).some(key => !homeContent[key].trim())) { toast.error('Preencha todos os textos da página inicial.'); return; }
     setSaving(true);
     try {
       const nextJobs = normalizeJobs(jobs);
       const nextTeam = normalizeTeam(team);
       await adminSaveSettings(token, {
         careersJobs: nextJobs,
-        aboutTeam: nextTeam
+        aboutTeam: nextTeam,
+        homeContent
       });
       setJobs(nextJobs);
       setTeam(nextTeam);
@@ -119,8 +124,24 @@ export function AdminContentPage() {
     <div className="space-y-8 max-w-6xl">
       <div>
         <h1 className="text-3xl font-bold mb-2">Conteudo do Site</h1>
-        <p className="text-gray-400">Edite vagas e informações da equipe exibidas nas páginas públicas. Os textos e a identidade da interface fazem parte do frontend.</p>
+        <p className="text-gray-400">Edite os textos e imagens publicados na página inicial, além de vagas e equipe.</p>
       </div>
+
+      <section className="space-y-5 rounded-lg border border-white/15 bg-[#14251e] p-6">
+        <div><h2 className="text-xl font-bold text-white">Página inicial</h2><p className="mt-1 text-sm text-[#bdd2c5]">As mudanças aparecem após recarregar a página e são carregadas antes da interface renderizar.</p></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {([
+            ['heroEyebrow', 'Chamada acima do título'], ['heroTitle', 'Título principal'], ['heroAccent', 'Título em destaque'],
+            ['heroDescription', 'Descrição principal'], ['accountTitle', 'Título da área da conta'], ['accountDescription', 'Descrição da área da conta']
+          ] as Array<[keyof HomeContent, string]>).map(([key, label]) => <label key={key} className={`text-sm text-white ${key.endsWith('Description') ? 'md:col-span-2' : ''}`}>{label}{key.endsWith('Description') ? <textarea value={homeContent[key]} maxLength={400} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 min-h-24 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" /> : <input value={homeContent[key]} maxLength={100} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" />}</label>)}
+        </div>
+        {token && <div className="grid gap-4 md:grid-cols-3">
+          {([['heroImageUrl', 'Imagem principal'], ['accountImageUrl', 'Imagem da área da conta'], ['projectImageUrl', 'Imagem do projeto']] as const).map(([key, label]) => <MediaPicker key={key} token={token} label={label} value={homeContent[key] || ''} onChange={url => setHomeContent(current => ({ ...current, [key]: url }))} />)}
+        </div>}
+        <div className="grid gap-4 md:grid-cols-2">
+          {([['heroPrimaryLabel', 'Texto do botão principal'], ['heroPrimaryHref', 'Destino do botão principal'], ['heroSecondaryLabel', 'Texto do botão secundário'], ['heroSecondaryHref', 'Destino do botão secundário']] as const).map(([key, label]) => <label key={key} className="text-sm text-white">{label}<input value={homeContent[key] || ''} placeholder={key.includes('Href') ? '/plugins' : undefined} maxLength={100} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" /></label>)}
+        </div>
+      </section>
 
       <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-6">
@@ -265,14 +286,7 @@ export function AdminContentPage() {
                 />
               </div>
 
-              <input
-                value={member.imageUrl}
-                onChange={(event) =>
-                  setTeam((prev) => prev.map((item, i) => (i === index ? { ...item, imageUrl: event.target.value } : item)))
-                }
-                className="w-full px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white outline-none focus:border-[#177F58]"
-                placeholder="URL da foto"
-              />
+              {token && <MediaPicker token={token} label="Foto da equipe" value={member.imageUrl} onChange={imageUrl => setTeam(prev => prev.map((item, i) => i === index ? { ...item, imageUrl } : item))} />}
 
               <textarea
                 value={member.bio}

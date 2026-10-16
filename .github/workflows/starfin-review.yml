@@ -42,3 +42,4 @@ jobs:
       - run: node --import tsx --test server/src/license-contract.test.ts
       - run: node --import tsx --test server/src/release-access.test.ts
       - run: node --import tsx --test server/src/media-access.test.ts
+      - run: node --import tsx --test server/src/public-bootstrap.test.ts

@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { getMySettings, removeMyAvatar, updateMyPassword, updateMyProfile, uploadMyAvatar } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { AccountNav } from '../components/AccountNav';
 
 type Profile = { name: string; email: string; avatarUrl: string | null; bio: string; discordId: string; githubUrl: string; twitterUrl: string };
 
@@ -98,7 +99,7 @@ export function AccountProfilePage() {
 
   const field = 'mt-2 w-full rounded-lg border border-white/20 bg-[#0b1715] px-4 py-3 text-white';
   return <main className="min-h-screen bg-[#0b1715] px-5 pb-20 pt-32 text-white"><div className="mx-auto max-w-4xl space-y-8">
-    <div><Link to="/account" className="text-sm text-[#a9f58e]">← Minha conta</Link><h1 className="mt-4 text-3xl font-bold">Perfil e segurança</h1><p className="mt-2 text-sm text-[#bdd2c5]">Gerencie sua foto, apresentação e senha.</p></div>
+    <div><h1 className="text-3xl font-bold">Perfil e segurança</h1><p className="mt-2 text-sm text-[#bdd2c5]">Gerencie sua foto, apresentação e senha.</p></div><AccountNav />
     {error && <p role="alert" className="rounded-lg border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">{error}</p>}
     {!profile ? <p role="status">Carregando perfil...</p> : <>
       <section className="rounded-lg border border-white/15 bg-[#14251e] p-6 sm:p-8"><h2 className="text-xl font-semibold">Foto e informações</h2>

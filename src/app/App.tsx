@@ -4,7 +4,6 @@ import { Route, Routes, useLocation } from 'react-router';
 import { Navbar } from './components/Navbar';
 import { Store } from './components/Store';
 import { PluginDetail } from './components/PluginDetail';
-import { Dashboard } from './components/Dashboard';
 import { Footer } from './components/Footer';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { DocsPage } from './pages/DocsPage';
@@ -24,6 +23,10 @@ import { CheckoutPage } from './pages/CheckoutPage';
 import { AccountOrdersPage } from './pages/AccountOrdersPage';
 import { AccountLicensesPage } from './pages/AccountLicensesPage';
 import { AccountProfilePage } from './pages/AccountProfilePage';
+import { AccountOverviewPage } from './pages/AccountOverviewPage';
+import { AccountPluginsPage } from './pages/AccountPluginsPage';
+import { AccountServersPage } from './pages/AccountServersPage';
+import { AccountNotificationsPage } from './pages/AccountNotificationsPage';
 import { AboutPage } from './pages/AboutPage';
 import { FaqPage } from './pages/FaqPage';
 import { CareersPage } from './pages/CareersPage';
@@ -54,8 +57,9 @@ import { AdminAuditPage } from './pages/admin/AdminAuditPage';
 
 import { CartProvider } from './lib/cart';
 import { Toaster } from 'sonner';
+import type { HomeContent } from './lib/api';
 
-export default function App() {
+export default function App({ homeContent, branding }: { homeContent: HomeContent; branding: { siteName: string; logoUrl: string | null; footerText: string } }) {
   const location = useLocation();
 
   useEffect(() => {
@@ -67,7 +71,7 @@ export default function App() {
   return (
     <CartProvider>
       <div className="min-h-screen bg-background text-foreground">
-        {!isAdminRoute && <Navbar />}
+        {!isAdminRoute && <Navbar branding={branding} />}
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -77,7 +81,7 @@ export default function App() {
             transition={{ duration: 0.2 }}
           >
             <Routes location={location}>
-              <Route path="/" element={<HomePage />} />
+              <Route path="/" element={<HomePage content={homeContent} />} />
               <Route path="/plugins" element={<Store />} />
               <Route path="/plugins/:id" element={<PluginDetail />} />
               <Route path="/premium" element={<PremiumPage />} />
@@ -92,7 +96,10 @@ export default function App() {
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/cart" element={<CheckoutPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/account" element={<Dashboard />} />
+              <Route path="/account" element={<AccountOverviewPage />} />
+              <Route path="/account/plugins" element={<AccountPluginsPage />} />
+              <Route path="/account/servers" element={<AccountServersPage />} />
+              <Route path="/account/notifications" element={<AccountNotificationsPage />} />
               <Route path="/account/orders" element={<AccountOrdersPage />} />
               <Route path="/account/licenses" element={<AccountLicensesPage />} />
               <Route path="/account/profile" element={<AccountProfilePage />} />
@@ -131,11 +138,11 @@ export default function App() {
                 <Route path="audit" element={<AdminAuditPage />} />
               </Route>
 
-              <Route path="*" element={<HomePage />} />
+              <Route path="*" element={<HomePage content={homeContent} />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
-        {!isAdminRoute && <Footer />}
+        {!isAdminRoute && <Footer branding={branding} />}
         <Toaster position="top-right" richColors theme="dark" closeButton />
       </div>
     </CartProvider>

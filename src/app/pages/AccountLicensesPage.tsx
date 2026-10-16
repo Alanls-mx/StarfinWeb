@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Copy, KeyRound, RefreshCw } from 'lucide-react';
 import { getMyLicenses, getMySettings, regenerateMyLicense, updateMyAllowedIp, type PurchasedPlugin } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { AccountNav } from '../components/AccountNav';
 
 export function AccountLicensesPage() {
   const { state } = useAuth();
@@ -62,6 +63,7 @@ export function AccountLicensesPage() {
   return <main className="mx-auto min-h-[75vh] max-w-5xl px-5 pb-24 pt-32 sm:px-8">
     <Link to="/account" className="text-sm text-primary hover:underline">← Minha conta</Link>
     <div className="mt-5 border-b border-white/15 bg-[#10221b] p-7 text-white sm:p-9"><h1 className="text-4xl font-extrabold tracking-[-.025em]">Minhas licenças</h1><p className="mt-3 max-w-xl text-sm leading-7 text-[#bdd2c5]">A chave principal identifica sua conta no StarfinCore. O acesso depende das compras e das regras da API.</p></div>
+    <div className="mt-6"><AccountNav /></div>
     {error && <p role="alert" className="mt-8 rounded-xl border border-destructive/40 p-4 text-destructive">{error}</p>}
     {message && <p role="status" className="mt-8 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-200">{message}</p>}
     {loading ? <p role="status" className="mt-10 text-muted-foreground">Carregando licenças...</p> : <>

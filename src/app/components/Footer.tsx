@@ -10,7 +10,7 @@ const groups = [
   { title: 'Legal', links: [{ title: 'Termos de uso', href: '/terms' }, { title: 'Privacidade', href: '/privacy' }] }
 ];
 
-export function Footer() {
+export function Footer({ branding }: { branding: { siteName: string; logoUrl: string | null; footerText: string } }) {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -37,8 +37,8 @@ export function Footer() {
         <div className="grid gap-12 border-b border-white/10 pb-14 lg:grid-cols-[1.15fr_1.85fr]">
           <div>
             <Link to="/" className="inline-flex items-center gap-3 text-lg font-semibold tracking-tight text-white">
-              <span className="flex h-9 w-9 rotate-3 items-center justify-center rounded-lg bg-[#85ed65] font-mono text-sm font-black text-[#112516] shadow-[3px_3px_0_#48c6bc]">SF</span>
-              StarfinPlugins
+              {branding.logoUrl ? <img src={branding.logoUrl} alt="" className="h-9 w-9 rounded-lg object-contain" /> : <span className="flex h-9 w-9 rotate-3 items-center justify-center rounded-lg bg-[#85ed65] font-mono text-sm font-black text-[#112516] shadow-[3px_3px_0_#48c6bc]">SF</span>}
+              {branding.siteName}
             </Link>
             <p className="mt-5 max-w-sm text-sm leading-7">Desenvolvimento de plugins e ferramentas para servidores Minecraft. Produtos, atualizações e suporte em um só lugar.</p>
             <form onSubmit={subscribe} className="mt-7 max-w-sm">
@@ -63,7 +63,7 @@ export function Footer() {
           </div>
         </div>
         <div className="flex flex-col justify-between gap-4 pt-7 text-xs sm:flex-row sm:items-center">
-          <span>© {new Date().getFullYear()} StarfinPlugins. Todos os direitos reservados.</span>
+          <span>{branding.footerText || `© ${new Date().getFullYear()} ${branding.siteName}. Todos os direitos reservados.`}</span>
           <a href="https://github.com/Alanls-mx/StarfinBans" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-white">StarfinBans no GitHub <ArrowUpRight size={13}/></a>
         </div>
       </div>

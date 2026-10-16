@@ -2456,6 +2456,8 @@ app.get('/api/public/settings', (_req, res) => {
   res.json({
     siteName: s.siteName,
     logoUrl: s.logoUrl,
+    faviconUrl: s.faviconUrl,
+    siteDescription: s.siteDescription,
     footerText: s.footerText,
     discordUrl: s.discordUrl,
     supportEmail: s.supportEmail,
@@ -2966,14 +2968,32 @@ app.post('/api/admin/settings', (req, res) => {
     return;
   }
   const body = { ...(req.body ?? {}) };
+  const currentSettings = getAdminSettings();
+  for (const key of ['logoUrl', 'faviconUrl'] as const) {
+    if (body[key] !== undefined && body[key] !== '' && body[key] !== currentSettings[key] &&
+        (typeof body[key] !== 'string' || !/^\/uploads\/[a-f0-9-]+\.(?:png|jpg|webp|gif)$/.test(body[key]))) {
+      return res.status(400).json({ error: `${key} deve ser uma imagem da biblioteca de mídia` });
+    }
+  }
+  for (const [key, max] of [['siteName', 80], ['siteDescription', 300], ['footerText', 200]] as const) {
+    if (body[key] !== undefined && (typeof body[key] !== 'string' || body[key].length > max || (key === 'siteName' && !body[key].trim()))) {
+      return res.status(400).json({ error: `${key} inválido` });
+    }
+  }
   if (body.homeContent !== undefined) {
     const fields = ['heroEyebrow', 'heroTitle', 'heroAccent', 'heroDescription', 'accountTitle', 'accountDescription'];
+    const images = ['heroImageUrl', 'accountImageUrl', 'projectImageUrl'];
+    const labels = ['heroPrimaryLabel', 'heroSecondaryLabel'];
+    const links = ['heroPrimaryHref', 'heroSecondaryHref'];
     if (!body.homeContent || typeof body.homeContent !== 'object' || Array.isArray(body.homeContent) ||
-        Object.keys(body.homeContent).some(key => ![...fields, 'accountEyebrow'].includes(key)) ||
-        fields.some(key => typeof body.homeContent[key] !== 'string' || !body.homeContent[key].trim() || body.homeContent[key].length > (key.endsWith('Description') ? 400 : 100))) {
+        Object.keys(body.homeContent).some(key => ![...fields, ...images, ...labels, ...links, 'accountEyebrow'].includes(key)) ||
+        fields.some(key => typeof body.homeContent[key] !== 'string' || !body.homeContent[key].trim() || body.homeContent[key].length > (key.endsWith('Description') ? 400 : 100)) ||
+        images.some(key => body.homeContent[key] !== undefined && body.homeContent[key] !== '' && (typeof body.homeContent[key] !== 'string' || !/^\/uploads\/[a-f0-9-]+\.(?:png|jpg|webp|gif)$/.test(body.homeContent[key]))) ||
+        labels.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || body.homeContent[key].length > 60)) ||
+        links.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || !/^\/(?:[a-z0-9/-]*)$/.test(body.homeContent[key])))) {
       return res.status(400).json({ error: 'conteúdo da homepage inválido' });
     }
-    body.homeContent = Object.fromEntries(fields.map(key => [key, body.homeContent[key].trim()]));
+    body.homeContent = Object.fromEntries([...fields, ...images, ...labels, ...links].filter(key => body.homeContent[key] !== undefined).map(key => [key, body.homeContent[key].trim()]));
   }
   // An empty or masked field leaves the stored credential untouched.
   if (typeof body.mercadopagoAccessToken !== 'string' ||
@@ -3935,13 +3955,34 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 if (isProdRuntime) {
   const distPath = path.join(__dirname, '..', '..', 'dist');
-  app.use(express.static(distPath));
+  const htmlTemplate = fs.readFileSync(path.join(distPath, 'index.html'), 'utf8');
+  const escapeHtml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+  app.get('/index.html', (_req, res) => res.redirect(302, '/'));
+  app.use(express.static(distPath, { index: false }));
   app.use((req, res) => {
     if (req.path.startsWith('/api/')) {
       res.status(404).json({ error: 'Not Found' });
       return;
     }
-    res.sendFile(path.join(distPath, 'index.html'));
+    const settings = getAdminSettings();
+    const siteName = typeof settings.siteName === 'string' && settings.siteName.trim() ? settings.siteName.trim().slice(0, 80) : 'StarfinPlugins';
+    const managedImage = (value: unknown) => typeof value === 'string' && /^\/uploads\/[a-f0-9-]+\.(?:png|jpg|webp|gif)$/.test(value) ? value : '';
+    const publicConfig = {
+      siteName,
+      logoUrl: managedImage(settings.logoUrl),
+      faviconUrl: managedImage(settings.faviconUrl),
+      footerText: typeof settings.footerText === 'string' ? settings.footerText.slice(0, 200) : '',
+      homeContent: settings.homeContent
+    };
+    const faviconType = publicConfig.faviconUrl.endsWith('.png') ? 'image/png' : publicConfig.faviconUrl.endsWith('.jpg') ? 'image/jpeg' : publicConfig.faviconUrl.endsWith('.webp') ? 'image/webp' : publicConfig.faviconUrl.endsWith('.gif') ? 'image/gif' : 'image/svg+xml';
+    const description = typeof settings.siteDescription === 'string' && settings.siteDescription.trim() ? settings.siteDescription.trim().slice(0, 300) : 'Plugins e ferramentas para servidores Minecraft.';
+    const html = htmlTemplate
+      .replace('StarfinPlugins — plugins para servidores Minecraft', escapeHtml(`${siteName} — plugins para servidores Minecraft`))
+      .replace('Plugins e ferramentas para servidores Minecraft. Conheça os produtos StarfinPlugins e gerencie suas licenças.', escapeHtml(description))
+      .replace('type="image/svg+xml" href="/favicon.svg"', `type="${faviconType}" href="${escapeHtml(publicConfig.faviconUrl || '/favicon.svg')}"`)
+      .replace('__STARFIN_PUBLIC_CONFIG__', JSON.stringify(publicConfig).replaceAll('<', '\\u003c'));
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(html);
   });
 }
 
