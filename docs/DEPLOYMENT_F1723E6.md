@@ -43,3 +43,10 @@ Na revisão `1227b4a`, SMTP e Mercado Pago aguardavam configuração manual e ai
 - Os arquivos privados ficam por padrão em `/opt/starfinweb/app/private/releases`, com diretórios 0700, fora do diretório web. Eles devem entrar nos backups futuros. O banco contém as tabelas aditivas `plugin_releases` e `user_notifications`.
 - Após o deploy, site, API, health, catálogo e changelog responderam 200 via HTTPS; as rotas privadas rejeitaram chamadas sem credencial, a skin respondeu 200 e o certificado vence em 13/01/2027. Nenhum JAR de produto foi publicado.
 - SMTP e Mercado Pago aguardam configuração manual do proprietário. Pagamento real, e-mail real e compatibilidade de JARs com cada plataforma Minecraft não foram homologados.
+
+## Publicação `f3c3b45` — CMS da homepage
+
+- [CI da revisão](https://github.com/Alanls-mx/StarfinWeb/actions/runs/38834141905): sucesso. O teste de integração cobriu persistência dos textos, leitura pública e rejeição de conteúdo vazio. A candidata respondeu 200 em home, health e configurações públicas na base isolada.
+- Backups antes da troca: `/opt/starfinweb/backups/starfin-site-pre-f3c3b45-20261016T011813Z.dump` e `/opt/starfinweb/backups/starfin-code-pre-f3c3b45-20261016T011813Z.tar.gz`.
+- Rollback de build: `/opt/starfinweb/app/rollback-dist-pre-f3c3b45-20261016T011813Z` e `/opt/starfinweb/app/server/rollback-dist-pre-f3c3b45-20261016T011813Z`. A troca reiniciou somente `starfinweb.service`.
+- Após a publicação, home, health, catálogo, API de configurações e skin responderam 200 via HTTPS. A API pública contém `homeContent`; uma rota privada sem sessão respondeu 401. StarfinWeb, Nginx e PostgreSQL permaneceram ativos.
