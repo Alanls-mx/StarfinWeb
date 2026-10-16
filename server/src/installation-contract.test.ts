@@ -52,6 +52,7 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     assert.equal(unclaimed.status, 401);
     const claim = await post(`/api/users/me/servers/${winner}/claim`, { code, reason: 'Primeira ativação CI' }, `Bearer ${token}`);
     assert.equal(claim.status, 200);
+    assert.equal((await fetch(`${base}/api/users/me/servers/${winner}`, { method: 'PATCH', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ ips: [] }) })).status, 400);
     assert.equal((await post(`/api/users/me/servers/${loser}/claim`, { code }, `Bearer ${token}`)).status, 409);
     const check = await post('/v3/installations/check', { installationId, platform: 'Bukkit', coreVersion: '0.3.0' }, `Installation ${credential}`);
     assert.equal(check.status, 200);

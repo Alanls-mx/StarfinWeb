@@ -2868,6 +2868,8 @@ app.patch('/api/users/me/servers/:id', (req, res) => {
   const authorizedPort = req.body?.authorizedPort;
   if (name !== undefined && (!name || name.length > 100) || ips === null)
     return res.status(400).json({ error: 'Nome ou IPs inválidos (máximo de três IPv4/IPv6).' });
+  if (ips !== undefined && ips.length === 0 && server.installationId && !server.revokedISO)
+    return res.status(400).json({ error: 'Uma instalação vinculada precisa de pelo menos um IP autorizado.' });
   if (authorizedPort !== undefined && (!server.installationId || Boolean(server.revokedISO) || !validPort(authorizedPort)))
     return res.status(400).json({ error: 'Porta autorizada inválida.' });
   const updated = updateServer(server.id, { name, ips, authorizedPort });
