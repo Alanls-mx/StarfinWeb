@@ -2,7 +2,8 @@
 
 ## Versão publicada
 
-- Commit da `main`: `f1723e6`.
+- Commit da primeira publicação desta etapa: `f1723e6`.
+- Revisão final atualmente publicada: `1227b4a` (chave global mascarada nas respostas administrativas e justificativa visível na auditoria).
 - Aplicação: `/opt/starfinweb/app`, serviço `starfinweb.service`, porta `127.0.0.1:3801`.
 - Domínios verificados: `https://starfinplugins.com.br` e `https://api.starfinplugins.com.br`.
 - A alteração de banco é aditiva: tabela `admin_audit` e coluna `purchases.grantSource`, com padrão conservador `payment` para registros anteriores. O PostgreSQL compartilhado e o Nginx não foram reiniciados.
@@ -23,6 +24,12 @@
 - Diretórios anteriores: `/opt/starfinweb/app/rollback-dist-pre-f1723e6-20261016T004635Z` e `/opt/starfinweb/app/rollback-server-dist-pre-f1723e6-20261016T004635Z`.
 
 Se for necessário reverter, parar somente `starfinweb.service`, mover os diretórios atuais `dist` e `server/dist` para quarentena, restaurar os dois diretórios anteriores e iniciar somente `starfinweb.service`. O banco ganhou apenas estruturas aditivas; não restaurar o dump sobre dados de produção criados após o deploy sem análise.
+
+### Revisão `1227b4a`
+
+Os quatro grupos de testes de integração foram repetidos em `starfin_stage_1227b4a` e passaram. Antes da troca final foram gerados `/opt/starfinweb/backups/starfin-site-pre-1227b4a-20261016T004900Z.dump` e `/opt/starfinweb/backups/starfin-code-pre-1227b4a-20261016T004900Z.tar.gz`. O rollback imediato desta revisão está em `/opt/starfinweb/app/rollback-dist-pre-1227b4a-20261016T004905Z` e `/opt/starfinweb/app/rollback-server-dist-pre-1227b4a-20261016T004905Z`. Após a troca, o site e a API responderam 200 com TLS válido; a auditoria sem autenticação respondeu 403 e a verificação de licença inválida respondeu 400. StarfinWeb, Nginx e PostgreSQL permaneceram ativos.
+
+A [CI do commit `1227b4a`](https://github.com/Alanls-mx/StarfinWeb/actions/runs/38831570215) terminou com sucesso.
 
 ## Limites atuais
 
