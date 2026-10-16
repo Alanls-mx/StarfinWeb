@@ -42,6 +42,7 @@ export function AccountOrdersPage() {
 
   useEffect(() => { void refresh(); }, [state.status === 'authenticated' ? state.token : null]);
 
+  if (state.status === 'loading') return <main className="min-h-screen pt-32 text-center text-[#bdd2c5]">Verificando sessão...</main>;
   if (state.status !== 'authenticated') return <main className="mx-auto min-h-[65vh] max-w-5xl px-5 pt-32"><h1 className="text-3xl font-semibold">Meus pedidos</h1><p className="mt-4 text-muted-foreground">Entre para consultar seus pedidos.</p><Link to="/login?next=/account/orders" className="mt-6 inline-block rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground">Entrar</Link></main>;
 
   const returnedOrder = orders.find(order => order.id === returnedOrderId);

@@ -19,7 +19,7 @@ export function AccountLicensesPage() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (!token) { setLoading(false); return; }
+    if (!token) return;
     let cancelled = false;
     setLoading(true);
     Promise.all([getMySettings(token), getMyLicenses(token)]).then(([settings, result]) => {
@@ -58,6 +58,7 @@ export function AccountLicensesPage() {
     finally { setBusy(false); }
   }
 
+  if (state.status === 'loading') return <main className="min-h-screen pt-32 text-center text-[#bdd2c5]">Verificando sessão...</main>;
   if (!token) return <main className="mx-auto min-h-[65vh] max-w-5xl px-5 pt-32"><h1 className="text-3xl font-semibold">Minhas licenças</h1><p className="mt-4 text-muted-foreground">Entre para consultar suas licenças.</p><Link to="/login?next=/account/licenses" className="mt-6 inline-block rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground">Entrar</Link></main>;
 
   return <main className="mx-auto min-h-[75vh] max-w-5xl px-5 pb-24 pt-32 sm:px-8">

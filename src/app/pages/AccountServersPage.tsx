@@ -49,6 +49,7 @@ export function AccountServersPage() {
     finally { setBusy(false); }
   }
 
+  if (state.status === 'loading') return <main className="min-h-screen pt-32 text-center text-[#bdd2c5]">Verificando sessão...</main>;
   if (!token) return <main className="min-h-screen px-5 pt-32 text-white"><Link to="/login?next=%2Faccount%2Fservers" className="text-[#a9f58e]">Entrar para gerenciar servidores →</Link></main>;
   const uniqueLicenses = [...new Map(licenses.map(item => [item.pluginId, item])).values()];
   return <main className="min-h-screen bg-[#0b1715] px-5 pb-20 pt-32 text-white"><div className="mx-auto max-w-6xl space-y-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-bold">Servidores</h1><p className="mt-2 text-sm text-[#bdd2c5]">Organize IPs e produtos autorizados em cada instalação.</p></div><button type="button" onClick={() => open()} className="sf-button-primary">Adicionar servidor</button></div><AccountNav />
