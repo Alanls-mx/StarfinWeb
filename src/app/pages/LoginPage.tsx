@@ -105,11 +105,9 @@ export function LoginPage() {
           </form>
         </div>
 
-        <div className="relative flex min-h-[470px] flex-col justify-between overflow-hidden rounded-[1.7rem] bg-[linear-gradient(145deg,#d3f8b9,#76ddcf)] p-7 text-[#173526] sm:p-10">
-          <div aria-hidden="true" className="sf-grid absolute inset-0 opacity-70" />
-          <div className="relative z-10 max-w-xs"><p className="sf-eyebrow !text-[#126e51]">Seu espaço no ecossistema</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight">Toda a gestão em uma conta.</h2><p className="mt-3 text-sm leading-7 text-[#3a6952]">Licenças, servidores e pedidos ficam organizados para você encontrar tudo com facilidade.</p></div>
-          <img src="/voxel/engineer.webp" alt="Personagem voxel mostrando a gestão do servidor" className="absolute right-0 bottom-0 h-[53%] w-[55%] object-contain object-bottom" />
-          <Link to="/register" className="sf-button-primary relative z-10 mt-auto self-start">Criar conta</Link>
+        <div className="flex min-h-[470px] flex-col justify-between border-l-2 border-[#85ed65] bg-[#14251e] p-7 text-white sm:p-10">
+          <div className="max-w-sm"><h2 className="text-3xl font-extrabold tracking-tight">Sua conta StarfinPlugins.</h2><p className="mt-4 text-sm leading-7 text-[#bdd2c5]">Consulte licenças, servidores e pedidos em um só lugar.</p></div>
+          <Link to="/register" className="sf-button-primary self-start">Criar conta</Link>
         </div>
       </div>
     </div>

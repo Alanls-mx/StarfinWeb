@@ -48,16 +48,16 @@ export function PluginDetail() {
   return <main className="mx-auto min-h-[75vh] max-w-7xl px-5 pb-24 pt-32 sm:px-8">
     <Link to="/plugins" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-white"><ArrowLeft size={16}/> Voltar ao catálogo</Link>
     {loading ? <div role="status" className="mt-10 grid gap-5 lg:grid-cols-[1fr_340px]"><div className="h-[400px] animate-pulse rounded-xl bg-card"/><div className="h-[320px] animate-pulse rounded-xl bg-card"/></div>
-    : error || !product ? <div className="mt-10 grid overflow-hidden rounded-2xl border border-[#bbdfc5] bg-[#e9f8e8] text-[#173526] sm:grid-cols-[1fr_230px]" role="alert"><div className="p-8"><h1 className="text-2xl font-extrabold">Produto indisponível</h1><p className="mt-3 text-[#4e7059]">{error}</p><Link to="/plugins" className="mt-6 inline-flex font-bold text-[#0e8158] hover:underline">Voltar ao catálogo →</Link></div><div className="relative hidden min-h-55 bg-[#c2efd5] sm:block"><img src="/voxel/guardian.webp" alt="Guardião voxel do catálogo" className="absolute inset-x-0 -bottom-4 h-[110%] w-full object-contain object-bottom" /></div></div>
+    : error || !product ? <div className="mt-10 border-l-2 border-[#85ed65] bg-[#14251e] p-8 text-white" role="alert"><h1 className="text-2xl font-bold">Produto indisponível</h1><p className="mt-3 text-[#bdd2c5]">{error}</p><Link to="/plugins" className="mt-6 inline-flex font-bold text-[#a9f58e] hover:underline">Voltar ao catálogo →</Link></div>
     : <>
       <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
-          <div className="overflow-hidden rounded-[2rem] border border-[#bee0c9] bg-[#e9f8e6] p-6 text-[#163324] sm:p-8">
-          <div className="flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-[.16em] text-[#178156]"><span>{product.category}</span>{product.platform && <span className="text-[#547060]">/ {product.platform}</span>}</div>
+          <div className="overflow-hidden rounded-lg border border-white/15 bg-[#14251e] p-6 text-white sm:p-8">
+          <div className="flex flex-wrap items-center gap-3 font-mono text-xs text-[#a9f58e]"><span>{product.category}</span>{product.platform && <span>/ {product.platform}</span>}</div>
           <h1 className="mt-4 text-4xl font-extrabold tracking-[-.06em] sm:text-5xl">{product.name}</h1>
-          <p className="mt-5 max-w-2xl text-base leading-8 text-[#4a6754]">{product.tagline || product.description}</p>
-          <div className="mt-7 overflow-hidden rounded-2xl border border-[#b7d9c2] bg-[linear-gradient(135deg,#d7f7d4,#a9e9de)]">
-            {product.imageUrl ? <img src={product.imageUrl} alt={`Imagem de ${product.name}`} className="aspect-[16/8] w-full object-cover"/> : <div className="relative flex aspect-[16/8] items-center justify-center"><Box size={46} className="text-[#117952]"/><img src="/voxel/guardian.webp" alt="" aria-hidden="true" className="absolute right-2 bottom-0 h-full max-w-[44%] object-contain object-bottom" /></div>}
+          <p className="mt-5 max-w-2xl text-base leading-8 text-[#bdd2c5]">{product.tagline || product.description}</p>
+          <div className="mt-7 overflow-hidden rounded-lg border border-white/15 bg-[#0b1715]">
+            {product.imageUrl ? <img src={product.imageUrl} alt={`Imagem de ${product.name}`} className="aspect-[16/8] w-full object-cover"/> : <div className="flex aspect-[16/8] items-center justify-center"><Box size={46} className="text-[#85ed65]"/></div>}
           </div>
           </div>
           <div className="mt-10 flex gap-6 overflow-x-auto border-b border-white/10" role="tablist" aria-label="Informações do produto">
@@ -78,11 +78,11 @@ export function PluginDetail() {
             </div>}
           </div>
         </div>
-        <aside className="lg:pt-3"><div className="sticky top-28 space-y-6 rounded-2xl border border-[#87d9a3] bg-[#dbf6d7] p-6 text-[#173525] shadow-[0_20px_48px_rgba(4,32,22,.12)] sm:p-8">
-          <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#3d6d51]">Licença do produto</p><p className="mt-2 text-3xl font-extrabold">{product.priceDisplay}</p></div>
+        <aside className="lg:pt-3"><div className="sticky top-28 space-y-6 rounded-lg border border-white/15 bg-[#14251e] p-6 text-white sm:p-8">
+          <div><p className="font-mono text-xs text-[#a9f58e]">LICENÇA DO PRODUTO</p><p className="mt-2 text-3xl font-extrabold">{product.priceDisplay}</p></div>
           <button type="button" onClick={() => { addItem({ id: String(product.id), name: product.name, price: product.priceCents, slug: String(product.id), imageUrl: product.imageUrl }); toast.success('Adicionado ao carrinho'); }} className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"><ShoppingBag size={17}/> Adicionar ao carrinho</button>
-          <dl className="divide-y divide-[#aedaba] border-t border-[#aedaba] text-sm"><div className="flex justify-between gap-3 py-3"><dt className="text-[#547060]">Versão</dt><dd>{product.version || 'Não informada'}</dd></div><div className="flex justify-between gap-3 py-3"><dt className="text-[#547060]">Minecraft</dt><dd>{product.mcVersion || 'Consultar suporte'}</dd></div><div className="flex justify-between gap-3 py-3"><dt className="text-[#547060]">Desenvolvedor</dt><dd>{product.author || 'StarfinPlugins'}</dd></div>{product.reviewsCount > 0 && <div className="flex justify-between gap-3 py-3"><dt className="text-[#547060]">Avaliação</dt><dd>{product.rating}/5</dd></div>}</dl>
-          <p className="text-xs leading-6 text-[#547060]">Após a confirmação do pagamento, consulte sua licença e a disponibilidade de arquivos na área da conta.</p>
+          <dl className="divide-y divide-white/10 border-t border-white/10 text-sm"><div className="flex justify-between gap-3 py-3"><dt className="text-[#bdd2c5]">Versão</dt><dd>{product.version || 'Não informada'}</dd></div><div className="flex justify-between gap-3 py-3"><dt className="text-[#bdd2c5]">Minecraft</dt><dd>{product.mcVersion || 'Consultar suporte'}</dd></div><div className="flex justify-between gap-3 py-3"><dt className="text-[#bdd2c5]">Desenvolvedor</dt><dd>{product.author || 'StarfinPlugins'}</dd></div>{product.reviewsCount > 0 && <div className="flex justify-between gap-3 py-3"><dt className="text-[#bdd2c5]">Avaliação</dt><dd>{product.rating}/5</dd></div>}</dl>
+          <p className="text-xs leading-6 text-[#bdd2c5]">Após a confirmação do pagamento, consulte sua licença e a disponibilidade de arquivos na área da conta.</p>
         </div></aside>
       </div>
     </>}

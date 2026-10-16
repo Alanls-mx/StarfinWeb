@@ -79,10 +79,10 @@ export function SupportPage() {
           </div>
           <button
             onClick={() => setIsCreating(true)}
-            className="px-6 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#177F58]/30 transition-all"
+            className="sf-button-primary"
           >
             <Plus className="w-5 h-5" />
-            Novo Ticket
+            Novo chamado
           </button>
         </div>
 
@@ -170,7 +170,7 @@ export function SupportPage() {
               <div className="text-xl text-white mb-2">Status</div>
               <div className="space-y-3 mt-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Tickets Abertos</span>
+                  <span className="text-gray-400">Chamados abertos</span>
                   <span className="text-white font-bold">{tickets.filter(t => t.status === 'open').length}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -203,7 +203,7 @@ export function SupportPage() {
               className="relative w-full max-w-2xl bg-[#10221d] border border-[#177F58]/30 rounded-2xl overflow-hidden shadow-2xl"
             >
               <div className="flex items-center justify-between p-6 border-b border-[#177F58]/10">
-                <h3 className="text-xl text-white font-bold">Abrir Novo Ticket</h3>
+                <h3 className="text-xl text-white font-bold">Abrir novo chamado</h3>
                 <button onClick={() => setIsCreating(false)} className="p-2 text-gray-400 hover:text-white transition-colors">
                   <Plus className="w-6 h-6 rotate-45" />
                 </button>
@@ -274,7 +274,7 @@ export function SupportPage() {
                     disabled={submitting}
                     className="flex-1 py-3 bg-gradient-to-r from-[#177F58] to-[#22A874] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[#177F58]/30 transition-all disabled:opacity-50"
                   >
-                    {submitting ? 'Enviando...' : 'Criar Ticket'}
+                    {submitting ? 'Enviando...' : 'Criar chamado'}
                   </button>
                 </div>
               </form>

@@ -114,11 +114,9 @@ export function RegisterPage() {
           </form>
         </div>
 
-        <div className="relative flex min-h-[470px] flex-col justify-between overflow-hidden rounded-[1.7rem] bg-[linear-gradient(145deg,#d3f8b9,#76ddcf)] p-7 text-[#173526] sm:p-10">
-          <div aria-hidden="true" className="sf-grid absolute inset-0 opacity-70" />
-          <div className="relative z-10 max-w-xs"><p className="sf-eyebrow !text-[#126e51]">Pronto para começar?</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight">Seu servidor ganha um espaço próprio.</h2><p className="mt-3 text-sm leading-7 text-[#3a6952]">Depois do cadastro, suas compras e licenças poderão ser consultadas pela plataforma. A confirmação por e-mail depende do serviço de envio configurado.</p></div>
-          <img src="/voxel/creator-avatar.webp" alt="Personagem voxel inspirado em uma skin de jogador" className="absolute right-0 bottom-0 h-[53%] w-[55%] object-contain object-bottom" />
-          <Link to="/login" className="sf-button-primary relative z-10 mt-auto self-start">Já tenho conta</Link>
+        <div className="flex min-h-[470px] flex-col justify-between border-l-2 border-[#85ed65] bg-[#14251e] p-7 text-white sm:p-10">
+          <div className="max-w-sm"><h2 className="text-3xl font-extrabold tracking-tight">Crie sua conta.</h2><p className="mt-4 text-sm leading-7 text-[#bdd2c5]">Depois do cadastro, suas compras e licenças poderão ser consultadas aqui. A confirmação por e-mail depende do serviço de envio configurado.</p></div>
+          <Link to="/login" className="sf-button-primary self-start">Já tenho conta</Link>
         </div>
       </div>
     </div>
