@@ -40,7 +40,7 @@ export function AdminSidebar() {
   return <Sidebar className="border-r border-[#335844] bg-[#10231d] text-white">
     <SidebarHeader className="border-b border-white/10 px-5 py-6">
       <NavLink to="/admin" className="flex items-center gap-3" aria-label="Painel StarfinPlugins">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">S</span>
+        <img src="/brand/sf-logo.png" alt="" className="h-9 w-9 rounded-lg object-contain" />
         <span><strong className="block text-sm tracking-tight">StarfinPlugins</strong><small className="text-xs text-muted-foreground">Administração</small></span>
       </NavLink>
     </SidebarHeader>

@@ -1541,6 +1541,11 @@ export interface HomeContentSetting {
   heroPrimaryHref?: string;
   heroSecondaryLabel?: string;
   heroSecondaryHref?: string;
+  projectTitle?: string;
+  projectDescription?: string;
+  projectNote?: string;
+  projectCtaLabel?: string;
+  projectCtaHref?: string;
 }
 
 export const defaultHomeContent: HomeContentSetting = {

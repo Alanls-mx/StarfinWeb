@@ -2985,17 +2985,19 @@ app.post('/api/admin/settings', (req, res) => {
   if (body.homeContent !== undefined) {
     const fields = ['heroEyebrow', 'heroTitle', 'heroAccent', 'heroDescription', 'accountTitle', 'accountDescription'];
     const images = ['heroImageUrl', 'accountImageUrl', 'projectImageUrl'];
-    const labels = ['heroPrimaryLabel', 'heroSecondaryLabel'];
-    const links = ['heroPrimaryHref', 'heroSecondaryHref'];
+    const labels = ['heroPrimaryLabel', 'heroSecondaryLabel', 'projectTitle', 'projectCtaLabel'];
+    const text = ['projectDescription', 'projectNote'];
+    const links = ['heroPrimaryHref', 'heroSecondaryHref', 'projectCtaHref'];
     if (!body.homeContent || typeof body.homeContent !== 'object' || Array.isArray(body.homeContent) ||
-        Object.keys(body.homeContent).some(key => ![...fields, ...images, ...labels, ...links, 'accountEyebrow'].includes(key)) ||
+        Object.keys(body.homeContent).some(key => ![...fields, ...images, ...labels, ...text, ...links, 'accountEyebrow'].includes(key)) ||
         fields.some(key => typeof body.homeContent[key] !== 'string' || !body.homeContent[key].trim() || body.homeContent[key].length > (key.endsWith('Description') ? 400 : 100)) ||
         images.some(key => body.homeContent[key] !== undefined && body.homeContent[key] !== '' && (typeof body.homeContent[key] !== 'string' || !/^\/uploads\/[a-f0-9-]+\.(?:png|jpg|webp|gif)$/.test(body.homeContent[key]))) ||
-        labels.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || body.homeContent[key].length > 60)) ||
+        labels.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || body.homeContent[key].length > 100)) ||
+        text.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || body.homeContent[key].length > 500)) ||
         links.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || !/^\/(?:[a-z0-9/-]*)$/.test(body.homeContent[key])))) {
       return res.status(400).json({ error: 'conteúdo da homepage inválido' });
     }
-    body.homeContent = Object.fromEntries([...fields, ...images, ...labels, ...links].filter(key => body.homeContent[key] !== undefined).map(key => [key, body.homeContent[key].trim()]));
+    body.homeContent = Object.fromEntries([...fields, ...images, ...labels, ...text, ...links].filter(key => body.homeContent[key] !== undefined).map(key => [key, body.homeContent[key].trim()]));
   }
   if (body.institutionalContent !== undefined) {
     const fields = ['aboutTitle', 'aboutDescription', 'aboutMissionTitle', 'aboutMissionDescription', 'aboutMissionSecondary', 'contactTitle', 'contactDescription', 'faqTitle', 'faqDescription'];
@@ -3990,8 +3992,8 @@ if (isProdRuntime) {
     const managedImage = (value: unknown) => typeof value === 'string' && /^\/uploads\/[a-f0-9-]+\.(?:png|jpg|webp|gif)$/.test(value) ? value : '';
     const publicConfig = {
       siteName,
-      logoUrl: managedImage(settings.logoUrl),
-      faviconUrl: managedImage(settings.faviconUrl),
+      logoUrl: managedImage(settings.logoUrl) || '/brand/sf-logo.png',
+      faviconUrl: managedImage(settings.faviconUrl) || '/brand/sf-logo.png',
       footerText: typeof settings.footerText === 'string' ? settings.footerText.slice(0, 200) : '',
       homeContent: settings.homeContent,
       institutionalContent: settings.institutionalContent,
@@ -4004,7 +4006,7 @@ if (isProdRuntime) {
     const html = htmlTemplate
       .replace('StarfinPlugins — plugins para servidores Minecraft', escapeHtml(`${siteName} — plugins para servidores Minecraft`))
       .replace('Plugins e ferramentas para servidores Minecraft. Conheça os produtos StarfinPlugins e gerencie suas licenças.', escapeHtml(description))
-      .replace('type="image/svg+xml" href="/favicon.svg"', `type="${faviconType}" href="${escapeHtml(publicConfig.faviconUrl || '/favicon.svg')}"`)
+      .replace('type="image/png" href="/brand/sf-logo.png"', `type="${faviconType}" href="${escapeHtml(publicConfig.faviconUrl)}"`)
       .replace('__STARFIN_PUBLIC_CONFIG__', JSON.stringify(publicConfig).replaceAll('<', '\\u003c'));
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(html);

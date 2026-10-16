@@ -19,7 +19,7 @@
     const homeContent = { ...defaultHomeContent, ...settings?.homeContent };
     const institutionalContent = { ...defaultInstitutionalContent, ...settings?.institutionalContent };
     const faqItems = settings?.faqItems || defaultFaqItems;
-    const branding = { siteName: settings?.siteName || 'StarfinPlugins', logoUrl: settings?.logoUrl || null, footerText: settings?.footerText || '' };
+    const branding = { siteName: settings?.siteName || 'StarfinPlugins', logoUrl: settings?.logoUrl || '/brand/sf-logo.png', footerText: settings?.footerText || '' };
     createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <AuthProvider>

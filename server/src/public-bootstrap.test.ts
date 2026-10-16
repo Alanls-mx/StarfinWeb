@@ -28,6 +28,8 @@ test('published CMS and identity are present in initial HTML without a later vis
     const docs = await (await fetch(base + '/docs')).text();
     assert.match(home, /<title>Starfin Teste — plugins para servidores Minecraft<\/title>/);
     assert.match(home, /Metadados publicados com segurança/);
+    assert.match(home, /brand\/sf-logo\.png/);
+    assert.equal((await fetch(base + '/brand/sf-logo.png')).status, 200);
     assert.match(home, /Mundo de teste/);
     assert.doesNotMatch(home, /__STARFIN_PUBLIC_CONFIG__/);
     assert.match(docs, /Mundo de teste/);

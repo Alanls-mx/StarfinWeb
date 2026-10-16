@@ -149,6 +149,11 @@ export function AdminContentPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {([['heroPrimaryLabel', 'Texto do botão principal'], ['heroPrimaryHref', 'Destino do botão principal'], ['heroSecondaryLabel', 'Texto do botão secundário'], ['heroSecondaryHref', 'Destino do botão secundário']] as const).map(([key, label]) => <label key={key} className="text-sm text-white">{label}<input value={homeContent[key] || ''} placeholder={key.includes('Href') ? '/plugins' : undefined} maxLength={100} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" /></label>)}
         </div>
+        <div className="border-t border-white/15 pt-5"><h3 className="text-lg font-semibold text-white">Projeto em destaque</h3><p className="mt-1 text-sm text-[#bdd2c5]">Edite a apresentação do StarfinBans na Home. Campos vazios usam o texto padrão.</p></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {([['projectTitle', 'Título do projeto'], ['projectCtaLabel', 'Texto da chamada'], ['projectCtaHref', 'Destino da chamada']] as const).map(([key, label]) => <label key={key} className="text-sm text-white">{label}<input value={homeContent[key] || ''} maxLength={100} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" /></label>)}
+          {([['projectDescription', 'Descrição do projeto'], ['projectNote', 'Nota de desenvolvimento']] as const).map(([key, label]) => <label key={key} className="text-sm text-white md:col-span-2">{label}<textarea value={homeContent[key] || ''} maxLength={500} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 min-h-24 w-full rounded-md border border-white/20 bg-[#0b1715] p-3 text-white" /></label>)}
+        </div>
       </section>
 
       <section className="space-y-5 rounded-lg border border-white/15 bg-[#14251e] p-6">
