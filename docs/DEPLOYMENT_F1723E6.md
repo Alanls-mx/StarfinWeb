@@ -33,4 +33,13 @@ A [CI do commit `1227b4a`](https://github.com/Alanls-mx/StarfinWeb/actions/runs/
 
 ## Limites atuais
 
-SMTP e Mercado Pago continuam aguardando configuração manual do proprietário. Não houve pagamento real nem envio de e-mail de produção neste ensaio. Downloads privados, gestão de versões, caixa pessoal de notificações e outros módulos previstos no escopo original ainda não estão completos; consultar `REFORM_PROGRESS.md`.
+Na revisão `1227b4a`, SMTP e Mercado Pago aguardavam configuração manual e ainda não existiam downloads privados nem caixa pessoal de notificações. A revisão seguinte está descrita abaixo; consultar também `REFORM_PROGRESS.md`.
+
+## Publicação `66e078e` — versões privadas e notificações pessoais
+
+- [CI da revisão](https://github.com/Alanls-mx/StarfinWeb/actions/runs/38833631821): sucesso. Dez testes passaram na base isolada `starfin_stage_releases_20261015`, inclusive acesso a JAR por licença ativa, revogação e isolamento de notificações. A candidata respondeu 200 em home, health, catálogo e changelog; endpoints privados sem credencial retornaram 401/403.
+- Antes da troca, backup PostgreSQL em `/opt/starfinweb/backups/starfin-site-pre-66e078e-20261016T011249Z.dump` e código em `/opt/starfinweb/backups/starfin-code-pre-66e078e-20261016T011249Z.tar.gz`.
+- Reversão imediata: `/opt/starfinweb/app/rollback-dist-pre-66e078e-20261016T011249Z` e `/opt/starfinweb/app/server/rollback-dist-pre-66e078e-20261016T011249Z`. A troca afetou apenas `starfinweb.service` e seus builds. PostgreSQL e Nginx permaneceram ativos.
+- Os arquivos privados ficam por padrão em `/opt/starfinweb/app/private/releases`, com diretórios 0700, fora do diretório web. Eles devem entrar nos backups futuros. O banco contém as tabelas aditivas `plugin_releases` e `user_notifications`.
+- Após o deploy, site, API, health, catálogo e changelog responderam 200 via HTTPS; as rotas privadas rejeitaram chamadas sem credencial, a skin respondeu 200 e o certificado vence em 13/01/2027. Nenhum JAR de produto foi publicado.
+- SMTP e Mercado Pago aguardam configuração manual do proprietário. Pagamento real, e-mail real e compatibilidade de JARs com cada plataforma Minecraft não foram homologados.

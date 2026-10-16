@@ -77,9 +77,8 @@ As fases implementadas estão registradas na `main` (`git log --oneline`). O ens
 1. Design System: expandir tokens e componentes compartilhados para as demais páginas antigas; revisar estados, responsividade e acessibilidade.
 2. Loja: revisar home, catálogo, documentação e páginas institucionais completas com dados reais.
 3. Conta: dividir o dashboard em módulos de plugins, licenças, servidores, pedidos e segurança.
-4. Administração: completar usuários, licenças, instalações, versões, pedidos, conteúdo e demais módulos com operações reais.
-5. Segurança: trilha de auditoria persistida, permissões por operação, downloads privados e políticas de transferência.
-   A caixa pessoal de notificações precisa de modelo próprio por destinatário antes de ser ativada.
+4. Administração: continuar revisão de usuários, licenças, instalações, conteúdo e demais módulos. Versões e arquivos privados já têm fluxo administrativo.
+5. Segurança: aprofundar permissões por operação e políticas de transferência. Auditoria persistida, downloads privados e caixa pessoal por destinatário já estão implementados; falta homologar JARs reais.
 6. Homologação: executar CI PostgreSQL, testes de navegador, pagamentos em sandbox, contrato StarfinCore, responsividade e acessibilidade.
 
 ## Limites e rollback
