@@ -50,3 +50,11 @@ Na revisão `1227b4a`, SMTP e Mercado Pago aguardavam configuração manual e ai
 - Backups antes da troca: `/opt/starfinweb/backups/starfin-site-pre-f3c3b45-20261016T011813Z.dump` e `/opt/starfinweb/backups/starfin-code-pre-f3c3b45-20261016T011813Z.tar.gz`.
 - Rollback de build: `/opt/starfinweb/app/rollback-dist-pre-f3c3b45-20261016T011813Z` e `/opt/starfinweb/app/server/rollback-dist-pre-f3c3b45-20261016T011813Z`. A troca reiniciou somente `starfinweb.service`.
 - Após a publicação, home, health, catálogo, API de configurações e skin responderam 200 via HTTPS. A API pública contém `homeContent`; uma rota privada sem sessão respondeu 401. StarfinWeb, Nginx e PostgreSQL permaneceram ativos.
+
+## Publicação `c88671b` — interface estável no frontend
+
+- [CI da revisão](https://github.com/Alanls-mx/StarfinWeb/actions/runs/38835410309): sucesso, incluindo builds, typechecks e testes de integração PostgreSQL.
+- Título, descrição, favicon, marca do cabeçalho/rodapé e textos da Home agora são definidos no frontend. A leitura tardia de `/api/public/settings` foi removida desses pontos. Os campos visuais correspondentes foram retirados do painel administrativo; os dados antigos permanecem no banco por compatibilidade.
+- Backup PostgreSQL: `/opt/starfinweb/backups/starfin-site-pre-c88671b-20261016T013151Z.dump`. Backup de código: `/opt/starfinweb/backups/starfin-code-pre-c88671b-20261016T013151Z.tar.gz`.
+- Rollback imediato: `/opt/starfinweb/app/rollback-dist-pre-c88671b-20261016T013151Z` e `/opt/starfinweb/app/server/rollback-dist-pre-c88671b-20261016T013151Z`.
+- Após a troca, `starfinweb.service`, Nginx e PostgreSQL estavam ativos. Site, catálogo, documentação, favicon e health da API responderam 200 por HTTPS. O HTML apontou para `index-BtDio_yS.js` e trouxe o título estático.
