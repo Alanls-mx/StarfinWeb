@@ -589,7 +589,7 @@ export function AdminUsersPage() {
                           <div>
                             <div className="text-sm text-white font-medium">{item.pluginName}</div>
                             <div className="text-[11px] text-gray-500">
-                              Licença: {item.licenseKey || 'Pendente'} • {item.grantSource === 'admin_grant' ? 'Concessão manual' : 'Compra'} • Status: {item.status}
+                              {item.grantSource === 'admin_grant' ? 'Concessão manual' : 'Compra'} • Status: {item.status}
                             </div>
                           </div>
                           {item.grantSource === 'admin_grant' && <button

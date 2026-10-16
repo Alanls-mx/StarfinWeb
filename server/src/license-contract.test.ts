@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { app } from './index.js';
-import { addNotification, createPlugin, createPurchase, createSession, createUser, createUserAdmin, findPurchaseById, listAdminAudit, syncChangelog, updatePurchaseStatus, updatePurchaseTelemetry } from './data.js';
+import Database from './postgres-sync.js';
+import { addNotification, createPlugin, createPurchase, createSession, createUser, createUserAdmin, findPurchaseById, listAdminAudit, syncChangelog, updatePurchaseStatus, updatePurchaseTelemetry, updateUserAdmin } from './data.js';
 
-test('StarfinCore v2 contract authorizes only a paid product and binds the installation', async () => {
+test('one installation license model rejects legacy keys and preserves purchase grants', async () => {
   const product = createPlugin({
     name: 'StarfinBans',
     description: 'Produto de teste de contrato',
@@ -18,7 +19,10 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
   assert.ok(owner);
   const purchase = createPurchase(owner.id, product.id);
   const approved = updatePurchaseStatus(purchase.id, 'approved');
-  assert.ok(approved?.licenseKey);
+  assert.equal(approved?.licenseKey, null);
+  updateUserAdmin(owner.id, { licenseKey: 'LIC-LEGACY-ACCOUNT', licenseHwid: '11111111-1111-4111-8111-111111111111' });
+  new Database().prepare('UPDATE purchases SET licenseKey = ? WHERE id = ?').run('LIC-LEGACY-PURCHASE', purchase.id);
+  updatePurchaseTelemetry(purchase.id, { hwid: '11111111-1111-4111-8111-111111111111', ip: '127.0.0.1', port: 25565, serverName: 'Legacy', platform: 'Bukkit', performance: '{}' });
 
   const server = app.listen(0, '127.0.0.1');
   try {
@@ -28,37 +32,26 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
     });
     const address = server.address();
     assert.ok(address && typeof address !== 'string');
-    const url = `http://127.0.0.1:${address.port}/v1/license/check`;
-    const check = async (key: string, hwid: string, pluginName: string) => {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ licenseKey: key, hwid, pluginName })
+    const legacy = await fetch(`http://127.0.0.1:${address.port}/v1/license/check`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ licenseKey: 'LIC-old-key', hwid: 'old-installation', pluginName: 'StarfinBans' })
+    });
+    assert.equal(legacy.status, 410);
+    assert.equal((await legacy.json() as { code: string }).code, 'INSTALLATION_ACTIVATION_REQUIRED');
+    for (const licenseKey of ['LIC-LEGACY-ACCOUNT', 'LIC-LEGACY-PURCHASE']) {
+      const boundLegacy = await fetch(`http://127.0.0.1:${address.port}/v1/license/check`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ licenseKey, hwid: '11111111-1111-4111-8111-111111111111', pluginName: 'StarfinBans' })
       });
-      assert.equal(response.status, 200);
-      return response.json() as Promise<Record<string, any>>;
-    };
-
-    assert.equal((await check(approved.licenseKey, 'ci-installation-a', 'StarfinBans')).code, 'ACTIVATION_REQUIRED');
-    updatePurchaseTelemetry(approved.id, { hwid: 'ci-installation-a', ip: '127.0.0.1', port: 25565, serverName: 'Legacy', platform: 'Bukkit', performance: '{}' });
-    const allowed = await check(approved.licenseKey, 'ci-installation-a', 'StarfinBans');
-    assert.equal(allowed.valid, true);
-    assert.equal(allowed.protocolVersion, 2);
-    assert.deepEqual(allowed.allowedProductIds, ['starfin_bans']);
-    const leaseMs = Date.parse(allowed.authorizationExpiresAt) - Date.now();
-    assert.ok(leaseMs > 0 && leaseMs <= 60 * 60_000);
-    assert.deepEqual(allowed.updates, {});
-
-    assert.equal((await check(approved.licenseKey, 'ci-installation-b', 'StarfinBans')).valid, false);
-    assert.equal((await check(approved.licenseKey, 'ci-installation-a', 'UnownedPlugin')).valid, false);
-    assert.equal((await check('not-a-license', 'ci-installation-a', 'StarfinBans')).valid, false);
-
+      assert.equal(boundLegacy.status, 410);
+    }
+    const obsoletePluginAuth = await fetch(`http://127.0.0.1:${address.port}/api/plugin-auth/verify`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pluginId: product.id })
+    });
+    assert.equal(obsoletePluginAuth.status, 410);
     const secondPurchase = createPurchase(owner.id, product.id);
     const secondApproved = updatePurchaseStatus(secondPurchase.id, 'approved');
-    assert.ok(secondApproved?.licenseKey);
-    updatePurchaseTelemetry(secondApproved.id, { hwid: 'owner-installation', ip: '127.0.0.1', port: 25565, serverName: 'Legacy 2', platform: 'Bukkit', performance: '{}' });
-    assert.equal((await check(secondApproved.licenseKey, 'attacker-installation', 'UnownedPlugin')).valid, false);
-    assert.equal((await check(secondApproved.licenseKey, 'owner-installation', 'StarfinBans')).valid, true);
+    assert.equal(secondApproved?.licenseKey, null);
 
     const pending = createPurchase(owner.id, product.id);
     const admin = createUserAdmin({ name: 'Admin CI', email: `admin-${Date.now()}@example.invalid`, password: 'test-only-password', role: 'admin' });
@@ -71,13 +64,13 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
     const adminUsers = await adminUsersResponse.json() as { items: Array<{ id: string; licenseKey: string | null }> };
     const ownerInAdminList = adminUsers.items.find(item => item.id === owner.id);
     assert.ok(ownerInAdminList);
-    if (owner.licenseKey) assert.equal(ownerInAdminList.licenseKey, `••••${owner.licenseKey.slice(-4)}`);
+    assert.equal(ownerInAdminList.licenseKey, null);
     const forgedApproval = await fetch(`http://127.0.0.1:${address.port}/api/admin/purchases/${pending.id}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
       body: JSON.stringify({ status: 'approved' })
     });
-    assert.equal(forgedApproval.status, 400);
+    assert.equal(forgedApproval.status, 410);
     assert.equal(findPurchaseById(pending.id)?.status, 'pending');
 
     const revokePaid = await fetch(`http://127.0.0.1:${address.port}/api/admin/users/${owner.id}/plugins/${product.id}`, {
@@ -96,9 +89,9 @@ test('StarfinCore v2 contract authorizes only a paid product and binds the insta
       body: JSON.stringify({ pluginId: product.id, reason: 'Cortesia de integração para teste CI' })
     });
     assert.equal(grant.status, 201);
-    const grantBody = await grant.json() as { item: { purchaseId: string; grantSource: string; licenseKey: string } };
+    const grantBody = await grant.json() as { item: { purchaseId: string; grantSource: string; licenseKey: string | null } };
     assert.equal(grantBody.item.grantSource, 'admin_grant');
-    assert.match(grantBody.item.licenseKey, /^••••[\w]{4}$/);
+    assert.equal(grantBody.item.licenseKey, null);
     assert.equal(findPurchaseById(grantBody.item.purchaseId)?.status, 'approved');
     assert.ok(listAdminAudit().some(entry => entry.action === 'license.manual_grant' && entry.resourceId === grantBody.item.purchaseId));
 

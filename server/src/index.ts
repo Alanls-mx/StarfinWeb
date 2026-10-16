@@ -212,12 +212,12 @@ function getAuthContext(req: express.Request): { token: string; userId: string; 
 
 function safeUser<T extends { passwordHash?: string; settings?: unknown }>(user: T) {
   const { passwordHash: _hash, settings: _settings, ...publicFields } = user;
-  return publicFields;
+  return { ...publicFields, licenseKey: null, licenseHwid: null, allowedIp: null };
 }
 
 function safeAdminUser<T extends { passwordHash?: string; settings?: unknown; licenseKey?: string | null }>(user: T) {
   const result = safeUser(user);
-  return { ...result, licenseKey: user.licenseKey ? `••••${user.licenseKey.slice(-4)}` : null };
+  return { ...result, licenseKey: null };
 }
 
 function normalizeIp(ip: string | undefined | null): string {
@@ -519,7 +519,7 @@ function publicServer(server: ReturnType<typeof findServerById>) {
   if (!server) return null;
   const { installationId, licenseKey, ...safe } = server;
   return { ...safe, installationIdMasked: installationId ? `••••${installationId.slice(-8)}` : null,
-    linked: Boolean(installationId && !server.revokedISO), licenseKey: licenseKey ? `••••${licenseKey.slice(-4)}` : null };
+    linked: Boolean(installationId && !server.revokedISO), licenseKey: null };
 }
 
 function installationFromRequest(req: express.Request) {
@@ -605,328 +605,9 @@ app.get('/v3/installations/releases/:id/download', (req, res) => {
   res.download(filePath, release.originalName);
 });
 
-app.all('/v1/license/check', (req, res, next) => {
-  const observedIp = getObservedRequestIp(req) || req.ip;
-  console.log(`[License Check] [${req.method}] from ${observedIp}`);
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ valid: false, reason: 'Método não permitido. Use POST.' });
-  }
-  next();
-});
-
-app.post('/v1/license/check', (req, res) => {
-  // Handle various field name casings from different plugin implementations
-  const licenseKey = req.body?.licenseKey || req.body?.licensekey || req.body?.LicenseKey || req.body?.key;
-  const hwid = req.body?.hwid || req.body?.HWID || req.body?.serverId;
-  const serverPort = req.body?.serverPort || req.body?.port;
-  const serverName = req.body?.serverName || req.body?.name;
-  const platform = req.body?.platform || req.body?.os;
-  const performance = req.body?.performance || req.body?.perf;
-  const normalizedHwid = normalizeHwid(hwid);
-  const normalizedServerPort = Number.isFinite(Number(serverPort)) ? Number(serverPort) : 0;
-  const normalizedServerName = parseStringParam(serverName) || 'Unknown';
-  const normalizedPlatform = parseStringParam(platform) || 'unknown';
-  const normalizedPerformance = typeof performance === 'string' ? performance : JSON.stringify(performance ?? {});
-  const bootstrapPluginNames = ['StarfinCore', 'StarfinLicense'];
-  const requestedPluginNameRaw =
-    parseStringParam(req.body?.pluginName) ||
-    parseStringParam(req.body?.plugin) ||
-    parseStringParam(req.body?.plugin_name);
-  const requestedPluginIdRaw = Number(req.body?.pluginId ?? req.body?.pluginid ?? req.body?.id);
-  const requestedPluginNameById = Number.isFinite(requestedPluginIdRaw)
-    ? getPluginDetail(requestedPluginIdRaw)?.name ?? null
-    : null;
-  const requestedPluginNames = [requestedPluginNameRaw, requestedPluginNameById]
-    .filter((v): v is string => Boolean(v))
-    .map((v) => v.toLowerCase());
-  const bootstrapPluginAliases = new Set(['starfincore', 'starfin-core', 'starfinlicense', 'starfin-license']);
-  const isBootstrapRequest = requestedPluginNames.some((name) => bootstrapPluginAliases.has(name));
-  const pluginByLowerName = new Map(pluginSummaries.map((p) => [p.name.toLowerCase(), p] as const));
-  const withBootstrapPlugin = (plugins: string[]) => {
-    return Array.from(new Set([...bootstrapPluginNames, ...plugins.filter(Boolean)]));
-  };
-  const authorizationProductIds = (allowedPlugins: string[]): string[] => {
-    const authorizedNames = new Set(allowedPlugins.map(name => name.toLowerCase()));
-    return Array.from(new Set(pluginSummaries
-      .filter(p => authorizedNames.has(p.name.toLowerCase()))
-      .map(p => {
-        // Product identifiers are stable and independent from display names.
-        if (p.name.toLowerCase() === 'starfinbans') return 'starfin_bans';
-        const declared = String(p.licenseName || `starfin_product_${p.id}`).toLowerCase().trim();
-        return /^[a-z0-9_]{2,64}$/.test(declared) ? declared : '';
-      })
-      .filter(Boolean)));
-  };
-  const licenseAuthorizationLease = () => new Date(Date.now() + 45 * 60_000).toISOString();
-  // A private, authenticated release endpoint is required before advertising
-  // download URLs to installed plugins.
-  const buildUpdates = (_allowedPlugins: string[]) => ({});
-  const isRequestedPluginAllowed = (allowedPlugins: string[]) => {
-    // Backward compatibility: old StarfinLicense bootstrap may not send plugin name/id.
-    if (requestedPluginNames.length === 0) return true;
-    // Bootstrap plugin itself is an auth loader, not a licensable marketplace plugin.
-    if (isBootstrapRequest) return true;
-    const allowedSet = new Set(allowedPlugins.map((name) => name.toLowerCase()));
-    return requestedPluginNames.some((name) => allowedSet.has(name));
-  };
-
-  if (!licenseKey) {
-    const errorBody = { 
-      valid: false, 
-      ok: false,
-      reason: 'Chave de licença não fornecida.', 
-      message: 'Chave de licença não fornecida.',
-      licenseOwner: 'Desconhecido', 
-      plan: 'Nenhum' 
-    };
-    res.status(400).json(errorBody);
-    return;
-  }
-  if (!normalizedHwid) {
-    return res.status(200).json({
-      valid: false,
-      ok: false,
-      reason: 'HWID nao informado.'
-    });
-  }
-  const ipResolution = resolveEffectiveRequestIp(req);
-  if (!ipResolution.ok) {
-    return res.status(200).json({
-      valid: false,
-      ok: false,
-      reason: ipResolution.reason
-    });
-  }
-  const incomingIp = ipResolution.effectiveIp;
-  const keyRef = createHash('sha256').update(String(licenseKey)).digest('hex').slice(0, 12);
-  const auditPrefix = `[License Check] [key:${keyRef}]`;
-
-  // 1. Try finding User by Global License Key (New Auto-IP Detection)
-  const user = findUserByLicenseKey(licenseKey);
-  if (user) {
-    if (user.banned) {
-      return res.status(200).json({ valid: false, ok: false, reason: 'Sua conta esta banida.' });
-    }
-    const userServers = listServersForUser(user.id);
-    const matchingServer = userServers.find(s => s.ips.map(normalizeIp).includes(incomingIp));
-    const globalAllowedIp = normalizeIp(user.allowedIp || '');
-    if (!matchingServer && globalAllowedIp && globalAllowedIp !== incomingIp) {
-      return res.status(200).json({
-        valid: false,
-        ok: false,
-        reason: `IP ${incomingIp} nao autorizado. Configure este IP ou crie um servidor no painel.`,
-        licenseOwner: user.name,
-        plan: user.plan
-      });
-    }
-
-    // Check if user has a plan that grants all plugins
-    const allPlans = listPlans();
-    const userPlan = allPlans.find(p => p.name === user.plan && p.active);
-    const hasActivePlan = !user.planExpiresAt || new Date(user.planExpiresAt).getTime() > Date.now();
-    const hasGlobalAccess = Boolean(user.role === 'admin' || (hasActivePlan && userPlan?.grantsAllPlugins));
-    const ownedProductIds = new Set(getLicensesForUser(user.id)
-      .filter(p => p.status === 'Ativo').map(p => p.pluginId));
-    if (!hasGlobalAccess && ownedProductIds.size === 0) {
-      return res.status(200).json({ valid: false, ok: false,
-        reason: 'Nenhum produto adquirido ou autorizado para esta conta.' });
-    }
-    if (requestedPluginNames.length > 0 && !isBootstrapRequest) {
-      const assigned = matchingServer ? new Set(listPluginsForServer(matchingServer.id)) : null;
-      const requestedIsOwned = pluginSummaries.some(p =>
-        requestedPluginNames.includes(p.name.toLowerCase()) &&
-        (hasGlobalAccess || ownedProductIds.has(p.id)) &&
-        (!assigned || hasGlobalAccess || assigned.has(p.id))
-      );
-      if (!requestedIsOwned) {
-        return res.status(200).json({ valid: false, ok: false,
-          reason: 'Plugin solicitado nao autorizado para esta licenca.' });
-      }
-    }
-    const storedUserHwid = normalizeHwid(user.licenseHwid || '');
-    if (!storedUserHwid) {
-      return res.status(200).json({ valid: false, ok: false, code: 'ACTIVATION_REQUIRED',
-        reason: 'Ative esta instalação pelo código temporário no painel StarfinPlugins.' });
-    } else if (storedUserHwid !== normalizedHwid) {
-      console.warn(`${auditPrefix} Global HWID mismatch. user=${user.id} expected=${storedUserHwid} received=${normalizedHwid} ip=${incomingIp}`);
-      addNotification(
-        'Tentativa de uso indevido de licença',
-        `HWID divergente para a licença global de ${user.email}.`,
-        {
-          type: 'sale',
-          priority: 'high',
-          source: 'license_hwid_mismatch',
-          metadata: { userId: user.id, expectedHwid: storedUserHwid, receivedHwid: normalizedHwid, ip: incomingIp }
-        }
-      );
-      return res.status(200).json({
-        valid: false,
-        ok: false,
-        reason: 'HWID nao autorizado. Licenca ja ativa em outro servidor.',
-        licenseOwner: user.name,
-        plan: user.plan
-      });
-    }
-
-    if (matchingServer) {
-      // Server-specific assignment found for this IP
-      const assignedPluginIds = listPluginsForServer(matchingServer.id);
-      let allowedPlugins = pluginSummaries
-        .filter(p => assignedPluginIds.includes(p.id) && (hasGlobalAccess || ownedProductIds.has(p.id)))
-        .map(p => p.name);
-
-      if (hasGlobalAccess) {
-        allowedPlugins = pluginSummaries.map(p => p.name);
-      }
-      allowedPlugins = withBootstrapPlugin(allowedPlugins);
-      if (!isRequestedPluginAllowed(allowedPlugins)) {
-        return res.status(200).json({
-          valid: false,
-          ok: false,
-          reason: 'Plugin solicitado nao autorizado para esta licenca.',
-          licenseOwner: user.name,
-          plan: user.plan
-        });
-      }
-      console.log(`${auditPrefix} Validated via server assignment. user=${user.id} server=${matchingServer.id} hwid=${normalizedHwid} ip=${incomingIp}`);
-
-      return res.status(200).json({
-        valid: true,
-        ok: true,
-        reason: `Licenca validada para o servidor: ${matchingServer.name}`,
-        licenseOwner: user.name,
-        plan: user.plan,
-        serverName: matchingServer.name,
-        allowedPlugins,
-        allowedProductIds: authorizationProductIds(allowedPlugins),
-        authorizationExpiresAt: licenseAuthorizationLease(),
-        protocolVersion: 2,
-        updates: buildUpdates(allowedPlugins)
-      });
-    }
-
-    // Global access (fallback)
-    const userLicenses = getLicensesForUser(user.id);
-    let allowedPlugins = userLicenses.filter(l => l.status === 'Ativo').map(l => l.name);
-
-    if (hasGlobalAccess) {
-      allowedPlugins = pluginSummaries.map(p => p.name);
-    }
-    allowedPlugins = withBootstrapPlugin(allowedPlugins);
-    if (!isRequestedPluginAllowed(allowedPlugins)) {
-      return res.status(200).json({
-        valid: false,
-        ok: false,
-        reason: 'Plugin solicitado nao autorizado para esta licenca.',
-        licenseOwner: user.name,
-        plan: user.plan
-      });
-    }
-    console.log(`${auditPrefix} Validated via global license. user=${user.id} hwid=${normalizedHwid} ip=${incomingIp}`);
-
-    return res.status(200).json({
-      valid: true,
-      ok: true,
-      reason: 'Licenca global validada!',
-      licenseOwner: user.name,
-      plan: user.plan,
-      allowedPlugins,
-      allowedProductIds: authorizationProductIds(allowedPlugins),
-      authorizationExpiresAt: licenseAuthorizationLease(),
-      protocolVersion: 2,
-      updates: buildUpdates(allowedPlugins)
-    });
-  }
-
-  // 2. Fallback to Server-Specific License Key
-  const server = findServerByLicenseKey(licenseKey);
-  if (server) {
-    return res.status(200).json({ valid: false, ok: false, code: 'ACTIVATION_REQUIRED',
-      reason: 'Chaves legadas de servidor devem ser migradas pelo código temporário no painel.' });
-  }
-
-  // 3. Fallback to Legacy Purchase Key
-  const purchase = findPurchaseByLicenseKey(licenseKey);
-  if (purchase) {
-    if (purchase.status !== 'approved') {
-      return res.status(200).json({
-        valid: false,
-        ok: false,
-        reason: 'Licenca vinculada a compra nao aprovada.'
-      });
-    }
-    const owner = findUserById(purchase.userId);
-    if (owner?.banned) return res.status(200).json({ valid: false, ok: false, reason: 'Sua conta esta banida.' });
-    const plugin = getPluginDetail(purchase.pluginId);
-    if (requestedPluginNames.length > 0 && !isBootstrapRequest &&
-        (!plugin?.name || !requestedPluginNames.includes(plugin.name.toLowerCase()))) {
-      return res.status(200).json({ valid: false, ok: false,
-        reason: 'Plugin solicitado nao autorizado para esta licenca.' });
-    }
-    const storedPurchaseHwid = normalizeHwid(purchase.hwid || '');
-    if (!storedPurchaseHwid) {
-      return res.status(200).json({ valid: false, ok: false, code: 'ACTIVATION_REQUIRED',
-        reason: 'Ative esta instalação pelo código temporário no painel StarfinPlugins.' });
-    } else if (storedPurchaseHwid !== normalizedHwid) {
-      console.warn(`${auditPrefix} Purchase HWID mismatch. purchase=${purchase.id} expected=${storedPurchaseHwid} received=${normalizedHwid} ip=${incomingIp}`);
-      addNotification(
-        'Tentativa de uso indevido de licença',
-        `HWID divergente para a licença ${purchase.id}.`,
-        {
-          type: 'sale',
-          priority: 'high',
-          source: 'license_hwid_mismatch',
-          metadata: { purchaseId: purchase.id, userId: purchase.userId, expectedHwid: storedPurchaseHwid, receivedHwid: normalizedHwid, ip: incomingIp }
-        }
-      );
-      return res.status(200).json({
-        valid: false,
-        ok: false,
-        reason: 'HWID nao autorizado. Licenca ja ativa em outro servidor.'
-      });
-    } else {
-      updatePurchaseTelemetry(purchase.id, {
-        hwid: normalizedHwid,
-        allowedIp: incomingIp,
-        ip: incomingIp,
-        port: normalizedServerPort,
-        serverName: normalizedServerName,
-        platform: normalizedPlatform,
-        performance: normalizedPerformance
-      });
-    }
-    const allowedPlugins = withBootstrapPlugin(plugin?.name ? [plugin.name] : []);
-    console.log(`${auditPrefix} Validated via purchase license. purchase=${purchase.id} hwid=${normalizedHwid} ip=${incomingIp}`);
-    return res.status(200).json({
-      valid: true,
-      ok: true,
-      reason: 'Licenca legada validada!',
-      licenseOwner: owner?.name || 'Cliente',
-      plan: owner?.plan || 'Free',
-      allowedPlugins,
-      allowedProductIds: authorizationProductIds(allowedPlugins),
-      authorizationExpiresAt: licenseAuthorizationLease(),
-      protocolVersion: 2,
-      updates: buildUpdates(allowedPlugins)
-    });
-  }
-
-  return res.status(200).json({ 
-    valid: false, 
-    ok: false, 
-    reason: 'Chave de licenca invalida.', 
-    licenseOwner: 'Desconhecido', 
-    plan: 'Nenhum' 
-  });
-});
-
-app.get('/api/health', (_req, res) => {
-  res.json({
-    ok: true,
-    name: 'StarfinPlugins API',
-    timeISO: new Date().toISOString()
-  });
+app.all('/v1/license/check', (_req, res) => {
+  res.status(410).json({ valid: false, code: 'INSTALLATION_ACTIVATION_REQUIRED',
+    reason: 'Ative o StarfinCore em Minha Conta > Servidores e use o protocolo de instalação.' });
 });
 
 app.get('/api/categories', (_req, res) => {
@@ -1205,7 +886,7 @@ app.get('/api/users/me', (req, res) => {
     verified: user.verified, 
     role: responseRole,
     avatarUrl: user.avatarUrl,
-    licenseKey: user.licenseKey
+    licenseKey: null
   });
 });
 
@@ -1265,8 +946,8 @@ app.get('/api/users/me/settings', (req, res) => {
     twoFactorEnabled: false,
     marketingEmails: settings.marketingEmails || false,
     securityAlerts: settings.securityAlerts || false,
-    licenseKey: user.licenseKey,
-    allowedIp: user.allowedIp,
+    licenseKey: null,
+    allowedIp: null,
     avatarUrl: user.avatarUrl,
     bio: user.bio,
     discordId: user.discordId,
@@ -1371,8 +1052,8 @@ app.get('/api/plugins/:id/config', (req, res) => {
     jarUrl: null,
     version: getPluginDetail(id)?.version || 'Versão indisponível',
     pluginId: id,
-    hwid: purchase.hwid || '',
-    allowedIp: purchase.allowedIp || ''
+    hwid: '',
+    allowedIp: ''
   });
 });
 
@@ -1381,71 +1062,9 @@ app.patch('/api/plugins/:id/config', (_req, res) => {
   res.status(403).json({ error: 'Alteracao de licencas pelo cliente nao permitida.' });
 });
 
-app.post('/api/users/me/license/regenerate', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const licenseKey = regenerateUserLicense(ctx.userId);
-  res.json({ licenseKey });
-});
-
-app.patch('/api/users/me/allowed-ip', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'não autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const rawIp = req.body?.allowedIp;
-  if (rawIp !== null && rawIp !== undefined && typeof rawIp !== 'string') {
-    return res.status(400).json({ error: 'Informe um IP válido ou deixe o campo vazio.' });
-  }
-  const ip = typeof rawIp === 'string' ? rawIp.trim() : '';
-  if (ip && !net.isIP(ip)) {
-    return res.status(400).json({ error: 'Informe um endereço IPv4 ou IPv6 válido.' });
-  }
-  updateUserAllowedIp(ctx.userId, ip || null);
-  res.json({ success: true });
-});
-
-app.post('/api/users/me/license/hwid/reset', (req, res) => {
-  if (!hasValidAuthHeader(req)) {
-    res.status(401).json({ error: 'nÃ£o autorizado' });
-    return;
-  }
-  const ctx = getAuthContext(req)!;
-  const user = findUserById(ctx.userId);
-  if (!user) {
-    res.status(404).json({ error: 'usuÃ¡rio nÃ£o encontrado' });
-    return;
-  }
-
-  const lastReset = user.licenseHwidResetISO ? new Date(user.licenseHwidResetISO).getTime() : 0;
-  const cooldownMs = 30 * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  if (lastReset && now - lastReset < cooldownMs) {
-    const retryAfterDays = Math.ceil((cooldownMs - (now - lastReset)) / (24 * 60 * 60 * 1000));
-    return res.status(429).json({ error: `Reset de HWID disponivel em ${retryAfterDays} dia(s).` });
-  }
-
-  const updated = resetUserLicenseHwid(ctx.userId);
-  if (!updated) {
-    res.status(500).json({ error: 'falha ao resetar HWID' });
-    return;
-  }
-  addNotification(
-    'Reset de HWID solicitado',
-    `UsuÃ¡rio ${updated.email} resetou o HWID da licenÃ§a global.`,
-    {
-      type: 'manual',
-      priority: 'normal',
-      source: 'user_hwid_reset',
-      metadata: { userId: updated.id }
-    }
-  );
-  res.json({ ok: true });
-});
+app.post('/api/users/me/license/regenerate', (_req, res) => res.status(410).json({ code: 'INSTALLATION_ACTIVATION_REQUIRED' }));
+app.patch('/api/users/me/allowed-ip', (_req, res) => res.status(410).json({ code: 'USE_INSTALLATION_IP' }));
+app.post('/api/users/me/license/hwid/reset', (_req, res) => res.status(410).json({ code: 'USE_INSTALLATION_RECOVERY' }));
 
 // Server management routes are defined once below with authorization checks.
 app.get('/api/users/me/api-keys', (req, res) => {
@@ -2241,141 +1860,9 @@ app.post('/api/webhooks/mercadopago', async (req, res) => {
   }
 });
 
-app.post('/api/plugin-auth/verify', (req, res) => {
-  const pluginId = typeof req.body?.pluginId === 'number' ? req.body.pluginId : Number(req.body?.pluginId);
-  const pluginName = typeof req.body?.pluginName === 'string' ? req.body.pluginName.trim() : null;
-  const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : '';
-  const licenseKey = typeof req.body?.licenseKey === 'string' ? req.body.licenseKey.trim() : '';
-  const serverId = typeof req.body?.serverId === 'string' ? req.body.serverId.trim() : null;
-
-  if (!Number.isFinite(pluginId) || pluginId <= 0 || !apiKey || !licenseKey) {
-    res.status(400).json({ error: 'pluginId, apiKey e licenseKey são obrigatórios' });
-    return;
-  }
-
-  const keyRecord = findApiKey(apiKey);
-  if (!keyRecord) {
-    res.status(401).json({ error: 'apiKey inválida' });
-    return;
-  }
-
-  if (keyRecord.pluginId !== pluginId) {
-    res.status(403).json({ error: 'apiKey não pertence a este plugin' });
-    return;
-  }
-
-  // Optional: validate plugin name if provided
-  if (pluginName) {
-    const pluginData = getPluginDetail(pluginId);
-    if (pluginData?.licenseName && pluginData.licenseName !== pluginName) {
-      res.status(403).json({ error: 'pluginName inválido para este pluginId' });
-      return;
-    }
-  }
-
-  const user = findUserById(keyRecord.userId);
-  if (!user) {
-    res.status(404).json({ error: 'usuario nao encontrado' });
-    return;
-  }
-  if (user.banned) {
-    res.status(403).json({ error: 'usuario banido' });
-    return;
-  }
-  const activePlans = listPlans().filter((p) => p.active);
-  const userPlan = activePlans.find((p) => p.name === user.plan);
-  const hasActivePlan = !user.planExpiresAt || new Date(user.planExpiresAt).getTime() > Date.now();
-  const hasGlobalPlanAccess = Boolean(user.role === 'admin' || (hasActivePlan && userPlan?.grantsAllPlugins));
-
-  let entitlementSource: 'purchase' | 'global_plan' | null = null;
-  let license = getLicensesForUser(keyRecord.userId).find(
-    (p) => p.pluginId === pluginId && p.licenseKey === licenseKey && p.status === 'Ativo'
-  );
-  if (license) {
-    entitlementSource = 'purchase';
-  }
-
-  if (!license && hasGlobalPlanAccess && user.licenseKey === licenseKey) {
-    license = {
-      id: pluginId,
-      pluginId,
-      name: 'Plan Global Access',
-      version: 'Latest',
-      purchaseDateISO: new Date().toISOString(),
-      licenseKey,
-      status: 'Ativo'
-    };
-    entitlementSource = 'global_plan';
-  }
-
-  if (!license) {
-    res.status(403).json({ error: 'licenseKey inválida' });
-    return;
-  }
-
-  if (license.status !== 'Ativo') {
-    res.status(403).json({ error: 'licença inativa' });
-    return;
-  }
-
-  // Find actual purchase to check security
-  const ipResolution = resolveEffectiveRequestIp(req);
-  if (!ipResolution.ok) {
-    res.status(403).json({ error: ipResolution.reason || 'IP invalido' });
-    return;
-  }
-  const effectiveIp = ipResolution.effectiveIp;
-
-  const normalizedUserAllowedIp = normalizeIp(user.allowedIp || '');
-  if (normalizedUserAllowedIp && normalizedUserAllowedIp !== effectiveIp) {
-    res.status(403).json({ error: 'IP mismatch (user.allowedIp)' });
-    return;
-  }
-
-  const purchase = findPurchaseByLicenseKey(licenseKey);
-
-  if (purchase) {
-    if (purchase.userId !== keyRecord.userId || purchase.pluginId !== pluginId) {
-      res.status(403).json({ error: 'licenseKey nao corresponde ao plugin/usuario informado' });
-      return;
-    }
-    if (purchase.status !== 'approved') {
-      res.status(403).json({ error: 'compra nao aprovada para esta licenca' });
-      return;
-    }
-    if (purchase.hwid && purchase.hwid !== (serverId || '')) {
-      res.status(403).json({ error: 'HWID mismatch' });
-      return;
-    }
-    const normalizedPurchaseAllowedIp = normalizeIp(purchase.allowedIp || '');
-    if (normalizedPurchaseAllowedIp && normalizedPurchaseAllowedIp !== effectiveIp) {
-      res.status(403).json({ error: 'IP mismatch' });
-      return;
-    }
-    
-    // Bind if not bound
-    updatePurchaseTelemetry(purchase.id, {
-      hwid: serverId,
-      allowedIp: effectiveIp,
-      ip: effectiveIp,
-      serverName: 'Auth API Verification',
-      port: 0,
-      platform: 'unknown',
-      performance: '{}'
-    });
-  } else if (entitlementSource === 'purchase') {
-    res.status(403).json({ error: 'compra nao encontrada para a licenseKey informada' });
-    return;
-  }
-
-  res.json({
-    ok: true,
-    userId: keyRecord.userId,
-    plan: user.plan,
-    licenseStatus: license.status,
-    entitlementSource,
-    serverId
-  });
+app.post('/api/plugin-auth/verify', (_req, res) => {
+  res.status(410).json({ ok: false, code: 'INSTALLATION_ACTIVATION_REQUIRED',
+    error: 'A autorização de produtos usa a instalação autenticada do StarfinCore.' });
 });
 
 app.post('/api/newsletter/subscribe', (req, res) => {
@@ -3502,34 +2989,8 @@ app.get('/api/admin/users/:id', (req, res) => {
   res.json(safeAdminUser(user));
 });
 
-app.post('/api/admin/users/:id/license/hwid/reset', (req, res) => {
-  if (!isAdmin(req)) {
-    res.status(403).json({ error: 'admin token requerido' });
-    return;
-  }
-  const user = findUserById(req.params.id);
-  if (!user) {
-    res.status(404).json({ error: 'usuÃ¡rio nÃ£o encontrado' });
-    return;
-  }
-  const updated = resetUserLicenseHwid(user.id);
-  if (!updated) {
-    res.status(500).json({ error: 'falha ao resetar HWID' });
-    return;
-  }
-  auditAdmin(req, 'license.global_hwid_reset', 'user', user.id);
-  addNotification(
-    'HWID global resetado por admin',
-    `HWID global do usuÃ¡rio ${user.email} foi resetado.`,
-    {
-      type: 'manual',
-      priority: 'high',
-      source: 'admin_hwid_reset',
-      metadata: { userId: user.id }
-    }
-  );
-  res.json({ ok: true, userId: user.id });
-});
+app.post('/api/admin/users/:id/license/hwid/reset', (_req, res) =>
+  res.status(410).json({ code: 'USE_INSTALLATION_RECOVERY' }));
 
 function mapAdminUserPluginAssignment(purchase: any) {
   const plugin = getPluginDetail(Number(purchase.pluginId));
@@ -3538,7 +2999,7 @@ function mapAdminUserPluginAssignment(purchase: any) {
     pluginId: Number(purchase.pluginId),
     pluginName: plugin?.name || `Plugin #${purchase.pluginId}`,
     status: purchase.status,
-    licenseKey: purchase.licenseKey ? `••••${String(purchase.licenseKey).slice(-4)}` : null,
+    licenseKey: null,
     grantSource: purchase.grantSource || 'payment',
     createdISO: purchase.createdISO,
     updatedISO: purchase.updatedISO
@@ -3952,7 +3413,7 @@ app.get('/api/admin/integrations', (req, res) => {
     res.status(403).json({ error: 'admin token requerido' });
     return;
   }
-  res.json(integrationConfig);
+  res.json({ ...integrationConfig, pluginAuthEndpoint: `${integrationConfig.panelBaseUrl}/v3/installations/check` });
 });
 
 app.put('/api/admin/integrations', (req, res) => {
@@ -3963,7 +3424,7 @@ app.put('/api/admin/integrations', (req, res) => {
   const body = req.body ?? {};
   const newConfig = { ...integrationConfig };
   if (typeof body.panelBaseUrl === 'string') newConfig.panelBaseUrl = body.panelBaseUrl.trim();
-  if (typeof body.pluginAuthEndpoint === 'string') newConfig.pluginAuthEndpoint = body.pluginAuthEndpoint.trim();
+  newConfig.pluginAuthEndpoint = `${newConfig.panelBaseUrl}/v3/installations/check`;
   if (typeof body.docsBaseUrl === 'string') newConfig.docsBaseUrl = body.docsBaseUrl.trim();
   
   saveIntegrationConfig(newConfig);
@@ -3978,7 +3439,7 @@ app.get('/api/admin/purchases', (req, res) => {
   }
   res.json({ items: listAllPurchases().map(purchase => ({
     ...purchase,
-    licenseKey: purchase.licenseKey ? `••••${purchase.licenseKey.slice(-4)}` : null
+    licenseKey: null
   })) });
 });
 
@@ -4007,41 +3468,9 @@ app.get('/api/admin/orders', (req, res) => {
   }) });
 });
 
-app.put('/api/admin/purchases/:id', async (req, res) => {
-  if (!isAdmin(req)) {
-    res.status(403).json({ error: 'admin token requerido' });
-    return;
-  }
-  const id = req.params.id;
-  const body = req.body ?? {};
-  if (Object.keys(body).some(key => !['allowedIp', 'resetHwid'].includes(key)) ||
-      (body.allowedIp !== undefined && body.allowedIp !== null && typeof body.allowedIp !== 'string') ||
-      (body.resetHwid !== undefined && typeof body.resetHwid !== 'boolean')) {
-    res.status(400).json({ error: 'Somente IP autorizado e reset de HWID podem ser alterados aqui.' });
-    return;
-  }
-  if (typeof body.allowedIp === 'string' && body.allowedIp.trim() && !net.isIP(body.allowedIp.trim())) {
-    return res.status(400).json({ error: 'Informe um endereço IPv4 ou IPv6 válido.' });
-  }
-  if (typeof body.allowedIp === 'string') body.allowedIp = body.allowedIp.trim() || null;
-  
-  const purchase = updatePurchaseAdmin(id, body);
-  if (!purchase) {
-    res.status(404).json({ error: 'compra não encontrada' });
-    return;
-  }
-
-  if (body.allowedIp !== undefined || body.resetHwid) {
-    addNotification('Instalação de licença atualizada',
-      `Vínculo da licença ${purchase.id} atualizado por um administrador.`, {
-        type: 'sale', priority: 'high', source: 'admin_license_installation_update',
-        metadata: { purchaseId: purchase.id, userId: purchase.userId, resetHwid: body.resetHwid === true }
-      });
-  }
-  auditAdmin(req, 'license.installation_update', 'purchase', purchase.id, {
-    allowedIpChanged: body.allowedIp !== undefined, resetHwid: body.resetHwid === true
-  });
-  res.json({ ok: true, purchase: { ...purchase, licenseKey: purchase.licenseKey ? `••••${purchase.licenseKey.slice(-4)}` : null } });
+app.put('/api/admin/purchases/:id', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'admin token requerido' });
+  res.status(410).json({ code: 'USE_INSTALLATION_MANAGEMENT', error: 'Gerencie IP e vínculo em Licenças e instalações.' });
 });
 
 app.put('/api/admin/status/:id', (req, res) => {

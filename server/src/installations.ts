@@ -167,7 +167,10 @@ export function transferInstallation(serverId: string, targetUserId: string, act
 }
 
 export function migrateMatchingLegacyPurchases(userId: string, serverId: string, installationId: string) {
-  const rows = db.prepare("SELECT DISTINCT pluginId FROM purchases WHERE userId = ? AND hwid = ? AND status = 'approved'").all(userId, installationId) as Array<{ pluginId: number }>;
+  const rows = db.prepare(`
+    SELECT DISTINCT p.pluginId FROM purchases p JOIN users u ON u.id = p.userId
+    WHERE p.userId = ? AND p.status = 'approved' AND (p.hwid = ? OR u.licenseHwid = ?)
+  `).all(userId, installationId, installationId) as Array<{ pluginId: number }>;
   for (const row of rows) {
     if (assignProductWithLimit(userId, serverId, Number(row.pluginId)))
       logInstallationEvent(serverId, 'legacy.purchase_migrated', userId, 'Vínculo antigo reconhecido', { pluginId: Number(row.pluginId) });

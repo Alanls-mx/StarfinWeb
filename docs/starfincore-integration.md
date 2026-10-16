@@ -5,7 +5,7 @@ O contrato autoritativo é o PostgreSQL da StarfinWeb. Uma compra aprovada ou um
 ## Ativação
 
 1. Na Minha Conta, crie uma instalação.
-2. No Minecraft, execute `/starfincore ativar` como operador. O Core gera `installation.id` e `installation.credential` locais e envia a credencial por HTTPS; a StarfinWeb armazena somente seu hash. A API responde com um código temporário de uso único, válido por dez minutos.
+2. No Minecraft, execute `/starfincore ativar` como operador. O Core guarda a identidade e a credencial nos arquivos internos e envia a credencial por HTTPS; a StarfinWeb armazena somente seu hash. A API responde com um código temporário de uso único, válido por dez minutos.
 3. O proprietário autenticado informa o código na instalação cadastrada em `/account/servers`.
 4. O Core passa a usar `Authorization: Installation <credential>` e seu UUID persistente. A credencial não é a chave da conta, nem a chave de compra.
 
@@ -23,6 +23,6 @@ O IP observado vem do socket ou de um proxy explicitamente confiável. O site mo
 
 ## Migração legada
 
-`POST /v1/license/check` permanece para instalações previamente vinculadas por HWID. Novos vínculos por chave global, chave de servidor ou chave de compra são rejeitados com `ACTIVATION_REQUIRED`. Na confirmação de um novo vínculo, compras legadas com HWID exatamente igual ao UUID do Core são atribuídas à instalação quando houver vaga. Vínculos divergentes podem ser recuperados por código autenticado e atribuição autorizada pelo proprietário, sem apagar os registros históricos.
+As rotas antigas `/v1/license/check` e `/api/plugin-auth/verify` respondem `410` e não concedem produtos. Chaves globais, chaves de servidor e chaves de compra existentes permanecem apenas como histórico. Novas contas, compras e instalações não recebem essas chaves. Na confirmação do novo vínculo, compras legadas com HWID exatamente igual ao UUID do Core são atribuídas à instalação quando houver vaga. Vínculos divergentes podem ser recuperados por código autenticado e atribuição autorizada pelo proprietário, sem apagar os registros históricos.
 
 O painel administrativo mostra instalações por cliente, consumo, IPs e histórico. Transferência administrativa exige motivo, revoga a credencial e remove atribuições do proprietário anterior. Concessões comerciais continuam separadas do pedido e auditadas; a transferência nunca concede produtos ao novo proprietário.

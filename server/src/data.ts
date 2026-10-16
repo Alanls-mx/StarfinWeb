@@ -1066,7 +1066,7 @@ const hasDocs = sqlite.prepare('SELECT COUNT(*) as count FROM docs').get() as { 
 if (demoCatalogEnabled && hasDocs.count === 0) {
   const defaults = [
     { id: 'getting-started', title: 'Começando', body: 'Instale o plugin, gere sua chave de API no painel e valide a licença via endpoint.', updatedISO: new Date().toISOString() },
-    { id: 'api', title: 'API', body: 'Use /api/plugin-auth/verify para validar apiKey + licenseKey do usuário.', updatedISO: new Date().toISOString() }
+    { id: 'api', title: 'API', body: 'O StarfinCore usa /v3/installations/challenge para ativação e /v3/installations/check para validação por instalação. Vincule a instalação e atribua os produtos no painel.', updatedISO: new Date().toISOString() }
   ];
   for (const d of defaults) {
     sqlite.prepare('INSERT INTO docs (id, title, body, updatedISO) VALUES (?, ?, ?, ?)').run(d.id, d.title, d.body, d.updatedISO);
@@ -1980,7 +1980,7 @@ export const smtpConfig: SmtpConfig = {
 
 export const integrationConfig: IntegrationConfig = {
   panelBaseUrl: process.env.NODE_ENV === 'production' ? 'https://starfinplugins.com.br' : 'http://localhost:5173',
-  pluginAuthEndpoint: process.env.NODE_ENV === 'production' ? 'https://api.starfinplugins.com.br/api/plugin-auth/verify' : 'http://localhost:3001/api/plugin-auth/verify',
+  pluginAuthEndpoint: process.env.NODE_ENV === 'production' ? 'https://starfinplugins.com.br/v3/installations/check' : 'http://localhost:3001/v3/installations/check',
   docsBaseUrl: process.env.NODE_ENV === 'production' ? 'https://starfinplugins.com.br/docs' : 'http://localhost:5173/docs'
 };
 
@@ -2453,7 +2453,7 @@ export function createUserAdmin(data: Partial<AccountUser> & { password?: string
     securityAlerts: true
   });
 
-  const licenseKey = `LIC-${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
+  const licenseKey = null;
   const banned = data.banned ? 1 : 0;
 
   sqlite.prepare(`
@@ -2658,10 +2658,7 @@ export function updatePurchaseStatus(id: string, status: PurchaseStatus) {
   const p = sqlite.prepare('SELECT * FROM purchases WHERE id = ?').get(id) as Purchase | undefined;
   if (!p) return null;
   
-  let licenseKey = p.licenseKey;
-  if (status === 'approved' && !licenseKey) {
-    licenseKey = `LIC-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
-  }
+  const licenseKey = p.licenseKey;
   
   const updatedISO = new Date().toISOString();
   sqlite.prepare('UPDATE purchases SET status = ?, licenseKey = ?, updatedISO = ? WHERE id = ?').run(
@@ -2728,7 +2725,7 @@ export interface ServerRecord {
   id: string;
   userId: string;
   name: string;
-  licenseKey: string;
+  licenseKey: string | null;
   ips: string[];
   createdISO: string;
   installationId?: string | null;
@@ -2742,12 +2739,11 @@ export interface ServerRecord {
 
 export function createServer(userId: string, name: string, ips: string[] = []) {
   const id = `srv_${crypto.randomUUID()}`;
-  const licenseKey = `SRV-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
   const createdISO = new Date().toISOString();
   sqlite.prepare(`
     INSERT INTO servers (id, userId, name, licenseKey, ips, createdISO)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, userId, name, licenseKey, JSON.stringify(ips.slice(0, 3)), createdISO);
+  `).run(id, userId, name, null, JSON.stringify(ips.slice(0, 3)), createdISO);
   return findServerById(id);
 }
 
@@ -2806,11 +2802,8 @@ export function listPluginsForServer(serverId: string): number[] {
 }
 
 export function getLicensesForUser(userId: string): PurchasedPlugin[] {
-  const user = findUserById(userId);
-  const globalKey = user?.licenseKey || '';
-  
   const base = demoCatalogEnabled && userId === demoUser.id
-    ? purchasedPlugins.slice().map((p) => ({ ...p, licenseKey: p.licenseKey || globalKey }))
+    ? purchasedPlugins.slice().map((p) => ({ ...p, licenseKey: '' }))
     : [];
   
   const rows = sqlite.prepare("SELECT * FROM purchases WHERE userId = ? AND status = 'approved'").all(userId) as any[];
@@ -2823,7 +2816,7 @@ export function getLicensesForUser(userId: string): PurchasedPlugin[] {
       name: plugin?.name ?? `Plugin ${p.pluginId}`,
       version: plugin?.version ?? '1.0.0',
       purchaseDateISO: p.updatedISO,
-      licenseKey: p.licenseKey || globalKey,
+      licenseKey: '',
       status: 'Ativo' as const
     };
   });

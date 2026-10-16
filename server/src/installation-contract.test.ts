@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { test } from 'node:test';
 import { app } from './index.js';
-import { createPlugin, createPurchase, createSession, createUser, updatePurchaseStatus } from './data.js';
+import { createPlugin, createPurchase, createSession, createUser, updatePurchaseStatus, updateUserAdmin } from './data.js';
 import { transferInstallation } from './installations.js';
 
 test('installation activation, identity, purchased quantity, observed IP and revocation', async () => {
@@ -100,6 +100,21 @@ test('installation activation, identity, purchased quantity, observed IP and rev
     const recipientServers = (await recipientView.json() as { items: any[] }).items;
     assert.deepEqual(recipientServers.find(item => item.id === winner).plugins, []);
     assert.equal(recipientServers.find(item => item.id === winner).linked, false);
+    const legacyOwner = createUser({ name: 'Migração de identidade', email: `legacy-core-${Date.now()}@example.invalid`, password: 'test-only-password' });
+    assert.ok(legacyOwner);
+    const legacyPurchase = createPurchase(legacyOwner.id, plugin.id);
+    updatePurchaseStatus(legacyPurchase.id, 'approved');
+    const legacyInstallationId = crypto.randomUUID();
+    const legacyCredential = crypto.randomBytes(32).toString('base64url');
+    updateUserAdmin(legacyOwner.id, { licenseHwid: legacyInstallationId });
+    const legacyToken = createSession(legacyOwner.id, 'user').token;
+    const legacyServer = await post('/api/users/me/servers', { name: 'Servidor legado', ips: [] }, `Bearer ${legacyToken}`);
+    const legacyServerId = (await legacyServer.json() as { id: string }).id;
+    const legacyChallenge = await post('/v3/installations/challenge', { installationId: legacyInstallationId, credential: legacyCredential, name: 'Servidor legado', platform: 'Bukkit', coreVersion: '0.3.0' });
+    const legacyCode = (await legacyChallenge.json() as { code: string }).code;
+    assert.equal((await post(`/api/users/me/servers/${legacyServerId}/claim`, { code: legacyCode }, `Bearer ${legacyToken}`)).status, 200);
+    const migrated = await post('/v3/installations/check', { installationId: legacyInstallationId }, `Installation ${legacyCredential}`);
+    assert.deepEqual((await migrated.json() as { allowedProductIds: string[] }).allowedProductIds, ['core_test']);
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }

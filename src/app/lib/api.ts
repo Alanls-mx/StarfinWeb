@@ -885,6 +885,7 @@ export function adminSaveIntegrations(token: string, input: Partial<IntegrationC
 export interface AdminPurchase extends Purchase {
   hwid: string | null;
   allowedIp: string | null;
+  grantSource?: 'payment' | 'admin_grant';
 }
 
 export function adminListPurchases(token: string) {

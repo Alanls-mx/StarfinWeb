@@ -60,10 +60,10 @@ export function AdminIntegrationsPage() {
               />
             </label>
             <label className="text-sm text-gray-400">
-              Endpoint de autenticação do plugin
+              Endpoint único de autorização do StarfinCore
               <input
                 value={cfg.pluginAuthEndpoint}
-                onChange={(e) => setCfg({ ...cfg, pluginAuthEndpoint: e.target.value })}
+                readOnly
                 className="mt-2 w-full px-4 py-3 bg-[#0B1715]/60 border border-[#177F58]/20 rounded-lg text-white"
               />
             </label>

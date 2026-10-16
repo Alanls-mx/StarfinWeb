@@ -336,7 +336,7 @@ export function Dashboard() {
           <div className="flex flex-wrap items-center justify-between gap-5">
             <div>
               <h2 className="text-xl font-semibold">Licenças e acesso</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Consulte sua chave principal, os produtos autorizados e o IP global.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Consulte seus produtos e gerencie as ativações por instalação.</p>
             </div>
             <Link to="/account/licenses" className="sf-button-primary">Gerenciar licenças</Link>
           </div>
@@ -954,21 +954,7 @@ export function Dashboard() {
                         </div>
 
                         <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm text-gray-400 mb-2">HWID Vinculado</label>
-                              <div className="flex gap-2">
-                                <code className="flex-1 px-4 py-3 bg-[#0B1715] border border-[#177F58]/20 rounded-xl text-white font-mono text-sm overflow-hidden text-ellipsis">
-                                  {modalData.hwid}
-                                </code>
-                              </div>
-                            </div>
-                            <div>
-                              <div className="mb-2 text-sm text-gray-400">IP desta compra</div>
-                              <code className="block rounded-xl border border-[#177F58]/20 bg-[#0B1715] px-4 py-3 text-sm">{modalData.allowedIp || 'Não definido'}</code>
-                              <Link to="/account/licenses" onClick={() => setActiveModal(null)} className="mt-2 inline-block text-xs text-[#A6F3C8] hover:underline">Gerenciar IP global</Link>
-                            </div>
-                          </div>
+                          <Link to="/account/servers" onClick={() => setActiveModal(null)} className="inline-block text-sm text-[#A6F3C8] hover:underline">Ver instalações, produtos e IPs autorizados →</Link>
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
