@@ -58,6 +58,18 @@ test('releases require active ownership, publication and authenticated download;
     assert.equal((await fetch(`${base}/api/users/me/notifications/read-all`, { method: 'POST', headers: auth(ownerToken) })).status, 200);
     assert.ok(listUserNotifications(owner.id)[0].readISO);
 
+    const customHome = {
+      heroEyebrow: 'Minecraft profissional', heroTitle: 'Meu mundo.', heroAccent: 'Minha conta.',
+      heroDescription: 'Texto editorial aprovado.', accountEyebrow: 'Área do cliente',
+      accountTitle: 'Controle seus plugins.', accountDescription: 'Licenças, pedidos e servidores organizados.'
+    };
+    const saveHome = await fetch(`${base}/api/admin/settings`, { method: 'POST', headers: { ...auth(adminToken), 'content-type': 'application/json' }, body: JSON.stringify({ homeContent: customHome }) });
+    assert.equal(saveHome.status, 200);
+    const publicSettings = await fetch(`${base}/api/public/settings`);
+    assert.deepEqual((await publicSettings.json() as any).homeContent, customHome);
+    const invalidHome = await fetch(`${base}/api/admin/settings`, { method: 'POST', headers: { ...auth(adminToken), 'content-type': 'application/json' }, body: JSON.stringify({ homeContent: { ...customHome, heroTitle: '' } }) });
+    assert.equal(invalidHome.status, 400);
+
     updatePurchaseStatus(purchase.id, 'cancelled');
     assert.equal((await fetch(`${base}/api/users/me/releases/${release.id}/download`, { headers: auth(ownerToken) })).status, 403);
   } finally {

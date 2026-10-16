@@ -1,7 +1,7 @@
 import { Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminGetSettings, adminSaveSettings, type CareerJob, type TeamMemberProfile } from '../../lib/api';
+import { adminGetSettings, adminSaveSettings, defaultHomeContent, type HomeContent, type CareerJob, type TeamMemberProfile } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 
 function createId(prefix: string) {
@@ -41,6 +41,7 @@ export function AdminContentPage() {
   const [saving, setSaving] = useState(false);
   const [jobs, setJobs] = useState<CareerJob[]>([]);
   const [team, setTeam] = useState<TeamMemberProfile[]>([]);
+  const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
 
   useEffect(() => {
     if (!token) return;
@@ -49,6 +50,7 @@ export function AdminContentPage() {
       .then((settings) => {
         setJobs(settings.careersJobs ?? []);
         setTeam(settings.aboutTeam ?? []);
+        setHomeContent({ ...defaultHomeContent, ...settings.homeContent });
       })
       .catch((error) => {
         console.error(error);
@@ -88,20 +90,25 @@ export function AdminContentPage() {
 
   const handleSave = async () => {
     if (!token) return;
+    if (Object.values(homeContent).some(value => !value.trim())) {
+      toast.error('Preencha todos os textos da homepage.');
+      return;
+    }
     setSaving(true);
     try {
       const nextJobs = normalizeJobs(jobs);
       const nextTeam = normalizeTeam(team);
       await adminSaveSettings(token, {
         careersJobs: nextJobs,
-        aboutTeam: nextTeam
+        aboutTeam: nextTeam,
+        homeContent
       });
       setJobs(nextJobs);
       setTeam(nextTeam);
       toast.success('Conteudo salvo com sucesso.');
     } catch (error) {
       console.error(error);
-      toast.error('Erro ao salvar conteudo.');
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar conteúdo.');
     } finally {
       setSaving(false);
     }
@@ -119,8 +126,26 @@ export function AdminContentPage() {
     <div className="space-y-8 max-w-6xl">
       <div>
         <h1 className="text-3xl font-bold mb-2">Conteudo do Site</h1>
-        <p className="text-gray-400">Edite vagas de carreiras e informacoes da equipe exibidas nas paginas publicas.</p>
+        <p className="text-gray-400">Edite a homepage, vagas e informações da equipe exibidas nas páginas públicas.</p>
       </div>
+
+      <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 space-y-5">
+        <div><h2 className="text-xl font-bold text-white">Homepage</h2><p className="text-sm text-gray-400">Textos principais do destaque inicial e da seção da conta. A imagem voxel e os links permanecem no layout.</p></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {([
+            ['heroEyebrow', 'Chamada acima do título'],
+            ['heroTitle', 'Título principal'],
+            ['heroAccent', 'Título em destaque'],
+            ['heroDescription', 'Descrição principal'],
+            ['accountEyebrow', 'Chamada da seção da conta'],
+            ['accountTitle', 'Título da seção da conta'],
+            ['accountDescription', 'Descrição da seção da conta']
+          ] as Array<[keyof HomeContent, string]>).map(([key, label]) => <label key={key} className={`block text-sm text-gray-300 ${key.endsWith('Description') ? 'md:col-span-2' : ''}`}>
+            {label}
+            {key.endsWith('Description') ? <textarea value={homeContent[key]} maxLength={400} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 min-h-24 w-full rounded-xl border border-[#177F58]/20 bg-[#0B1715] px-4 py-3 text-white" /> : <input value={homeContent[key]} maxLength={100} onChange={event => setHomeContent(current => ({ ...current, [key]: event.target.value }))} className="mt-2 w-full rounded-xl border border-[#177F58]/20 bg-[#0B1715] px-4 py-3 text-white" />}
+          </label>)}
+        </div>
+      </section>
 
       <section className="bg-[#172822]/40 border border-[#177F58]/10 rounded-2xl p-8 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-6">

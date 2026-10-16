@@ -7,6 +7,7 @@
 - A caixa pessoal agora persiste mensagens por destinatário, permite marcar como lidas e separa esses dados das notificações globais do painel. O administrador pode enviar uma mensagem ao ID de um cliente e a ação fica na auditoria.
 - Um teste HTTP novo cobre ausência de sessão, ausência/revogação de licença, rascunho, publicação, bytes do download e isolamento das notificações.
 - SMTP e Mercado Pago continuam aguardando configuração manual do proprietário. Pagamentos e e-mails reais seguem sem homologação.
+- O CMS do painel também passou a editar os textos principais do hero e da seção da conta na homepage. O conteúdo é validado, persistido nas configurações e publicado pela API; imagem e links permanecem no layout. O teste HTTP cobre gravação, leitura pública e rejeição de texto vazio.
 
 ## Atualização visual de 15/10/2026
 

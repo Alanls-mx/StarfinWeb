@@ -1,18 +1,19 @@
 import { ArrowRight, BookOpen, Check, Layers3, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
+import { defaultHomeContent, type HomeContent } from '../lib/api';
 
-export function Hero() {
+export function Hero({ content = defaultHomeContent }: { content?: HomeContent }) {
   return (
     <section className="relative overflow-hidden border-b border-[#244438] bg-[#0b1715] pt-30 pb-10 sm:pt-36 sm:pb-14">
       <div aria-hidden="true" className="sf-grid pointer-events-none absolute inset-0 opacity-70 [mask-image:linear-gradient(to_right,transparent,#000)]" />
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[1.03fr_.97fr] lg:gap-16">
         <div className="max-w-2xl">
-          <p className="sf-eyebrow mb-6 inline-flex items-center gap-3"><span className="h-2.5 w-2.5 rotate-45 bg-[#85ed65]" /> Software para servidores Minecraft</p>
+          <p className="sf-eyebrow mb-6 inline-flex items-center gap-3"><span className="h-2.5 w-2.5 rotate-45 bg-[#85ed65]" /> {content.heroEyebrow}</p>
           <h1 className="text-[clamp(3.15rem,6.4vw,6.8rem)] font-extrabold leading-[.99] tracking-[-.075em] text-white">
-            Seu mundo.<br /><span className="text-[#85ed65]">Seu controle.</span>
+            {content.heroTitle}<br /><span className="text-[#85ed65]">{content.heroAccent}</span>
           </h1>
           <p className="mt-7 max-w-xl text-base leading-8 text-[#c4d9ce] sm:text-lg">
-            Plugins próprios, licenças organizadas e ferramentas para quem leva a experiência do servidor a sério.
+            {content.heroDescription}
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <Link to="/plugins" className="sf-button-primary">Explorar plugins <ArrowRight size={18} /></Link>

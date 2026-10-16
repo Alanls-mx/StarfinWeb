@@ -1,7 +1,8 @@
 import { ArrowRight, BookOpen, KeyRound, Server, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
+import { defaultHomeContent, type HomeContent } from '../lib/api';
 
-export function FeatureStories() {
+export function FeatureStories({ content = defaultHomeContent }: { content?: HomeContent }) {
   return (
     <div>
       <section className="bg-[#f4f8ef] px-5 py-20 text-[#12251d] sm:px-8 sm:py-26">
@@ -13,9 +14,9 @@ export function FeatureStories() {
             <span className="absolute bottom-5 left-5 rounded-lg bg-[#10362d] px-3 py-2 text-xs font-bold text-white">Licenças + instalações</span>
           </div>
           <div className="order-1 lg:order-2">
-            <p className="sf-eyebrow !text-[#14775a]">Mais controle, menos confusão</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-.055em] sm:text-5xl">Tudo o que é seu, em um só lugar.</h2>
-            <p className="mt-6 max-w-xl text-base leading-8 text-[#455e51]">A área da conta reúne suas licenças, plugins, servidores e pedidos. Encontre o que precisa sem procurar em mensagens antigas.</p>
+            <p className="sf-eyebrow !text-[#14775a]">{content.accountEyebrow}</p>
+            <h2 className="mt-4 max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-.055em] sm:text-5xl">{content.accountTitle}</h2>
+            <p className="mt-6 max-w-xl text-base leading-8 text-[#455e51]">{content.accountDescription}</p>
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
               <li className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold"><KeyRound size={19} className="text-[#159965]" /> Consulte suas licenças</li>
               <li className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold"><Server size={19} className="text-[#159965]" /> Organize servidores</li>

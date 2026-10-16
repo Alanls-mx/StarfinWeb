@@ -1527,6 +1527,26 @@ export interface TeamMemberSetting {
   skills: string[];
 }
 
+export interface HomeContentSetting {
+  heroEyebrow: string;
+  heroTitle: string;
+  heroAccent: string;
+  heroDescription: string;
+  accountEyebrow: string;
+  accountTitle: string;
+  accountDescription: string;
+}
+
+export const defaultHomeContent: HomeContentSetting = {
+  heroEyebrow: 'Software para servidores Minecraft',
+  heroTitle: 'Seu mundo.',
+  heroAccent: 'Seu controle.',
+  heroDescription: 'Plugins próprios, licenças organizadas e ferramentas para quem leva a experiência do servidor a sério.',
+  accountEyebrow: 'Mais controle, menos confusão',
+  accountTitle: 'Tudo o que é seu, em um só lugar.',
+  accountDescription: 'A área da conta reúne suas licenças, plugins, servidores e pedidos. Encontre o que precisa sem procurar em mensagens antigas.'
+};
+
 export type AdminSettings = {
   siteName: string;
   logoUrl: string;
@@ -1548,6 +1568,7 @@ export type AdminSettings = {
   mercadopagoWebhookUrl: string;
   careersJobs: CareerJobSetting[];
   aboutTeam: TeamMemberSetting[];
+  homeContent: HomeContentSetting;
 };
 
 const defaultAdminSettings: AdminSettings = {
@@ -1570,7 +1591,8 @@ const defaultAdminSettings: AdminSettings = {
   mercadopagoPublicKey: '',
   mercadopagoWebhookUrl: '',
   careersJobs: [],
-  aboutTeam: []
+  aboutTeam: [],
+  homeContent: defaultHomeContent
 };
 
 export function getAdminSettings() {
@@ -1578,7 +1600,7 @@ export function getAdminSettings() {
   if (!row?.value) return { ...defaultAdminSettings };
   try {
     const parsed = JSON.parse(row.value);
-    return { ...defaultAdminSettings, ...parsed } as AdminSettings;
+    return { ...defaultAdminSettings, ...parsed, homeContent: { ...defaultHomeContent, ...(parsed.homeContent || {}) } } as AdminSettings;
   } catch {
     return { ...defaultAdminSettings };
   }
