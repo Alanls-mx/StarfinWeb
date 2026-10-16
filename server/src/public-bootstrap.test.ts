@@ -19,7 +19,7 @@ test('published CMS and identity are present in initial HTML without a later vis
     const base = `http://127.0.0.1:${address.port}`;
     const body = { siteName: 'Starfin Teste', siteDescription: 'Metadados publicados com segurança.', institutionalContent: { ...defaultInstitutionalContent, aboutTitle: 'Sobre a equipe de teste' }, faqItems: [{ id: 'ci-question', category: 'Teste', question: 'Pergunta de teste?', answer: 'Resposta persistida no banco.' }], homeContent: {
       heroEyebrow: 'Minecraft', heroTitle: 'Mundo de teste.', heroAccent: 'Painel de teste.',
-      heroDescription: 'Conteúdo persistido no CMS.', accountTitle: 'Sua conta de teste.', accountDescription: 'Licenças e servidores.'
+      heroDescription: 'Conteúdo persistido no CMS.', accountTitle: 'Sua conta de teste.', accountDescription: 'Licenças e servidores.', projectCtaHref: ''
     } };
     const headers = (token: string) => ({ authorization: `Bearer ${token}`, 'content-type': 'application/json' });
     assert.equal((await fetch(`${base}/api/admin/settings`, { method: 'POST', headers: headers(customerToken), body: JSON.stringify(body) })).status, 403);

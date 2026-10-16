@@ -2994,7 +2994,7 @@ app.post('/api/admin/settings', (req, res) => {
         images.some(key => body.homeContent[key] !== undefined && body.homeContent[key] !== '' && (typeof body.homeContent[key] !== 'string' || !/^\/uploads\/[a-f0-9-]+\.(?:png|jpg|webp|gif)$/.test(body.homeContent[key]))) ||
         labels.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || body.homeContent[key].length > 100)) ||
         text.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || body.homeContent[key].length > 500)) ||
-        links.some(key => body.homeContent[key] !== undefined && (typeof body.homeContent[key] !== 'string' || !/^\/(?:[a-z0-9/-]*)$/.test(body.homeContent[key])))) {
+        links.some(key => body.homeContent[key] !== undefined && body.homeContent[key] !== '' && (typeof body.homeContent[key] !== 'string' || !/^\/(?:[a-z0-9/-]*)$/.test(body.homeContent[key])))) {
       return res.status(400).json({ error: 'conteúdo da homepage inválido' });
     }
     body.homeContent = Object.fromEntries([...fields, ...images, ...labels, ...text, ...links].filter(key => body.homeContent[key] !== undefined).map(key => [key, body.homeContent[key].trim()]));
